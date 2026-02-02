@@ -41,6 +41,10 @@ export class SkillsPage {
     this.store.incrementSkillLevel(skillId);
   }
 
+  protected decrementSkill(skillId: string): void {
+    this.store.incrementSkillLevel(skillId, -1);
+  }
+
   protected setCategory(category: string): void {
     this.selectedCategory.set(category);
   }
@@ -51,5 +55,17 @@ export class SkillsPage {
     }
     const map = this.skillNameById();
     return skill.deps.map((id) => map.get(id) ?? id).join(', ');
+  }
+
+  protected canIncrease(skillId: string): boolean {
+    return this.store.canIncreaseSkill(skillId);
+  }
+
+  protected canDecrease(skillId: string): boolean {
+    return this.store.canDecreaseSkill(skillId);
+  }
+
+  protected increaseBlockReason(skillId: string): string | null {
+    return this.store.getIncreaseBlockReason(skillId);
   }
 }

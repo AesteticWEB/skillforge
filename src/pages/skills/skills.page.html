@@ -42,9 +42,31 @@
                 {{ skill.category }} · Level {{ skill.level }} / {{ skill.maxLevel }}
               </div>
             </div>
-            <sf-button variant="ghost" (click)="incrementSkill(skill.id)">Level up</sf-button>
+            <div class="flex items-center gap-2">
+              <sf-button
+                variant="ghost"
+                type="button"
+                [disabled]="!canDecrease(skill.id)"
+                (click)="decrementSkill(skill.id)"
+              >
+                -
+              </sf-button>
+              <sf-button
+                variant="ghost"
+                type="button"
+                [disabled]="!canIncrease(skill.id)"
+                (click)="incrementSkill(skill.id)"
+              >
+                +
+              </sf-button>
+            </div>
           </div>
           <div class="mt-3 text-xs text-slate-400">Deps: {{ formatDeps(skill) }}</div>
+          @if (!canIncrease(skill.id)) {
+            <div class="mt-2 text-xs text-amber-200">
+              Blocked: {{ increaseBlockReason(skill.id) }}
+            </div>
+          }
         </sf-card>
       } @empty {
         <div class="text-sm text-slate-400">No skills in this category yet.</div>

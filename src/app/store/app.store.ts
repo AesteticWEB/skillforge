@@ -103,6 +103,63 @@ export class AppStore {
   }
 
   incrementSkillLevel(skillId: string, delta = 1): void {
+    this.changeSkillLevel(skillId, delta);
+  }
+
+  canIncreaseSkill(skillId: string): boolean {
+    return this.getIncreaseBlockReason(skillId) === null;
+  }
+
+  canDecreaseSkill(skillId: string): boolean {
+    return this.getDecreaseBlockReason(skillId) === null;
+  }
+
+  getIncreaseBlockReason(skillId: string): string | null {
+    const skill = this.getSkillById(skillId);
+    if (!skill) {
+      return 'Skill not found';
+    }
+    if (skill.level >= skill.maxLevel) {
+      return 'Already at max level';
+    }
+    const missing = this.getMissingDependencies(skill);
+    if (missing.length > 0) {
+      return `Unlock deps first: ${missing.join(', ')}`;
+    }
+    return null;
+  }
+
+  getDecreaseBlockReason(skillId: string): string | null {
+    const skill = this.getSkillById(skillId);
+    if (!skill) {
+      return 'Skill not found';
+    }
+    if (skill.level <= 0) {
+      return 'Already at minimum level';
+    }
+    return null;
+  }
+
+  recordDecision(scenarioId: string, decisionId: string): void {
+    const entry = {
+      scenarioId,
+      decisionId,
+      decidedAt: new Date().toISOString(),
+    };
+
+    this._progress.update((progress) => ({
+      ...progress,
+      decisionHistory: [...progress.decisionHistory, entry],
+    }));
+  }
+
+  private changeSkillLevel(skillId: string, delta: number): void {
+    const reason =
+      delta >= 0 ? this.getIncreaseBlockReason(skillId) : this.getDecreaseBlockReason(skillId);
+    if (reason) {
+      return;
+    }
+
     let nextLevel = 0;
 
     this._skills.update((skills) =>
@@ -127,17 +184,27 @@ export class AppStore {
     }));
   }
 
-  recordDecision(scenarioId: string, decisionId: string): void {
-    const entry = {
-      scenarioId,
-      decisionId,
-      decidedAt: new Date().toISOString(),
-    };
+  private getSkillById(skillId: string): Skill | undefined {
+    return this._skills().find((skill) => skill.id === skillId);
+  }
 
-    this._progress.update((progress) => ({
-      ...progress,
-      decisionHistory: [...progress.decisionHistory, entry],
-    }));
+  private getMissingDependencies(skill: Skill): string[] {
+    if (skill.deps.length === 0) {
+      return [];
+    }
+
+    const skillsById = new Map(this._skills().map((item) => [item.id, item]));
+    const missing: string[] = [];
+
+    for (const depId of skill.deps) {
+      const dependency = skillsById.get(depId);
+      const isSatisfied = dependency && dependency.level > 0;
+      if (!isSatisfied) {
+        missing.push(dependency?.name ?? depId);
+      }
+    }
+
+    return missing;
   }
 
   private mergeSkillLevels(skills: Skill[], persisted: Record<string, number>): Record<string, number> {
