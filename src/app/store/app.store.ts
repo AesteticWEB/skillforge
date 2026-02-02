@@ -70,6 +70,38 @@ export class AppStore {
     this._user.set(user);
   }
 
+  createProfile(role: string, goal: string, selectedSkillIds: string[]): void {
+    const startDate = new Date().toISOString().slice(0, 10);
+    const normalizedRole = role.trim();
+    const normalizedGoal = goal.trim();
+    const selected = new Set(selectedSkillIds);
+
+    this._user.set({
+      role: normalizedRole.length > 0 ? normalizedRole : 'Unassigned',
+      goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
+      startDate,
+    });
+
+    const updatedSkills = this._skills().map((skill) => {
+      const level = selected.has(skill.id) ? 1 : 0;
+      return {
+        ...skill,
+        level: this.clampLevel(level, skill.maxLevel),
+      };
+    });
+
+    const skillLevels = updatedSkills.reduce<Record<string, number>>((acc, skill) => {
+      acc[skill.id] = skill.level;
+      return acc;
+    }, {});
+
+    this._skills.set(updatedSkills);
+    this._progress.set({
+      skillLevels,
+      decisionHistory: [],
+    });
+  }
+
   incrementSkillLevel(skillId: string, delta = 1): void {
     let nextLevel = 0;
 

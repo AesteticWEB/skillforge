@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
   selector: 'sf-input',
@@ -12,4 +12,10 @@ export class InputComponent {
   @Input() name?: string;
   @Input() id?: string;
   @Input() value?: string;
+  @Output() valueChange = new EventEmitter<string>();
+
+  protected onInput(event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    this.valueChange.emit(target?.value ?? '');
+  }
 }
