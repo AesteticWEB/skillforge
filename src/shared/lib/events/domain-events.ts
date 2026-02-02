@@ -17,9 +17,11 @@ export type SkillUpgradedEvent = DomainEventBase<
   'SkillUpgraded',
   {
     skillId: string;
+    skillName?: string;
     previousLevel: number;
     level: number;
     maxLevel: number;
+    cost?: number | null;
   }
 >;
 
@@ -51,7 +53,9 @@ export const createSkillUpgradedEvent = (
   previousLevel: number,
   level: number,
   maxLevel: number,
-): SkillUpgradedEvent => createEvent('SkillUpgraded', { skillId, previousLevel, level, maxLevel });
+  meta: { skillName?: string; cost?: number | null } = {},
+): SkillUpgradedEvent =>
+  createEvent('SkillUpgraded', { skillId, previousLevel, level, maxLevel, ...meta });
 
 export const createScenarioCompletedEvent = (
   scenarioId: string,

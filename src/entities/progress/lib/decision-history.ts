@@ -13,6 +13,7 @@ export const createProgressSnapshot = (progress: Progress): ProgressSnapshot => 
   reputation: progress.reputation,
   techDebt: progress.techDebt,
   scenarioOverrides: { ...progress.scenarioOverrides },
+  spentXpOnSkills: progress.spentXpOnSkills,
 });
 
 export const createDecisionEntry = (
@@ -54,6 +55,7 @@ export const undoLastDecision = (skills: Skill[], progress: Progress): UndoDecis
     reputation: lastEntry.snapshot.reputation ?? progress.reputation,
     techDebt: lastEntry.snapshot.techDebt ?? progress.techDebt,
     scenarioOverrides: { ...(lastEntry.snapshot.scenarioOverrides ?? {}) },
+    spentXpOnSkills: lastEntry.snapshot.spentXpOnSkills ?? progress.spentXpOnSkills,
     decisionHistory: nextHistory,
   };
 

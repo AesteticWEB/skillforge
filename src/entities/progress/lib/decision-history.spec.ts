@@ -17,6 +17,7 @@ describe('decision history undo', () => {
       reputation: 1,
       techDebt: 2,
       scenarioOverrides: { 'scenario-2': true },
+      spentXpOnSkills: 0,
     };
 
     const snapshot = createProgressSnapshot(progress);
@@ -30,6 +31,7 @@ describe('decision history undo', () => {
       techDebt: 1,
       scenarioOverrides: { 'scenario-2': false },
       decisionHistory: [historyEntry],
+      spentXpOnSkills: 8,
     };
 
     const result = undoLastDecision(progressedSkills, progressedProgress);

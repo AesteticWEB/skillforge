@@ -18,7 +18,7 @@ import {
   changeSkillLevel,
   clampSkillLevel,
   getDecreaseBlockReason,
-  getIncreaseBlockReason,
+  getSkillUpgradeMeta as resolveSkillUpgradeMeta,
   Skill,
 } from '@/entities/skill';
 import { User } from '@/entities/user';
@@ -80,6 +80,7 @@ const createEmptyProgress = (): Progress => ({
   reputation: 0,
   techDebt: 0,
   scenarioOverrides: {},
+  spentXpOnSkills: 0,
 });
 
 @Injectable({ providedIn: 'root' })
@@ -113,6 +114,10 @@ export class AppStore {
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
   readonly xp = this._xp.asReadonly();
+  readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
+  readonly availableXpForSkills = computed(() =>
+    Math.max(0, this._xp() - this._progress().spentXpOnSkills),
+  );
   readonly skillsError = this._skillsError.asReadonly();
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
@@ -222,7 +227,11 @@ export class AppStore {
 
     this.skillsApi.getSkills().subscribe({
       next: (skills) => {
-        const mergedLevels = this.mergeSkillLevels(skills, this._progress().skillLevels);
+        const mergedLevels = this.mergeSkillLevels(
+          skills,
+          this._progress().skillLevels,
+          !this._auth().isRegistered,
+        );
         const hydratedSkills = skills.map((skill) => ({
           ...skill,
           level: mergedLevels[skill.id],
@@ -348,6 +357,7 @@ export class AppStore {
       reputation: 0,
       techDebt: 0,
       scenarioOverrides: {},
+      spentXpOnSkills: 0,
     });
     this._xp.set(0);
 
@@ -426,7 +436,11 @@ export class AppStore {
     this._xp.set(xp);
 
     if (this._skills().length > 0) {
-      const mergedLevels = this.mergeSkillLevels(this._skills(), progress.skillLevels);
+      const mergedLevels = this.mergeSkillLevels(
+        this._skills(),
+        progress.skillLevels,
+        !this._auth().isRegistered,
+      );
       this._skills.set(
         this._skills().map((skill) => ({
           ...skill,
@@ -505,6 +519,29 @@ export class AppStore {
   incrementSkillLevel(skillId: string, delta = 1): void {
     const beforeSkills = this._skills();
     const previousLevel = beforeSkills.find((skill) => skill.id === skillId)?.level ?? 0;
+    if (delta < 0) {
+      const result = changeSkillLevel(beforeSkills, skillId, delta);
+      if (result.reason || result.nextLevel === null) {
+        return;
+      }
+
+      this._skills.set(result.skills);
+      this._progress.update((progress) => ({
+        ...progress,
+        skillLevels: {
+          ...progress.skillLevels,
+          [skillId]: result.nextLevel ?? progress.skillLevels[skillId] ?? 0,
+        },
+      }));
+      return;
+    }
+
+    const upgradeMeta = this.getSkillUpgradeMeta(skillId);
+    const upgradeCost = upgradeMeta.cost;
+    if (!upgradeMeta.canIncrease || upgradeCost === null) {
+      return;
+    }
+
     const result = changeSkillLevel(beforeSkills, skillId, delta);
     if (result.reason || result.nextLevel === null) {
       return;
@@ -517,18 +554,27 @@ export class AppStore {
         ...progress.skillLevels,
         [skillId]: result.nextLevel ?? progress.skillLevels[skillId] ?? 0,
       },
+      spentXpOnSkills: progress.spentXpOnSkills + upgradeCost,
     }));
 
-    if (delta > 0 && result.nextLevel > previousLevel) {
+    if (result.nextLevel > previousLevel) {
       const maxLevel = result.skills.find((skill) => skill.id === skillId)?.maxLevel ?? 0;
+      const skillName = result.skills.find((skill) => skill.id === skillId)?.name ?? skillId;
       this.eventBus.publish(
-        createSkillUpgradedEvent(skillId, previousLevel, result.nextLevel, maxLevel),
+        createSkillUpgradedEvent(skillId, previousLevel, result.nextLevel, maxLevel, {
+          skillName,
+          cost: upgradeCost,
+        }),
       );
     }
   }
 
+  getSkillUpgradeMeta(skillId: string) {
+    return resolveSkillUpgradeMeta(this._skills(), skillId, this.availableXpForSkills());
+  }
+
   canIncreaseSkill(skillId: string): boolean {
-    return getIncreaseBlockReason(this._skills(), skillId) === null;
+    return this.getSkillUpgradeMeta(skillId).canIncrease;
   }
 
   canDecreaseSkill(skillId: string): boolean {
@@ -536,7 +582,7 @@ export class AppStore {
   }
 
   getIncreaseBlockReason(skillId: string): string | null {
-    return getIncreaseBlockReason(this._skills(), skillId);
+    return this.getSkillUpgradeMeta(skillId).reason;
   }
 
   getDecreaseBlockReason(skillId: string): string | null {
@@ -565,7 +611,10 @@ export class AppStore {
       const previousLevel = beforeById.get(skill.id)?.level ?? 0;
       if (skill.level > previousLevel) {
         this.eventBus.publish(
-          createSkillUpgradedEvent(skill.id, previousLevel, skill.level, skill.maxLevel),
+          createSkillUpgradedEvent(skill.id, previousLevel, skill.level, skill.maxLevel, {
+            skillName: skill.name,
+            cost: null,
+          }),
         );
       }
     }
@@ -574,11 +623,12 @@ export class AppStore {
   private mergeSkillLevels(
     skills: Skill[],
     persisted: Record<string, number>,
+    useSkillDefaults: boolean,
   ): Record<string, number> {
     const merged: Record<string, number> = {};
 
     for (const skill of skills) {
-      const level = persisted[skill.id] ?? skill.level;
+      const level = persisted[skill.id] ?? (useSkillDefaults ? skill.level : 0);
       merged[skill.id] = clampSkillLevel(level, skill.maxLevel);
     }
 
@@ -711,6 +761,7 @@ export class AppStore {
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
       scenarioOverrides: progress.scenarioOverrides ?? {},
+      spentXpOnSkills: progress.spentXpOnSkills ?? 0,
     };
   }
 
@@ -758,11 +809,15 @@ export class AppStore {
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
+    const spentXpOnSkills = value['spentXpOnSkills'];
 
     if (!skillLevels || !decisionHistory) {
       return null;
     }
     if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
+      return null;
+    }
+    if (spentXpOnSkills !== undefined && typeof spentXpOnSkills !== 'number') {
       return null;
     }
 
@@ -772,6 +827,7 @@ export class AppStore {
       reputation,
       techDebt,
       scenarioOverrides: scenarioOverrides ?? {},
+      spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
     };
   }
 
@@ -866,10 +922,14 @@ export class AppStore {
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
+    const spentXpOnSkills = value['spentXpOnSkills'];
     if (!skillLevels) {
       return null;
     }
     if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
+      return null;
+    }
+    if (spentXpOnSkills !== undefined && typeof spentXpOnSkills !== 'number') {
       return null;
     }
     return {
@@ -877,6 +937,7 @@ export class AppStore {
       reputation,
       techDebt,
       scenarioOverrides: scenarioOverrides ?? {},
+      spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
     };
   }
 

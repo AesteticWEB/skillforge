@@ -34,7 +34,7 @@ export const getIncreaseBlockReason = (skills: Skill[], skillId: string): string
     return 'Навык не найден';
   }
   if (skill.level >= skill.maxLevel) {
-    return 'Уже максимальный уровень';
+    return 'Максимальный уровень';
   }
   const missing = getMissingDependencies(skill, skills);
   if (missing.length > 0) {

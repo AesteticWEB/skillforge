@@ -7,6 +7,7 @@ export interface ProgressSnapshot {
   reputation: number;
   techDebt: number;
   scenarioOverrides: Record<string, boolean>;
+  spentXpOnSkills: number;
 }
 
 export interface DecisionHistoryEntry {
@@ -22,4 +23,5 @@ export interface Progress {
   reputation: number;
   techDebt: number;
   scenarioOverrides: Record<string, boolean>;
+  spentXpOnSkills: number;
 }

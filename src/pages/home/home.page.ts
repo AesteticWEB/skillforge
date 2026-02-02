@@ -4,20 +4,8 @@ import { AppStore } from '@/app/store/app.store';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { InputComponent } from '@/shared/ui/input';
+import { PROFESSION_OPTIONS } from '@/shared/config';
 import { RANK_STAGES } from '@/shared/lib/rank';
-
-const PROFESSION_OPTIONS = [
-  'Frontend-разработчик',
-  'Backend-разработчик',
-  'Fullstack-разработчик',
-  'Mobile-разработчик (iOS/Android)',
-  'QA Automation (автотесты)',
-  'DevOps / SRE',
-  'Data Engineer',
-  'Data Scientist / ML Engineer',
-  'Security Engineer (AppSec)',
-  'Game Developer',
-];
 
 @Component({
   selector: 'app-home-page',

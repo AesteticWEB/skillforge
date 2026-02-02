@@ -51,6 +51,7 @@ describe('AppStore', () => {
     ];
 
     const store = createStore(skills, []);
+    store.setXp(200);
 
     expect(store.canIncreaseSkill('advanced')).toBe(false);
     store.incrementSkillLevel('advanced');

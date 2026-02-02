@@ -82,7 +82,12 @@ export class NotificationsStore {
     if (event.type !== 'SkillUpgraded') {
       return '';
     }
-    return 'Навык повышен.';
+    const name = event.payload.skillName ?? event.payload.skillId;
+    const cost = event.payload.cost;
+    if (typeof cost === 'number') {
+      return `Навык ${name} повышен до уровня ${event.payload.level}. Потрачено: ${cost} XP.`;
+    }
+    return `Навык ${name} повышен до уровня ${event.payload.level}.`;
   }
 
   private formatScenarioCompleted(event: DomainEvent): string {
