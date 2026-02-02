@@ -41,6 +41,50 @@ export class AppStore {
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
+  readonly completedScenarioCount = computed(() => {
+    const unique = new Set(this._progress().decisionHistory.map((entry) => entry.scenarioId));
+    return unique.size;
+  });
+  readonly topSkillsByLevel = computed(() => {
+    return [...this._skills()]
+      .sort((a, b) => b.level - a.level || a.name.localeCompare(b.name))
+      .slice(0, 3);
+  });
+  readonly progressSeries = computed(() => {
+    const ordered = [...this._progress().decisionHistory].sort((a, b) =>
+      a.decidedAt.localeCompare(b.decidedAt)
+    );
+    let count = 0;
+    return ordered.map((entry) => {
+      count += 1;
+      return { decidedAt: entry.decidedAt, value: count };
+    });
+  });
+  readonly progressChart = computed(() => {
+    const width = 120;
+    const height = 40;
+    const values = this.progressSeries().map((point) => point.value);
+    const series = values.length > 0 ? [0, ...values] : [];
+
+    if (series.length === 0) {
+      return { points: '', latest: 0 };
+    }
+
+    const max = Math.max(...series, 1);
+    const lastIndex = series.length - 1;
+    const points = series
+      .map((value, index) => {
+        const x = (index / lastIndex) * width;
+        const y = height - (value / max) * height;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+
+    return {
+      points,
+      latest: series[series.length - 1],
+    };
+  });
   readonly decisionHistoryDetailed = computed(() => {
     const scenarios = new Map(this._scenarios().map((scenario) => [scenario.id, scenario]));
 

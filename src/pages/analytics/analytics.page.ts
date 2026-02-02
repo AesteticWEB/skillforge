@@ -18,6 +18,9 @@ export class AnalyticsPage {
   protected readonly recentHistory = computed(() =>
     this.history().slice(-5).reverse()
   );
+  protected readonly completedScenarios = this.store.completedScenarioCount;
+  protected readonly topSkills = this.store.topSkillsByLevel;
+  protected readonly progressChart = this.store.progressChart;
 
   protected logDecision(): void {
     const scenario = this.store.scenarios()[0];
