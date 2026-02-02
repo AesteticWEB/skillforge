@@ -1,6 +1,4 @@
-<section
-  class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16"
->
+<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16">
   <div class="mb-6 flex items-center justify-between">
     <h1 class="text-2xl font-semibold tracking-tight text-slate-100">Scenario</h1>
     <sf-button variant="ghost" type="button" routerLink="/simulator">Back to list</sf-button>
@@ -8,7 +6,9 @@
 
   @if (scenariosError(); as error) {
     <sf-card>
-      <div class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+      <div
+        class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+      >
         {{ error }} Check mock API flags or refresh.
       </div>
     </sf-card>
@@ -23,31 +23,33 @@
       <h2 class="mt-2 text-2xl font-semibold text-slate-100">{{ current.title }}</h2>
       <p class="mt-3 text-base text-slate-300">{{ current.description }}</p>
 
-      <div class="mt-6">
-        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-          Decisions
+      @if (isLocked()) {
+        <div
+          class="mt-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          Scenario locked: {{ lockReasons().join('; ') }}
         </div>
-        <div class="mt-3 grid gap-3">
-          @for (decision of decisionCards(); track decision.id) {
-            <button
-              type="button"
-              class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
-              (click)="chooseDecision(decision.id)"
-            >
-              <div class="text-sm font-semibold text-slate-100">{{ decision.text }}</div>
-              <div class="mt-1 text-xs text-slate-400">
-                Effects: {{ decision.effectsText }}
-              </div>
-            </button>
-          }
+      } @else {
+        <div class="mt-6">
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Decisions</div>
+          <div class="mt-3 grid gap-3">
+            @for (decision of decisionCards(); track decision.id) {
+              <button
+                type="button"
+                class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                (click)="chooseDecision(decision.id)"
+              >
+                <div class="text-sm font-semibold text-slate-100">{{ decision.text }}</div>
+                <div class="mt-1 text-xs text-slate-400">Effects: {{ decision.effectsText }}</div>
+              </button>
+            }
+          </div>
         </div>
-      </div>
+      }
     </sf-card>
   } @else {
     <sf-card>
-      <div class="text-sm text-slate-400">
-        Scenario not found. Please return to the list.
-      </div>
+      <div class="text-sm text-slate-400">Scenario not found. Please return to the list.</div>
     </sf-card>
   }
 </section>

@@ -31,6 +31,7 @@ export class AnalyticsPage {
   protected readonly progressChart = this.store.progressChart;
   protected readonly skillsError = this.store.skillsError;
   protected readonly scenariosError = this.store.scenariosError;
+  protected readonly canUndoDecision = this.store.canUndoDecision;
 
   protected logDecision(): void {
     const scenario = this.store.scenarios()[0];
@@ -44,6 +45,12 @@ export class AnalyticsPage {
   protected clearHistory(): void {
     if (confirm('Clear decision history?')) {
       this.store.clearDecisionHistory();
+    }
+  }
+
+  protected undoLastDecision(): void {
+    if (this.store.canUndoDecision()) {
+      this.store.undoLastDecision();
     }
   }
 

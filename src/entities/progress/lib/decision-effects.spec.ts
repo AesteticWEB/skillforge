@@ -12,6 +12,7 @@ describe('decision effects', () => {
       decisionHistory: [],
       reputation: 0,
       techDebt: 0,
+      scenarioOverrides: {},
     };
     const effects: DecisionEffects = {
       reputation: 2,

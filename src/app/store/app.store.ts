@@ -1,6 +1,17 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { applyDecisionEffects, Progress } from '@/entities/progress';
-import { Scenario } from '@/entities/scenario';
+import {
+  applyDecisionEffects,
+  createDecisionEntry,
+  createProgressSnapshot,
+  Progress,
+  ProgressSnapshot,
+  undoLastDecision,
+} from '@/entities/progress';
+import {
+  applyScenarioAvailabilityEffects,
+  getScenarioGateResult,
+  Scenario,
+} from '@/entities/scenario';
 import {
   changeSkillLevel,
   clampSkillLevel,
@@ -11,6 +22,12 @@ import {
 import { User } from '@/entities/user';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
+
+type ScenarioAccess = {
+  scenario: Scenario;
+  available: boolean;
+  reasons: string[];
+};
 
 @Injectable({ providedIn: 'root' })
 export class AppStore {
@@ -36,6 +53,7 @@ export class AppStore {
     decisionHistory: [],
     reputation: 0,
     techDebt: 0,
+    scenarioOverrides: {},
   });
 
   readonly user = this._user.asReadonly();
@@ -51,6 +69,11 @@ export class AppStore {
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
+  readonly canUndoDecision = computed(() => {
+    const history = this._progress().decisionHistory;
+    const lastEntry = history[history.length - 1];
+    return Boolean(lastEntry?.snapshot);
+  });
   readonly completedScenarioCount = computed(() => {
     const unique = new Set(this._progress().decisionHistory.map((entry) => entry.scenarioId));
     return unique.size;
@@ -109,6 +132,21 @@ export class AppStore {
         effects: decision?.effects ?? {},
       };
     });
+  });
+  readonly scenarioAccessList = computed<ScenarioAccess[]>(() => {
+    const skills = this._skills();
+    const progress = this._progress();
+    return this._scenarios().map((scenario) => {
+      const gate = getScenarioGateResult(scenario, skills, progress);
+      return {
+        scenario,
+        available: gate.available,
+        reasons: gate.reasons,
+      };
+    });
+  });
+  private readonly scenarioAccessMap = computed(() => {
+    return new Map(this.scenarioAccessList().map((entry) => [entry.scenario.id, entry]));
   });
 
   constructor() {
@@ -192,6 +230,7 @@ export class AppStore {
       decisionHistory: [],
       reputation: 0,
       techDebt: 0,
+      scenarioOverrides: {},
     });
   }
 
@@ -200,15 +239,24 @@ export class AppStore {
     if (!scenario) {
       return;
     }
+    const gate = getScenarioGateResult(scenario, this._skills(), this._progress());
+    if (!gate.available) {
+      return;
+    }
     const decision = scenario.decisions.find((item) => item.id === decisionId);
     if (!decision) {
       return;
     }
 
-    this.recordDecision(scenarioId, decisionId);
+    const snapshot = createProgressSnapshot(this._progress());
+    this.recordDecision(scenarioId, decisionId, snapshot);
     const result = applyDecisionEffects(this._skills(), this._progress(), decision.effects);
+    const progressWithAvailability = applyScenarioAvailabilityEffects(
+      result.progress,
+      scenario.availabilityEffects ?? [],
+    );
     this._skills.set(result.skills);
-    this._progress.set(result.progress);
+    this._progress.set(progressWithAvailability);
   }
 
   clearDecisionHistory(): void {
@@ -216,6 +264,16 @@ export class AppStore {
       ...progress,
       decisionHistory: [],
     }));
+  }
+
+  undoLastDecision(): boolean {
+    const result = undoLastDecision(this._skills(), this._progress());
+    if (!result.undone) {
+      return false;
+    }
+    this._skills.set(result.skills);
+    this._progress.set(result.progress);
+    return true;
   }
 
   incrementSkillLevel(skillId: string, delta = 1): void {
@@ -250,17 +308,20 @@ export class AppStore {
     return getDecreaseBlockReason(this._skills(), skillId);
   }
 
-  recordDecision(scenarioId: string, decisionId: string): void {
-    const entry = {
-      scenarioId,
-      decisionId,
-      decidedAt: new Date().toISOString(),
-    };
-
+  recordDecision(
+    scenarioId: string,
+    decisionId: string,
+    snapshot: ProgressSnapshot = createProgressSnapshot(this._progress()),
+  ): void {
+    const entry = createDecisionEntry(scenarioId, decisionId, snapshot);
     this._progress.update((progress) => ({
       ...progress,
       decisionHistory: [...progress.decisionHistory, entry],
     }));
+  }
+
+  getScenarioAccess(scenarioId: string): ScenarioAccess | null {
+    return this.scenarioAccessMap().get(scenarioId) ?? null;
   }
 
   private mergeSkillLevels(
@@ -349,6 +410,7 @@ export class AppStore {
       decisionHistory: progress.decisionHistory ?? [],
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
+      scenarioOverrides: progress.scenarioOverrides ?? {},
     };
   }
 

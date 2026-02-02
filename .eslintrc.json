@@ -30,13 +30,7 @@
           {
             "patterns": [
               {
-                "group": [
-                  "**/entities/*/model/*",
-                  "**/features/*/model/*",
-                  "**/shared/ui/*/*.component*",
-                  "**/shared/ui/*/*.html",
-                  "**/shared/ui/*/*.css"
-                ],
+                "group": ["**/entities/*/*", "**/features/*/*", "**/shared/ui/*/*"],
                 "message": "Use the slice public API (index.ts) instead of deep imports."
               }
             ]

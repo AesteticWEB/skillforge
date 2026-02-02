@@ -28,6 +28,18 @@ export class SimulatorDetailPage {
   protected readonly techDebt = this.store.techDebt;
   protected readonly decisionCount = this.store.decisionCount;
   protected readonly scenariosError = this.store.scenariosError;
+  protected readonly scenarioAccess = computed(() => {
+    const current = this.scenario();
+    if (!current) {
+      return null;
+    }
+    return this.store.getScenarioAccess(current.id);
+  });
+  protected readonly isLocked = computed(() => {
+    const access = this.scenarioAccess();
+    return access ? !access.available : false;
+  });
+  protected readonly lockReasons = computed(() => this.scenarioAccess()?.reasons ?? []);
   protected readonly decisionCards = computed(() => {
     const current = this.scenario();
     if (!current) {
@@ -42,7 +54,7 @@ export class SimulatorDetailPage {
 
   protected chooseDecision(decisionId: string): void {
     const current = this.scenario();
-    if (!current) {
+    if (!current || this.isLocked()) {
       return;
     }
     this.store.applyDecision(current.id, decisionId);

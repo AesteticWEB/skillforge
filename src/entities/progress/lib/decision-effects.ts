@@ -1,8 +1,6 @@
 import { DecisionEffects } from '@/entities/decision';
 import { applySkillDelta, Skill } from '@/entities/skill';
-import { Progress } from '../model/progress.model';
-
-export type MetricKey = 'reputation' | 'techDebt';
+import { MetricKey, Progress } from '../model/progress.model';
 
 const DEFAULT_METRICS: readonly MetricKey[] = ['reputation', 'techDebt'];
 

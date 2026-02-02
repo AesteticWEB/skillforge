@@ -13,7 +13,6 @@ import { InputComponent } from '@/shared/ui/input';
 })
 export class SimulatorPage {
   private readonly store = inject(AppStore);
-  protected readonly scenarios = this.store.scenarios;
   protected readonly scenariosError = this.store.scenariosError;
   protected readonly search = signal('');
   protected readonly hasSearch = computed(() => this.search().trim().length > 0);
@@ -21,8 +20,10 @@ export class SimulatorPage {
   protected readonly filteredScenarios = computed(() => {
     const term = this.search().trim().toLowerCase();
     if (!term) {
-      return this.scenarios();
+      return this.store.scenarioAccessList();
     }
-    return this.scenarios().filter((scenario) => scenario.title.toLowerCase().includes(term));
+    return this.store
+      .scenarioAccessList()
+      .filter((entry) => entry.scenario.title.toLowerCase().includes(term));
   });
 }

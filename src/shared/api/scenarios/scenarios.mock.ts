@@ -5,6 +5,12 @@ export const SCENARIOS_MOCK: Scenario[] = [
     id: 'scenario-1',
     title: 'Legacy Refactor',
     description: 'A critical UI module is due for a refactor ahead of a major release.',
+    availabilityEffects: [
+      {
+        type: 'unlock',
+        scenarioId: 'scenario-2',
+      },
+    ],
     decisions: [
       {
         id: 'decision-1a',
@@ -32,6 +38,18 @@ export const SCENARIOS_MOCK: Scenario[] = [
     id: 'scenario-2',
     title: 'Stakeholder Alignment',
     description: 'Leadership requests evidence for prioritizing skills investment.',
+    requirements: [
+      {
+        type: 'skill',
+        skillId: 'skill-architecture',
+        minLevel: 2,
+      },
+      {
+        type: 'metric',
+        metric: 'reputation',
+        min: 1,
+      },
+    ],
     decisions: [
       {
         id: 'decision-2a',
