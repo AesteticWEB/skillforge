@@ -31,7 +31,7 @@
           @for (decision of decisionCards(); track decision.id) {
             <button
               type="button"
-              class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60"
+              class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
               (click)="chooseDecision(decision.id)"
             >
               <div class="text-sm font-semibold text-slate-100">{{ decision.text }}</div>

@@ -1,3 +1,8 @@
-<button [attr.type]="type" [class]="classes" [disabled]="disabled">
+<button
+  [attr.type]="type"
+  [class]="classes"
+  [disabled]="disabled"
+  [attr.aria-label]="ariaLabel ?? null"
+>
   <ng-content></ng-content>
 </button>

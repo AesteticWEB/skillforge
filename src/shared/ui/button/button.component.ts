@@ -20,6 +20,7 @@ export class ButtonComponent {
   @Input() type: 'button' | 'submit' | 'reset' = 'button';
   @Input() variant: ButtonVariant = 'primary';
   @Input() disabled = false;
+  @Input() ariaLabel?: string;
 
   get classes(): string {
     return `${BASE_CLASSES} ${VARIANT_CLASSES[this.variant]}`;

@@ -24,7 +24,7 @@
         @for (category of categories(); track category) {
           <button
             type="button"
-            class="rounded-full border px-3 py-1 text-xs font-semibold transition"
+            class="rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
             [ngClass]="
               selectedCategory() === category
                 ? 'border-emerald-400/70 bg-emerald-400/10 text-emerald-200'
@@ -52,6 +52,7 @@
                   variant="ghost"
                   type="button"
                   [disabled]="!card.canDecrease"
+                  [ariaLabel]="'Decrease ' + card.name"
                   (click)="decrementSkill(card.id)"
                 >
                   -
@@ -60,6 +61,7 @@
                   variant="ghost"
                   type="button"
                   [disabled]="!card.canIncrease"
+                  [ariaLabel]="'Increase ' + card.name"
                   (click)="incrementSkill(card.id)"
                 >
                   +

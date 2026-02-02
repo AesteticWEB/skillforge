@@ -16,13 +16,16 @@
           </div>
         </div>
 
-        <nav class="mt-8 flex flex-col gap-1">
+        <nav class="mt-8 flex flex-col gap-1" aria-label="Primary" (keydown)="onNavKeydown($event)">
           @for (item of navItems; track item.path) {
             <a
-              class="flex items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900/70 hover:text-white"
+              #navLink
+              class="flex items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-slate-700 hover:bg-slate-900/70 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
               [routerLink]="item.path"
               routerLinkActive="border-slate-700 bg-slate-900/70 text-white"
               [routerLinkActiveOptions]="{ exact: item.exact }"
+              #activeLink="routerLinkActive"
+              [attr.aria-current]="activeLink.isActive ? 'page' : null"
             >
               <span>{{ item.label }}</span>
               <span class="text-xs text-slate-500">{{ item.meta }}</span>
