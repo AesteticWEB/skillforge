@@ -24,6 +24,12 @@ export const routes: Routes = [
       import('../pages/simulator/simulator.page').then((m) => m.SimulatorPage),
   },
   {
+    path: 'simulator/:id',
+    title: 'Scenario · SkillForge',
+    loadComponent: () =>
+      import('../pages/simulator/simulator-detail.page').then((m) => m.SimulatorDetailPage),
+  },
+  {
     path: 'analytics',
     title: 'Analytics · SkillForge',
     loadComponent: () =>
