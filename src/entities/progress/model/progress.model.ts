@@ -1,0 +1,12 @@
+import { IsoDateString } from '../../user/model/user.model';
+
+export interface DecisionHistoryEntry {
+  scenarioId: string;
+  decisionId: string;
+  decidedAt: IsoDateString;
+}
+
+export interface Progress {
+  skillLevels: Record<string, number>;
+  decisionHistory: DecisionHistoryEntry[];
+}

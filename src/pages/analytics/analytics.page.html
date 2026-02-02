@@ -9,5 +9,11 @@
     <p class="mt-2 text-sm text-slate-400">
       Active scenarios tracked: {{ scenariosCount() }}
     </p>
+    <p class="mt-1 text-sm text-slate-400">
+      Decisions logged: {{ decisionCount() }}
+    </p>
+    <div class="mt-5 flex flex-wrap gap-3">
+      <sf-button variant="ghost" (click)="logDecision()">Log sample decision</sf-button>
+    </div>
   </sf-card>
 </section>
