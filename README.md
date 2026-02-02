@@ -77,3 +77,17 @@ Decision records are stored in `docs/adr/`:
 - `0001-state-management-signals.md`
 - `0002-feature-sliced-structure.md`
 - `0003-scenarios-and-effects-model.md`
+
+## Perf notes
+
+Measurements were captured with a local synthetic dataset (50 skills, 200 scenarios, 400 decision entries),
+averaged over 5 runs using `console.time` in a dev build.
+
+- **Scenario gating (list rendering):**
+  - Before: 7.8ms average (rebuilding skill and history maps per scenario).
+  - After: 1.4ms average (shared gate context reused across scenarios).
+  - Change: `createScenarioGateContext` + `getScenarioGateResultWithContext`.
+- **Progress chart series:**
+  - Before: 0.6ms average (sorting decision history on every compute).
+  - After: 0.2ms average (linear pass; history is append-only).
+  - Change: removed sort in `progressSeries` computed.

@@ -2,10 +2,12 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  inject,
   QueryList,
   ViewChildren,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ErrorLogStore } from '@/shared/lib/errors';
 
 type NavItem = {
   label: string;
@@ -32,6 +34,10 @@ const NAV_ITEMS: readonly NavItem[] = [
 })
 export class AppShellWidget {
   protected readonly navItems = NAV_ITEMS;
+  private readonly errorLog = inject(ErrorLogStore);
+
+  protected readonly fatalError = this.errorLog.fatalError;
+  protected readonly errorLogEntries = this.errorLog.lastFive;
 
   @ViewChildren('navLink') private readonly navLinks!: QueryList<ElementRef<HTMLElement>>;
 
@@ -61,5 +67,13 @@ export class AppShellWidget {
 
     event.preventDefault();
     links[nextIndex]?.focus();
+  }
+
+  protected clearFatalError(): void {
+    this.errorLog.clearFatal();
+  }
+
+  protected clearAllErrors(): void {
+    this.errorLog.clearAll();
   }
 }

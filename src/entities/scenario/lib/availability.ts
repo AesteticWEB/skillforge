@@ -7,12 +7,26 @@ export type ScenarioGateResult = {
   reasons: string[];
 };
 
-export const getScenarioGateResult = (
-  scenario: Scenario,
+export type ScenarioGateContext = {
+  skillById: Map<string, Skill>;
+  completedScenarios: Set<string>;
+  progress: Progress;
+};
+
+export const createScenarioGateContext = (
   skills: Skill[],
   progress: Progress,
+): ScenarioGateContext => ({
+  skillById: new Map(skills.map((skill) => [skill.id, skill])),
+  completedScenarios: new Set(progress.decisionHistory.map((entry) => entry.scenarioId)),
+  progress,
+});
+
+export const getScenarioGateResultWithContext = (
+  scenario: Scenario,
+  context: ScenarioGateContext,
 ): ScenarioGateResult => {
-  const override = progress.scenarioOverrides[scenario.id];
+  const override = context.progress.scenarioOverrides[scenario.id];
   if (override === true) {
     return { available: true, reasons: [] };
   }
@@ -21,12 +35,15 @@ export const getScenarioGateResult = (
   }
 
   const requirements = scenario.requirements ?? [];
-  const skillById = new Map(skills.map((skill) => [skill.id, skill]));
-  const completed = new Set(progress.decisionHistory.map((entry) => entry.scenarioId));
   const reasons: string[] = [];
 
   for (const requirement of requirements) {
-    const reason = getRequirementBlockReason(requirement, skillById, completed, progress);
+    const reason = getRequirementBlockReason(
+      requirement,
+      context.skillById,
+      context.completedScenarios,
+      context.progress,
+    );
     if (reason) {
       reasons.push(reason);
     }
@@ -37,6 +54,13 @@ export const getScenarioGateResult = (
     reasons,
   };
 };
+
+export const getScenarioGateResult = (
+  scenario: Scenario,
+  skills: Skill[],
+  progress: Progress,
+): ScenarioGateResult =>
+  getScenarioGateResultWithContext(scenario, createScenarioGateContext(skills, progress));
 
 export const applyScenarioAvailabilityEffects = (
   progress: Progress,

@@ -9,7 +9,9 @@ import {
 } from '@/entities/progress';
 import {
   applyScenarioAvailabilityEffects,
+  createScenarioGateContext,
   getScenarioGateResult,
+  getScenarioGateResultWithContext,
   Scenario,
 } from '@/entities/scenario';
 import {
@@ -94,11 +96,8 @@ export class AppStore {
       .slice(0, 3);
   });
   readonly progressSeries = computed(() => {
-    const ordered = [...this._progress().decisionHistory].sort((a, b) =>
-      a.decidedAt.localeCompare(b.decidedAt),
-    );
     let count = 0;
-    return ordered.map((entry) => {
+    return this._progress().decisionHistory.map((entry) => {
       count += 1;
       return { decidedAt: entry.decidedAt, value: count };
     });
@@ -146,8 +145,9 @@ export class AppStore {
   readonly scenarioAccessList = computed<ScenarioAccess[]>(() => {
     const skills = this._skills();
     const progress = this._progress();
+    const context = createScenarioGateContext(skills, progress);
     return this._scenarios().map((scenario) => {
-      const gate = getScenarioGateResult(scenario, skills, progress);
+      const gate = getScenarioGateResultWithContext(scenario, context);
       return {
         scenario,
         available: gate.available,
