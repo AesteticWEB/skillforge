@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AppStore } from '../../app/store/app.store';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { CardComponent } from '../../shared/ui/card/card.component';
 import { InputComponent } from '../../shared/ui/input/input.component';
@@ -10,4 +11,7 @@ import { InputComponent } from '../../shared/ui/input/input.component';
   styleUrl: './onboarding.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class OnboardingPage {}
+export class OnboardingPage {
+  private readonly store = inject(AppStore);
+  protected readonly user = this.store.user;
+}

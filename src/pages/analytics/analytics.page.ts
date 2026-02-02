@@ -1,16 +1,15 @@
-import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { ScenariosApi } from '../../shared/api/scenarios/scenarios.api';
+import { AppStore } from '../../app/store/app.store';
 import { CardComponent } from '../../shared/ui/card/card.component';
 
 @Component({
   selector: 'app-analytics-page',
-  imports: [CardComponent, AsyncPipe],
+  imports: [CardComponent],
   templateUrl: './analytics.page.html',
   styleUrl: './analytics.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnalyticsPage {
-  private readonly scenariosApi = inject(ScenariosApi);
-  protected readonly scenarios$ = this.scenariosApi.getScenarios();
+  private readonly store = inject(AppStore);
+  protected readonly scenariosCount = this.store.scenariosCount;
 }
