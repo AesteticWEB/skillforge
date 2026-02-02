@@ -1,4 +1,3 @@
-import { JsonPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AppStore } from '../../app/store/app.store';
@@ -8,7 +7,7 @@ import { CardComponent } from '../../shared/ui/card/card.component';
 
 @Component({
   selector: 'app-simulator-detail-page',
-  imports: [CardComponent, ButtonComponent, RouterLink, JsonPipe],
+  imports: [CardComponent, ButtonComponent, RouterLink],
   templateUrl: './simulator-detail.page.html',
   styleUrl: './simulator-detail.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +28,17 @@ export class SimulatorDetailPage {
   protected readonly techDebt = this.store.techDebt;
   protected readonly decisionCount = this.store.decisionCount;
   protected readonly scenariosError = this.store.scenariosError;
+  protected readonly decisionCards = computed(() => {
+    const current = this.scenario();
+    if (!current) {
+      return [];
+    }
+
+    return current.decisions.map((decision) => ({
+      ...decision,
+      effectsText: this.formatEffects(decision.effects),
+    }));
+  });
 
   protected chooseDecision(decisionId: string): void {
     const current = this.scenario();
@@ -36,5 +46,15 @@ export class SimulatorDetailPage {
       return;
     }
     this.store.applyDecision(current.id, decisionId);
+  }
+
+  private formatEffects(effects: Record<string, number>): string {
+    const entries = Object.entries(effects);
+    if (entries.length === 0) {
+      return 'No effects';
+    }
+    return entries
+      .map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`)
+      .join(', ');
   }
 }

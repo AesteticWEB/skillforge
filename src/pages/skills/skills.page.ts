@@ -1,7 +1,6 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AppStore } from '../../app/store/app.store';
-import { Skill } from '../../entities/skill/model/skill.model';
 import { ButtonComponent } from '../../shared/ui/button/button.component';
 import { CardComponent } from '../../shared/ui/card/card.component';
 import { InputComponent } from '../../shared/ui/input/input.component';
@@ -23,19 +22,33 @@ export class SkillsPage {
     const unique = new Set(this.skills().map((skill) => skill.category));
     return ['All', ...Array.from(unique).sort()];
   });
-  protected readonly skillNameById = computed(() => {
-    const map = new Map<string, string>();
-    for (const skill of this.skills()) {
-      map.set(skill.id, skill.name);
-    }
-    return map;
-  });
   protected readonly filteredSkills = computed(() => {
     const category = this.selectedCategory();
     if (category === 'All') {
       return this.skills();
     }
     return this.skills().filter((skill) => skill.category === category);
+  });
+  protected readonly skillCards = computed(() => {
+    const nameById = new Map(this.skills().map((skill) => [skill.id, skill.name]));
+
+    return this.filteredSkills().map((skill) => {
+      const depsText =
+        skill.deps.length === 0
+          ? 'None'
+          : skill.deps.map((id) => nameById.get(id) ?? id).join(', ');
+      const canIncrease = this.store.canIncreaseSkill(skill.id);
+      const canDecrease = this.store.canDecreaseSkill(skill.id);
+      const blockReason = this.store.getIncreaseBlockReason(skill.id);
+
+      return {
+        ...skill,
+        depsText,
+        canIncrease,
+        canDecrease,
+        blockReason,
+      };
+    });
   });
 
   protected incrementSkill(skillId: string): void {
@@ -50,23 +63,4 @@ export class SkillsPage {
     this.selectedCategory.set(category);
   }
 
-  protected formatDeps(skill: Skill): string {
-    if (skill.deps.length === 0) {
-      return 'None';
-    }
-    const map = this.skillNameById();
-    return skill.deps.map((id) => map.get(id) ?? id).join(', ');
-  }
-
-  protected canIncrease(skillId: string): boolean {
-    return this.store.canIncreaseSkill(skillId);
-  }
-
-  protected canDecrease(skillId: string): boolean {
-    return this.store.canDecreaseSkill(skillId);
-  }
-
-  protected increaseBlockReason(skillId: string): string | null {
-    return this.store.getIncreaseBlockReason(skillId);
-  }
 }

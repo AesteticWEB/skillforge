@@ -16,7 +16,15 @@ export class AnalyticsPage {
   protected readonly decisionCount = this.store.decisionCount;
   protected readonly history = this.store.decisionHistoryDetailed;
   protected readonly recentHistory = computed(() =>
-    this.history().slice(-5).reverse()
+    this.history()
+      .slice(-5)
+      .reverse()
+      .map((entry) => ({
+        key: `${entry.decidedAt}-${entry.decisionId}`,
+        ...entry,
+        formattedDate: new Date(entry.decidedAt).toLocaleString(),
+        effectsText: this.formatEffects(entry.effects),
+      }))
   );
   protected readonly completedScenarios = this.store.completedScenarioCount;
   protected readonly topSkills = this.store.topSkillsByLevel;
@@ -34,12 +42,12 @@ export class AnalyticsPage {
   }
 
   protected clearHistory(): void {
-    if (confirm('Очистить историю решений?')) {
+    if (confirm('Clear decision history?')) {
       this.store.clearDecisionHistory();
     }
   }
 
-  protected formatEffects(effects: Record<string, number>): string {
+  private formatEffects(effects: Record<string, number>): string {
     const entries = Object.entries(effects);
     if (entries.length === 0) {
       return 'No effects';
@@ -47,9 +55,5 @@ export class AnalyticsPage {
     return entries
       .map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`)
       .join(', ');
-  }
-
-  protected formatDate(iso: string): string {
-    return new Date(iso).toLocaleString();
   }
 }

@@ -28,7 +28,7 @@
           Decisions
         </div>
         <div class="mt-3 grid gap-3">
-          @for (decision of current.decisions; track decision.id) {
+          @for (decision of decisionCards(); track decision.id) {
             <button
               type="button"
               class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60"
@@ -36,7 +36,7 @@
             >
               <div class="text-sm font-semibold text-slate-100">{{ decision.text }}</div>
               <div class="mt-1 text-xs text-slate-400">
-                Effects: {{ decision.effects | json }}
+                Effects: {{ decision.effectsText }}
               </div>
             </button>
           }
