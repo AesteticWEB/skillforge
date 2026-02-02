@@ -41,6 +41,21 @@ export class AppStore {
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
+  readonly decisionHistoryDetailed = computed(() => {
+    const scenarios = new Map(this._scenarios().map((scenario) => [scenario.id, scenario]));
+
+    return this._progress().decisionHistory.map((entry) => {
+      const scenario = scenarios.get(entry.scenarioId);
+      const decision = scenario?.decisions.find((item) => item.id === entry.decisionId);
+
+      return {
+        ...entry,
+        scenarioTitle: scenario?.title ?? 'Unknown scenario',
+        decisionText: decision?.text ?? 'Unknown decision',
+        effects: decision?.effects ?? {},
+      };
+    });
+  });
 
   constructor() {
     this.hydrateFromStorage();
@@ -121,6 +136,13 @@ export class AppStore {
 
     this.recordDecision(scenarioId, decisionId);
     this.applyDecisionEffects(decision.effects);
+  }
+
+  clearDecisionHistory(): void {
+    this._progress.update((progress) => ({
+      ...progress,
+      decisionHistory: [],
+    }));
   }
 
   incrementSkillLevel(skillId: string, delta = 1): void {

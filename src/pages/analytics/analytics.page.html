@@ -16,4 +16,33 @@
       <sf-button variant="ghost" (click)="logDecision()">Log sample decision</sf-button>
     </div>
   </sf-card>
+
+  <sf-card class="mt-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-100">Decision history</h2>
+        <p class="mt-1 text-sm text-slate-400">Last 5 decisions</p>
+      </div>
+      <sf-button variant="ghost" type="button" (click)="clearHistory()">
+        Очистить историю
+      </sf-button>
+    </div>
+
+    <div class="mt-4 grid gap-3">
+      @for (entry of recentHistory(); track entry.decidedAt) {
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="text-xs text-slate-500">{{ formatDate(entry.decidedAt) }}</div>
+          <div class="mt-1 text-sm font-semibold text-slate-100">
+            {{ entry.scenarioTitle }}
+          </div>
+          <div class="mt-1 text-sm text-slate-300">{{ entry.decisionText }}</div>
+          <div class="mt-2 text-xs text-slate-400">
+            Effects: {{ formatEffects(entry.effects) }}
+          </div>
+        </div>
+      } @empty {
+        <div class="text-sm text-slate-400">History is empty.</div>
+      }
+    </div>
+  </sf-card>
 </section>
