@@ -78,6 +78,14 @@ Decision records are stored in `docs/adr/`:
 - `0002-feature-sliced-structure.md`
 - `0003-scenarios-and-effects-model.md`
 
+## RFCs
+
+Guides for safe extension live in `docs/rfc/`:
+
+- `0001-add-skill.md`
+- `0002-add-scenario.md`
+- `checklist.md`
+
 ## Perf notes
 
 Measurements were captured with a local synthetic dataset (50 skills, 200 scenarios, 400 decision entries),
