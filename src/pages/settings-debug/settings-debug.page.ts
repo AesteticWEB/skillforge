@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
 import { AchievementsStore } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
 import { FeatureFlagKey } from '@/shared/config';
+import { ErrorLogStore } from '@/shared/lib/errors';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { DomainEvent } from '@/shared/lib/events';
@@ -12,6 +13,10 @@ const FLAG_LABELS: Record<FeatureFlagKey, { title: string; description: string }
   simulatorV2: {
     title: 'Simulator v2',
     description: 'Extend search to descriptions and show beta badge in simulator.',
+  },
+  demoMode: {
+    title: 'Demo mode',
+    description: 'Tracks whether the demo profile is active.',
   },
 };
 
@@ -27,6 +32,7 @@ export class SettingsDebugPage {
   private readonly achievementsStore = inject(AchievementsStore);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly analyticsStore = inject(AnalyticsEventsStore);
+  private readonly errorLogStore = inject(ErrorLogStore);
 
   protected readonly flags = this.store.featureFlags;
   protected readonly flagEntries = computed(
@@ -51,6 +57,24 @@ export class SettingsDebugPage {
     })),
   );
 
+  protected readonly errorLog = this.errorLogStore.errorLog;
+  protected readonly fatalError = this.errorLogStore.fatalError;
+
+  protected readonly stateSnapshot = computed(() => ({
+    user: this.store.user(),
+    progress: this.store.progress(),
+    featureFlags: this.store.featureFlags(),
+    skills: this.store.skills(),
+    scenarios: this.store.scenarios(),
+  }));
+  protected readonly stateSnapshotText = computed(() =>
+    JSON.stringify(this.stateSnapshot(), null, 2),
+  );
+
+  protected readonly exportText = signal('');
+  protected readonly importText = signal('');
+  protected readonly importStatus = signal<string | null>(null);
+
   protected toggleFlag(flag: FeatureFlagKey): void {
     this.store.toggleFeatureFlag(flag);
   }
@@ -61,6 +85,46 @@ export class SettingsDebugPage {
 
   protected clearEvents(): void {
     this.analyticsStore.clear();
+  }
+
+  protected clearErrors(): void {
+    this.errorLogStore.clearAll();
+  }
+
+  protected exportState(): void {
+    this.exportText.set(this.store.exportState());
+  }
+
+  protected downloadState(): void {
+    const data = this.store.exportState();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'skillforge-state.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  protected async copyState(): Promise<void> {
+    const data = this.store.exportState();
+    try {
+      await navigator.clipboard.writeText(data);
+      this.importStatus.set('Export copied to clipboard.');
+    } catch {
+      this.importStatus.set('Failed to copy export.');
+    }
+  }
+
+  protected importState(): void {
+    const result = this.store.importState(this.importText());
+    if (result.ok) {
+      this.importStatus.set('Import completed.');
+      this.importText.set('');
+      return;
+    }
+    this.importStatus.set(result.error ?? 'Import failed.');
+    this.errorLogStore.capture(result.error ?? 'Import failed', 'import', false);
   }
 
   private formatEvent(event: DomainEvent): string {

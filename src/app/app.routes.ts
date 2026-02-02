@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { devOnlyGuard } from './guards/dev-only.guard';
 import { profileGuard } from './guards/profile.guard';
 
 export const routes: Routes = [
@@ -39,7 +40,15 @@ export const routes: Routes = [
     loadComponent: () => import('../pages/analytics/analytics.page').then((m) => m.AnalyticsPage),
   },
   {
+    path: 'debug',
+    title: 'Debug - SkillForge',
+    canMatch: [devOnlyGuard],
+    loadComponent: () =>
+      import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
+  },
+  {
     path: 'settings/debug',
+    canMatch: [devOnlyGuard],
     title: 'Debug · SkillForge',
     loadComponent: () =>
       import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),

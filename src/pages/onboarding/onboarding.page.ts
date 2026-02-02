@@ -67,6 +67,11 @@ export class OnboardingPage {
     void this.router.navigateByUrl('/skills');
   }
 
+  protected startDemo(): void {
+    this.store.applyDemoProfile();
+    void this.router.navigateByUrl('/skills');
+  }
+
   protected resetForm(): void {
     this.role.set(ROLE_OPTIONS[0]);
     this.goal.set('');

@@ -22,7 +22,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Skills', path: '/skills', exact: false, meta: 'Graph' },
   { label: 'Simulator', path: '/simulator', exact: false, meta: 'Run' },
   { label: 'Analytics', path: '/analytics', exact: false, meta: 'Insights' },
-  { label: 'Debug', path: '/settings/debug', exact: false, meta: 'Dev' },
+  { label: 'Debug', path: '/debug', exact: false, meta: 'Dev' },
 ];
 
 @Component({

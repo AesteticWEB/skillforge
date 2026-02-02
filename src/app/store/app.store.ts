@@ -22,7 +22,7 @@ import {
   Skill,
 } from '@/entities/skill';
 import { User } from '@/entities/user';
-import { DEFAULT_FEATURE_FLAGS, FeatureFlagKey, FeatureFlags } from '@/shared/config';
+import { DEFAULT_FEATURE_FLAGS, DEMO_PROFILE, FeatureFlagKey, FeatureFlags } from '@/shared/config';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
 import {
@@ -36,6 +36,19 @@ type ScenarioAccess = {
   scenario: Scenario;
   available: boolean;
   reasons: string[];
+};
+
+type AppStateExport = {
+  version: number;
+  exportedAt: string;
+  user: User;
+  progress: Progress;
+  featureFlags: FeatureFlags;
+};
+
+type ImportResult = {
+  ok: boolean;
+  error?: string;
 };
 
 @Injectable({ providedIn: 'root' })
@@ -245,7 +258,78 @@ export class AppStore {
       scenarioOverrides: {},
     });
 
+    this.setFeatureFlag('demoMode', false);
     this.eventBus.publish(createProfileCreatedEvent(profile));
+  }
+
+  applyDemoProfile(): void {
+    const demo = DEMO_PROFILE;
+    this.createProfile(demo.role, demo.goal, demo.selectedSkillIds);
+    for (const decision of demo.decisions) {
+      this.applyDecision(decision.scenarioId, decision.decisionId);
+    }
+    this.setFeatureFlag('demoMode', true);
+  }
+
+  exportState(): string {
+    const payload: AppStateExport = {
+      version: AppStore.STORAGE_VERSION,
+      exportedAt: new Date().toISOString(),
+      user: this._user(),
+      progress: this._progress(),
+      featureFlags: this._featureFlags(),
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  importState(raw: string): ImportResult {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { ok: false, error: 'Invalid JSON format.' };
+    }
+
+    if (!this.isRecord(parsed)) {
+      return { ok: false, error: 'JSON must be an object.' };
+    }
+
+    const version = parsed.version;
+    if (typeof version !== 'number' || version !== AppStore.STORAGE_VERSION) {
+      return { ok: false, error: 'Unsupported export version.' };
+    }
+
+    const user = this.parseUser(parsed.user);
+    if (!user) {
+      return { ok: false, error: 'Invalid user payload.' };
+    }
+
+    const progress = this.parseProgress(parsed.progress);
+    if (!progress) {
+      return { ok: false, error: 'Invalid progress payload.' };
+    }
+
+    const featureFlags = this.parseFeatureFlags(parsed.featureFlags);
+
+    this._user.set(user);
+    this._progress.set(progress);
+    this._featureFlags.set(featureFlags);
+
+    if (this._skills().length > 0) {
+      const mergedLevels = this.mergeSkillLevels(this._skills(), progress.skillLevels);
+      this._skills.set(
+        this._skills().map((skill) => ({
+          ...skill,
+          level: mergedLevels[skill.id],
+        })),
+      );
+      this._progress.update((current) => ({
+        ...current,
+        skillLevels: mergedLevels,
+      }));
+    }
+
+    return { ok: true };
   }
 
   applyDecision(scenarioId: string, decisionId: string): void {
@@ -478,5 +562,169 @@ export class AppStore {
 
   private isStorageAvailable(): boolean {
     return typeof localStorage !== 'undefined';
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private parseUser(value: unknown): User | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const role = value.role;
+    const goals = value.goals;
+    const startDate = value.startDate;
+    const isProfileComplete = value.isProfileComplete;
+
+    if (typeof role !== 'string' || typeof startDate !== 'string') {
+      return null;
+    }
+    if (!Array.isArray(goals) || !goals.every((goal) => typeof goal === 'string')) {
+      return null;
+    }
+    if (typeof isProfileComplete !== 'boolean') {
+      return null;
+    }
+
+    return {
+      role,
+      goals,
+      startDate,
+      isProfileComplete,
+    };
+  }
+
+  private parseProgress(value: unknown): Progress | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const skillLevels = this.parseNumberRecord(value.skillLevels);
+    const decisionHistory = this.parseDecisionHistory(value.decisionHistory);
+    const reputation = value.reputation;
+    const techDebt = value.techDebt;
+    const scenarioOverrides = this.parseBooleanRecord(value.scenarioOverrides);
+
+    if (!skillLevels || !decisionHistory) {
+      return null;
+    }
+    if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
+      return null;
+    }
+
+    return {
+      skillLevels,
+      decisionHistory,
+      reputation,
+      techDebt,
+      scenarioOverrides: scenarioOverrides ?? {},
+    };
+  }
+
+  private parseFeatureFlags(value: unknown): FeatureFlags {
+    if (!this.isRecord(value)) {
+      return DEFAULT_FEATURE_FLAGS;
+    }
+    const flags: FeatureFlags = { ...DEFAULT_FEATURE_FLAGS };
+    for (const key of Object.keys(flags) as FeatureFlagKey[]) {
+      if (typeof value[key] === 'boolean') {
+        flags[key] = value[key] as boolean;
+      }
+    }
+    return flags;
+  }
+
+  private parseDecisionHistory(value: unknown): Progress['decisionHistory'] | null {
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const parsed = value.map((entry) => this.parseDecisionHistoryEntry(entry));
+    if (parsed.some((entry) => entry === null)) {
+      return null;
+    }
+    return parsed as Progress['decisionHistory'];
+  }
+
+  private parseDecisionHistoryEntry(value: unknown): Progress['decisionHistory'][number] | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const scenarioId = value.scenarioId;
+    const decisionId = value.decisionId;
+    const decidedAt = value.decidedAt;
+    if (typeof scenarioId !== 'string' || typeof decisionId !== 'string') {
+      return null;
+    }
+    if (typeof decidedAt !== 'string') {
+      return null;
+    }
+
+    const snapshot = this.parseSnapshot(value.snapshot);
+    if (value.snapshot !== undefined && snapshot === null) {
+      return null;
+    }
+
+    return {
+      scenarioId,
+      decisionId,
+      decidedAt,
+      snapshot: snapshot ?? undefined,
+    };
+  }
+
+  private parseSnapshot(value: unknown): ProgressSnapshot | null {
+    if (value === undefined) {
+      return null;
+    }
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const skillLevels = this.parseNumberRecord(value.skillLevels);
+    const reputation = value.reputation;
+    const techDebt = value.techDebt;
+    const scenarioOverrides = this.parseBooleanRecord(value.scenarioOverrides);
+    if (!skillLevels) {
+      return null;
+    }
+    if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
+      return null;
+    }
+    return {
+      skillLevels,
+      reputation,
+      techDebt,
+      scenarioOverrides: scenarioOverrides ?? {},
+    };
+  }
+
+  private parseNumberRecord(value: unknown): Record<string, number> | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const result: Record<string, number> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (typeof entry !== 'number' || Number.isNaN(entry)) {
+        return null;
+      }
+      result[key] = entry;
+    }
+    return result;
+  }
+
+  private parseBooleanRecord(value: unknown): Record<string, boolean> | null {
+    if (value === undefined) {
+      return null;
+    }
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const result: Record<string, boolean> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (typeof entry !== 'boolean') {
+        return null;
+      }
+      result[key] = entry;
+    }
+    return result;
   }
 }

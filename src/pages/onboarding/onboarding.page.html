@@ -1,6 +1,4 @@
-<section
-  class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16"
->
+<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16">
   <sf-card>
     <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Onboarding</h1>
     <p class="mt-3 text-base text-slate-300 sm:text-lg">
@@ -67,7 +65,11 @@
       <div class="flex flex-wrap gap-3">
         <sf-button type="submit" [disabled]="!canSubmit()">Создать профиль</sf-button>
         <sf-button variant="ghost" type="button" (click)="resetForm()">Reset</sf-button>
+        <sf-button variant="ghost" type="button" (click)="startDemo()">Fill demo profile</sf-button>
       </div>
+      <p class="text-xs text-slate-500">
+        Demo mode seeds a profile, progress, and history for quick exploration.
+      </p>
     </form>
   </sf-card>
 </section>

@@ -40,6 +40,53 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
+        <h2 class="text-lg font-semibold text-slate-100">State export / import</h2>
+        <p class="mt-1 text-sm text-slate-400">Move progress between browsers.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <sf-button variant="ghost" type="button" (click)="exportState()">Generate</sf-button>
+        <sf-button variant="ghost" type="button" (click)="copyState()">Copy</sf-button>
+        <sf-button variant="ghost" type="button" (click)="downloadState()"> Download </sf-button>
+      </div>
+    </div>
+    <div class="mt-4 grid gap-3">
+      <textarea
+        class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+        placeholder="Exported JSON will appear here"
+        [value]="exportText()"
+        (input)="exportText.set(($any($event.target).value ?? '').trim())"
+      ></textarea>
+      <textarea
+        class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+        placeholder="Paste JSON to import"
+        [value]="importText()"
+        (input)="importText.set($any($event.target).value ?? '')"
+      ></textarea>
+      <div class="flex flex-wrap items-center gap-2">
+        <sf-button type="button" (click)="importState()">Import</sf-button>
+        @if (importStatus(); as message) {
+          <div class="text-xs text-slate-400">{{ message }}</div>
+        }
+      </div>
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-100">State snapshot</h2>
+        <p class="mt-1 text-sm text-slate-400">Live view of the store.</p>
+      </div>
+    </div>
+    <pre
+      class="mt-4 max-h-96 overflow-auto rounded-xl border border-slate-800/80 bg-slate-950/60 p-4 text-xs text-slate-200"
+      >{{ stateSnapshotText() }}</pre
+    >
+  </sf-card>
+
+  <sf-card>
+    <div class="flex items-center justify-between gap-3">
+      <div>
         <h2 class="text-lg font-semibold text-slate-100">Achievements</h2>
         <p class="mt-1 text-sm text-slate-400">
           Streak: {{ scenarioStreak() }} | Maxed skills: {{ maxedSkillsCount() }}
@@ -75,6 +122,36 @@
         </div>
       } @empty {
         <div class="text-sm text-slate-400">No notifications yet.</div>
+      }
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-100">Error log</h2>
+        <p class="mt-1 text-sm text-slate-400">Captured runtime errors.</p>
+      </div>
+      <sf-button variant="ghost" type="button" (click)="clearErrors()">Clear</sf-button>
+    </div>
+    @if (fatalError(); as error) {
+      <div
+        class="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+      >
+        Fatal: {{ error.message }}
+      </div>
+    }
+    <div class="mt-4 grid gap-3">
+      @for (entry of errorLog(); track entry.id) {
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="text-xs text-slate-500">{{ entry.occurredAt }}</div>
+          <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
+          @if (entry.context) {
+            <div class="mt-1 text-xs text-slate-400">Context: {{ entry.context }}</div>
+          }
+        </div>
+      } @empty {
+        <div class="text-sm text-slate-400">No errors logged.</div>
       }
     </div>
   </sf-card>
