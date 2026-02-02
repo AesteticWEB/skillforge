@@ -17,6 +17,7 @@ export class SkillsPage {
   private readonly store = inject(AppStore);
   protected readonly skillsCount = this.store.skillsCount;
   protected readonly skills = this.store.skills;
+  protected readonly skillsError = this.store.skillsError;
   protected readonly selectedCategory = signal<string>('All');
   protected readonly categories = computed(() => {
     const unique = new Set(this.skills().map((skill) => skill.category));

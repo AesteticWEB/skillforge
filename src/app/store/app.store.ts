@@ -21,9 +21,12 @@ export class AppStore {
     role: 'Frontend Engineer',
     goals: ['Architecture', 'Execution'],
     startDate: '2026-02-02',
+    isProfileComplete: false,
   });
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
+  private readonly _skillsError = signal<string | null>(null);
+  private readonly _scenariosError = signal<string | null>(null);
   private readonly _progress = signal<Progress>({
     skillLevels: {},
     decisionHistory: [],
@@ -35,6 +38,9 @@ export class AppStore {
   readonly skills = this._skills.asReadonly();
   readonly scenarios = this._scenarios.asReadonly();
   readonly progress = this._progress.asReadonly();
+  readonly skillsError = this._skillsError.asReadonly();
+  readonly scenariosError = this._scenariosError.asReadonly();
+  readonly hasProfile = computed(() => this._user().isProfileComplete);
 
   readonly skillsCount = computed(() => this._skills().length);
   readonly scenariosCount = computed(() => this._scenarios().length);
@@ -114,20 +120,36 @@ export class AppStore {
   }
 
   load(): void {
-    this.skillsApi.getSkills().subscribe((skills) => {
-      const mergedLevels = this.mergeSkillLevels(skills, this._progress().skillLevels);
-      const hydratedSkills = skills.map((skill) => ({
-        ...skill,
-        level: mergedLevels[skill.id],
-      }));
+    this._skillsError.set(null);
+    this._scenariosError.set(null);
 
-      this._skills.set(hydratedSkills);
-      this._progress.update((progress) => ({
-        ...progress,
-        skillLevels: mergedLevels,
-      }));
+    this.skillsApi.getSkills().subscribe({
+      next: (skills) => {
+        const mergedLevels = this.mergeSkillLevels(skills, this._progress().skillLevels);
+        const hydratedSkills = skills.map((skill) => ({
+          ...skill,
+          level: mergedLevels[skill.id],
+        }));
+
+        this._skills.set(hydratedSkills);
+        this._progress.update((progress) => ({
+          ...progress,
+          skillLevels: mergedLevels,
+        }));
+      },
+      error: () => {
+        this._skillsError.set('Failed to load skills.');
+        this._skills.set([]);
+      },
     });
-    this.scenariosApi.getScenarios().subscribe((scenarios) => this._scenarios.set(scenarios));
+
+    this.scenariosApi.getScenarios().subscribe({
+      next: (scenarios) => this._scenarios.set(scenarios),
+      error: () => {
+        this._scenariosError.set('Failed to load scenarios.');
+        this._scenarios.set([]);
+      },
+    });
   }
 
   setUser(user: User): void {
@@ -144,6 +166,7 @@ export class AppStore {
       role: normalizedRole.length > 0 ? normalizedRole : 'Unassigned',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
+      isProfileComplete: true,
     });
 
     const updatedSkills = this._skills().map((skill) => {
@@ -363,7 +386,12 @@ export class AppStore {
     }
 
     if (stored.user) {
-      this._user.set(stored.user);
+      this._user.set({
+        role: stored.user.role ?? 'Unassigned',
+        goals: stored.user.goals ?? [],
+        startDate: stored.user.startDate ?? new Date().toISOString().slice(0, 10),
+        isProfileComplete: stored.user.isProfileComplete ?? false,
+      });
     }
     if (stored.progress) {
       this._progress.set(this.mergeProgressDefaults(stored.progress));
@@ -388,7 +416,7 @@ export class AppStore {
     }
   }
 
-  private readStorage(): { version: number; user: User; progress: Partial<Progress> } | null {
+  private readStorage(): { version: number; user: Partial<User>; progress: Partial<Progress> } | null {
     if (!this.isStorageAvailable()) {
       return null;
     }
@@ -399,7 +427,11 @@ export class AppStore {
     }
 
     try {
-      const parsed = JSON.parse(raw) as { version: number; user: User; progress: Partial<Progress> };
+      const parsed = JSON.parse(raw) as {
+        version: number;
+        user: Partial<User>;
+        progress: Partial<Progress>;
+      };
       if (parsed?.version !== AppStore.STORAGE_VERSION) {
         return null;
       }

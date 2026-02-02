@@ -4,4 +4,5 @@ export interface User {
   role: string;
   goals: string[];
   startDate: IsoDateString;
+  isProfileComplete: boolean;
 }

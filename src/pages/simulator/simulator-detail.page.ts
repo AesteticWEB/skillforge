@@ -28,6 +28,7 @@ export class SimulatorDetailPage {
   protected readonly reputation = this.store.reputation;
   protected readonly techDebt = this.store.techDebt;
   protected readonly decisionCount = this.store.decisionCount;
+  protected readonly scenariosError = this.store.scenariosError;
 
   protected chooseDecision(decisionId: string): void {
     const current = this.scenario();

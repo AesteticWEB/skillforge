@@ -6,7 +6,13 @@
     <sf-button variant="ghost" type="button" routerLink="/simulator">Back to list</sf-button>
   </div>
 
-  @if (scenario(); as current) {
+  @if (scenariosError(); as error) {
+    <sf-card>
+      <div class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        {{ error }} Check mock API flags or refresh.
+      </div>
+    </sf-card>
+  } @else if (scenario(); as current) {
     <sf-card>
       <div class="flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <span>Reputation: {{ reputation() }}</span>

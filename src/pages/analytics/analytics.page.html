@@ -17,6 +17,19 @@
     </div>
   </sf-card>
 
+  @if (skillsError() || scenariosError()) {
+    <sf-card class="mt-6">
+      <div class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+        @if (skillsError()) {
+          <div>{{ skillsError() }}</div>
+        }
+        @if (scenariosError()) {
+          <div>{{ scenariosError() }}</div>
+        }
+      </div>
+    </sf-card>
+  }
+
   <sf-card class="mt-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
@@ -53,18 +66,22 @@
         <p class="mt-1 text-sm text-slate-400">
           Top {{ topSkills().length }} skills based on current level.
         </p>
-        <div class="mt-4 grid gap-3">
-          @for (skill of topSkills(); track skill.id) {
-            <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-              <div class="text-sm font-semibold text-slate-100">{{ skill.name }}</div>
-              <div class="mt-1 text-xs text-slate-400">
-                {{ skill.category }} · Level {{ skill.level }} / {{ skill.maxLevel }}
+        @if (skillsError()) {
+          <div class="mt-4 text-sm text-slate-400">Skills unavailable due to an error.</div>
+        } @else {
+          <div class="mt-4 grid gap-3">
+            @for (skill of topSkills(); track skill.id) {
+              <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+                <div class="text-sm font-semibold text-slate-100">{{ skill.name }}</div>
+                <div class="mt-1 text-xs text-slate-400">
+                  {{ skill.category }} · Level {{ skill.level }} / {{ skill.maxLevel }}
+                </div>
               </div>
-            </div>
-          } @empty {
-            <div class="text-sm text-slate-400">No skills yet.</div>
-          }
-        </div>
+            } @empty {
+              <div class="text-sm text-slate-400">No skills yet.</div>
+            }
+          </div>
+        }
       </div>
 
       <div>
@@ -73,18 +90,22 @@
           Scenarios completed: {{ completedScenarios() }} / {{ scenariosCount() }}
         </p>
         <div class="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4">
-          <svg viewBox="0 0 120 40" class="h-28 w-full">
-            <polyline
-              [attr.points]="progressChart().points"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              class="text-emerald-300"
-            ></polyline>
-          </svg>
-          <div class="mt-2 text-xs text-slate-400">
-            Total decisions: {{ progressChart().latest }}
-          </div>
+          @if (progressChart().points) {
+            <svg viewBox="0 0 120 40" class="h-28 w-full">
+              <polyline
+                [attr.points]="progressChart().points"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="text-emerald-300"
+              ></polyline>
+            </svg>
+            <div class="mt-2 text-xs text-slate-400">
+              Total decisions: {{ progressChart().latest }}
+            </div>
+          } @else {
+            <div class="text-sm text-slate-400">No progress data yet.</div>
+          }
         </div>
       </div>
     </div>

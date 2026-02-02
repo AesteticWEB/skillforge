@@ -21,6 +21,8 @@ export class AnalyticsPage {
   protected readonly completedScenarios = this.store.completedScenarioCount;
   protected readonly topSkills = this.store.topSkillsByLevel;
   protected readonly progressChart = this.store.progressChart;
+  protected readonly skillsError = this.store.skillsError;
+  protected readonly scenariosError = this.store.scenariosError;
 
   protected logDecision(): void {
     const scenario = this.store.scenarios()[0];
