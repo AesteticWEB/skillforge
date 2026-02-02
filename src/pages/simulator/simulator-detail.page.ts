@@ -24,4 +24,16 @@ export class SimulatorDetailPage {
     }
     return this.store.scenarios().find((item) => item.id === id) ?? null;
   });
+
+  protected readonly reputation = this.store.reputation;
+  protected readonly techDebt = this.store.techDebt;
+  protected readonly decisionCount = this.store.decisionCount;
+
+  protected chooseDecision(decisionId: string): void {
+    const current = this.scenario();
+    if (!current) {
+      return;
+    }
+    this.store.applyDecision(current.id, decisionId);
+  }
 }

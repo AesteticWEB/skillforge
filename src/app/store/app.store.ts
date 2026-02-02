@@ -15,6 +15,7 @@ export class AppStore {
   private readonly scenariosApi = inject(ScenariosApi);
 
   private hasHydrated = false;
+  private readonly metricKeys = new Set(['reputation', 'techDebt']);
 
   private readonly _user = signal<User>({
     role: 'Frontend Engineer',
@@ -26,6 +27,8 @@ export class AppStore {
   private readonly _progress = signal<Progress>({
     skillLevels: {},
     decisionHistory: [],
+    reputation: 0,
+    techDebt: 0,
   });
 
   readonly user = this._user.asReadonly();
@@ -36,6 +39,8 @@ export class AppStore {
   readonly skillsCount = computed(() => this._skills().length);
   readonly scenariosCount = computed(() => this._scenarios().length);
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
+  readonly reputation = computed(() => this._progress().reputation);
+  readonly techDebt = computed(() => this._progress().techDebt);
 
   constructor() {
     this.hydrateFromStorage();
@@ -99,7 +104,23 @@ export class AppStore {
     this._progress.set({
       skillLevels,
       decisionHistory: [],
+      reputation: 0,
+      techDebt: 0,
     });
+  }
+
+  applyDecision(scenarioId: string, decisionId: string): void {
+    const scenario = this._scenarios().find((item) => item.id === scenarioId);
+    if (!scenario) {
+      return;
+    }
+    const decision = scenario.decisions.find((item) => item.id === decisionId);
+    if (!decision) {
+      return;
+    }
+
+    this.recordDecision(scenarioId, decisionId);
+    this.applyDecisionEffects(decision.effects);
   }
 
   incrementSkillLevel(skillId: string, delta = 1): void {
@@ -150,6 +171,53 @@ export class AppStore {
     this._progress.update((progress) => ({
       ...progress,
       decisionHistory: [...progress.decisionHistory, entry],
+    }));
+  }
+
+  private applyDecisionEffects(effects: Record<string, number>): void {
+    for (const [key, delta] of Object.entries(effects)) {
+      if (this.metricKeys.has(key)) {
+        this.applyMetricDelta(key as 'reputation' | 'techDebt', delta);
+      } else {
+        this.applySkillDelta(key, delta);
+      }
+    }
+  }
+
+  private applyMetricDelta(metric: 'reputation' | 'techDebt', delta: number): void {
+    this._progress.update((progress) => ({
+      ...progress,
+      [metric]: (progress[metric] ?? 0) + delta,
+    }));
+  }
+
+  private applySkillDelta(skillId: string, delta: number): void {
+    let nextLevel: number | null = null;
+
+    this._skills.update((skills) =>
+      skills.map((skill) => {
+        if (skill.id !== skillId) {
+          return skill;
+        }
+        nextLevel = this.clampLevel(skill.level + delta, skill.maxLevel);
+        return {
+          ...skill,
+          level: nextLevel,
+        };
+      })
+    );
+
+    if (nextLevel === null) {
+      return;
+    }
+    const safeLevel = nextLevel;
+
+    this._progress.update((progress) => ({
+      ...progress,
+      skillLevels: {
+        ...progress.skillLevels,
+        [skillId]: safeLevel,
+      },
     }));
   }
 
@@ -232,7 +300,7 @@ export class AppStore {
       this._user.set(stored.user);
     }
     if (stored.progress) {
-      this._progress.set(stored.progress);
+      this._progress.set(this.mergeProgressDefaults(stored.progress));
     }
   }
 
@@ -254,7 +322,7 @@ export class AppStore {
     }
   }
 
-  private readStorage(): { version: number; user: User; progress: Progress } | null {
+  private readStorage(): { version: number; user: User; progress: Partial<Progress> } | null {
     if (!this.isStorageAvailable()) {
       return null;
     }
@@ -265,7 +333,7 @@ export class AppStore {
     }
 
     try {
-      const parsed = JSON.parse(raw) as { version: number; user: User; progress: Progress };
+      const parsed = JSON.parse(raw) as { version: number; user: User; progress: Partial<Progress> };
       if (parsed?.version !== AppStore.STORAGE_VERSION) {
         return null;
       }
@@ -273,6 +341,15 @@ export class AppStore {
     } catch {
       return null;
     }
+  }
+
+  private mergeProgressDefaults(progress: Partial<Progress>): Progress {
+    return {
+      skillLevels: progress.skillLevels ?? {},
+      decisionHistory: progress.decisionHistory ?? [],
+      reputation: progress.reputation ?? 0,
+      techDebt: progress.techDebt ?? 0,
+    };
   }
 
   private isStorageAvailable(): boolean {

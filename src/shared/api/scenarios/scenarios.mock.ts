@@ -12,6 +12,8 @@ export const SCENARIOS_MOCK: Scenario[] = [
         effects: {
           'skill-architecture': 1,
           'skill-performance': 1,
+          reputation: 1,
+          techDebt: 2,
         },
       },
       {
@@ -20,6 +22,8 @@ export const SCENARIOS_MOCK: Scenario[] = [
         effects: {
           'skill-architecture': 2,
           'skill-mentorship': 1,
+          reputation: 2,
+          techDebt: -1,
         },
       },
     ],
@@ -35,6 +39,8 @@ export const SCENARIOS_MOCK: Scenario[] = [
         effects: {
           'skill-research': 1,
           'skill-mentorship': 1,
+          reputation: 2,
+          techDebt: 0,
         },
       },
       {
@@ -42,6 +48,8 @@ export const SCENARIOS_MOCK: Scenario[] = [
         text: 'Run discovery interviews and map risks to skills.',
         effects: {
           'skill-research': 2,
+          reputation: 1,
+          techDebt: -1,
         },
       },
     ],

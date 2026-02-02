@@ -9,4 +9,6 @@ export interface DecisionHistoryEntry {
 export interface Progress {
   skillLevels: Record<string, number>;
   decisionHistory: DecisionHistoryEntry[];
+  reputation: number;
+  techDebt: number;
 }
