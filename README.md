@@ -1,59 +1,79 @@
-# Skillforge
+# SkillForge
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.2.
+SPA simulator for skill progression. This project is built to demonstrate senior-level architecture, state management, and testing practices in small, visible iterations.
 
-## Development server
+## Quick start
 
-To start a local development server, run:
+Requirements:
 
-```bash
-ng serve
-```
+- Node.js 20+
+- npm 11+
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Install and run:
 
 ```bash
-ng generate component component-name
+npm install
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Open `http://localhost:4200/`.
 
-```bash
-ng generate --help
+## Useful scripts
+
+- `npm start` - dev server
+- `npm run build` - production build
+- `npm run lint` - ESLint (TS + templates)
+- `npm test` - Jest unit tests
+- `npm run test:e2e` - Playwright end-to-end tests
+- `npm run format` - Prettier formatting
+
+## Architecture overview
+
+The project follows a Feature-Sliced Design (FSD) layout:
+
+```
+src/
+  app/        - app bootstrap, routes, guards, global providers
+  pages/      - route-level screens
+  widgets/    - layout/shell, composite UI
+  features/   - user actions and reusable flows (planned)
+  entities/   - domain models and state slices
+  shared/     - UI kit, utilities, API mocks
 ```
 
-## Building
+Key decisions:
 
-To build the project run:
+- **State management:** Angular Signals store (centralized state, computed selectors, no logic inside components).
+- **Mock data:** `shared/api/*` provides fake endpoints and error toggles via localStorage flags.
+- **Persistence:** user and progress are stored in localStorage on every state change.
 
-```bash
-ng build
+## Data flow
+
+1. Pages read data from the AppStore via signals/computed selectors.
+2. User actions call store methods.
+3. Store applies domain logic, persists to localStorage, and updates signals.
+
+No business logic lives inside components.
+
+## Testing
+
+- **Unit tests:** Jest + `jest-preset-angular`
+- **E2E:** Playwright (dev server auto-started)
+
+## CI
+
+GitHub Actions workflow runs:
+
+```
+install -> lint -> test -> build -> e2e
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+PRs should be green before merging.
 
-## Running unit tests
+## ADRs
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+Decision records are stored in `docs/adr/`:
 
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `0001-state-management-signals.md`
+- `0002-feature-sliced-structure.md`
+- `0003-scenarios-and-effects-model.md`
