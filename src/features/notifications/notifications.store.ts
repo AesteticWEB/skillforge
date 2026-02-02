@@ -75,20 +75,20 @@ export class NotificationsStore {
     if (event.type !== 'ProfileCreated') {
       return '';
     }
-    return `Profile created for ${event.payload.user.role}.`;
+    return 'Профиль создан.';
   }
 
   private formatSkillUpgraded(event: DomainEvent): string {
     if (event.type !== 'SkillUpgraded') {
       return '';
     }
-    return `Skill upgraded: ${event.payload.skillId} -> level ${event.payload.level}.`;
+    return 'Навык повышен.';
   }
 
   private formatScenarioCompleted(event: DomainEvent): string {
     if (event.type !== 'ScenarioCompleted') {
       return '';
     }
-    return `Scenario completed: ${event.payload.scenarioId}.`;
+    return 'Сценарий пройден.';
   }
 }

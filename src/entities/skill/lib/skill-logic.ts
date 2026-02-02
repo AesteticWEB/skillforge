@@ -31,14 +31,14 @@ export const getMissingDependencies = (skill: Skill, skills: Skill[]): string[] 
 export const getIncreaseBlockReason = (skills: Skill[], skillId: string): string | null => {
   const skill = skills.find((item) => item.id === skillId);
   if (!skill) {
-    return 'Skill not found';
+    return 'Навык не найден';
   }
   if (skill.level >= skill.maxLevel) {
-    return 'Already at max level';
+    return 'Уже максимальный уровень';
   }
   const missing = getMissingDependencies(skill, skills);
   if (missing.length > 0) {
-    return `Unlock deps first: ${missing.join(', ')}`;
+    return `Нужно прокачать: ${missing.join(', ')} до уровня 1`;
   }
   return null;
 };
@@ -46,10 +46,10 @@ export const getIncreaseBlockReason = (skills: Skill[], skillId: string): string
 export const getDecreaseBlockReason = (skills: Skill[], skillId: string): string | null => {
   const skill = skills.find((item) => item.id === skillId);
   if (!skill) {
-    return 'Skill not found';
+    return 'Навык не найден';
   }
   if (skill.level <= 0) {
-    return 'Already at minimum level';
+    return 'Уже минимальный уровень';
   }
   return null;
 };

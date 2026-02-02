@@ -5,12 +5,7 @@ import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { InputComponent } from '@/shared/ui/input';
 
-const ROLE_OPTIONS = [
-  'Frontend Engineer',
-  'Fullstack Engineer',
-  'Tech Lead',
-  'Engineering Manager',
-];
+const ROLE_OPTIONS = ['Фронтенд-инженер', 'Фуллстек-инженер', 'Техлид', 'Руководитель разработки'];
 
 @Component({
   selector: 'app-onboarding-page',
@@ -64,11 +59,6 @@ export class OnboardingPage {
     }
 
     this.store.createProfile(this.role(), this.goal(), this.selectedSkillIds());
-    void this.router.navigateByUrl('/skills');
-  }
-
-  protected startDemo(): void {
-    this.store.applyDemoProfile();
     void this.router.navigateByUrl('/skills');
   }
 

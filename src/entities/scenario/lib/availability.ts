@@ -31,7 +31,7 @@ export const getScenarioGateResultWithContext = (
     return { available: true, reasons: [] };
   }
   if (override === false) {
-    return { available: false, reasons: ['Locked by scenario rule.'] };
+    return { available: false, reasons: ['Закрыто правилом сценариев.'] };
   }
 
   const requirements = scenario.requirements ?? [];
@@ -92,25 +92,36 @@ const getRequirementBlockReason = (
     const name = skill?.name ?? requirement.skillId;
     const level = skill?.level ?? 0;
     if (level < requirement.minLevel) {
-      return `Requires ${name} level ${requirement.minLevel}`;
+      return `Нужно: ${name} уровень ${requirement.minLevel}`;
     }
     return null;
   }
 
   if (requirement.type === 'metric') {
     const value = progress[requirement.metric] ?? 0;
+    const metricName = formatMetricName(requirement.metric);
     if (requirement.min !== undefined && value < requirement.min) {
-      return `Requires ${requirement.metric} >= ${requirement.min}`;
+      return `Нужно: ${metricName} ≥ ${requirement.min}`;
     }
     if (requirement.max !== undefined && value > requirement.max) {
-      return `Requires ${requirement.metric} <= ${requirement.max}`;
+      return `Нужно: ${metricName} ≤ ${requirement.max}`;
     }
     return null;
   }
 
   if (!completed.has(requirement.scenarioId)) {
-    return `Complete scenario ${requirement.scenarioId}`;
+    return `Сначала пройди сценарий ${requirement.scenarioId}`;
   }
 
   return null;
+};
+
+const formatMetricName = (metric: keyof Progress): string => {
+  if (metric === 'reputation') {
+    return 'репутация';
+  }
+  if (metric === 'techDebt') {
+    return 'техдолг';
+  }
+  return metric;
 };

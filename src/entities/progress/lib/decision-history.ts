@@ -40,10 +40,10 @@ export const undoLastDecision = (skills: Skill[], progress: Progress): UndoDecis
   const history = progress.decisionHistory;
   const lastEntry = history[history.length - 1];
   if (!lastEntry) {
-    return { skills, progress, undone: false, reason: 'No decisions to undo.' };
+    return { skills, progress, undone: false, reason: 'Нет решений для отката.' };
   }
   if (!lastEntry.snapshot) {
-    return { skills, progress, undone: false, reason: 'Snapshot missing for undo.' };
+    return { skills, progress, undone: false, reason: 'Нет снимка для отката.' };
   }
 
   const nextHistory = history.slice(0, -1);

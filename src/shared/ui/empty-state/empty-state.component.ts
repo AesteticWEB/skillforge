@@ -21,8 +21,8 @@ const ILLUSTRATION_CLASSES: Record<EmptyStateSize, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EmptyStateComponent {
-  @Input() title = 'Nothing here yet';
-  @Input() description = 'When data appears, it will show up in this section.';
+  @Input() title = 'Пока пусто';
+  @Input() description = 'Когда появятся данные, они будут здесь.';
   @Input() size: EmptyStateSize = 'md';
 
   get containerClasses(): string {

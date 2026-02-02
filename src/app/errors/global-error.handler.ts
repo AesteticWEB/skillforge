@@ -9,8 +9,8 @@ export class GlobalErrorHandler implements ErrorHandler {
 
   handleError(error: unknown): void {
     this.errorLog.capture(error, 'global', true);
-    const message = error instanceof Error ? error.message : 'Unexpected error';
-    this.notifications.error(`Error: ${message}`);
+    const message = error instanceof Error ? error.message : 'Непредвиденная ошибка';
+    this.notifications.error(`Ошибка: ${message}`);
     // Mock logging
     // eslint-disable-next-line no-console
     console.error('[SkillForge] Global error', error);

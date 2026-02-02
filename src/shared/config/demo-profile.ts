@@ -11,9 +11,16 @@ export type DemoProfile = {
 };
 
 export const DEMO_PROFILE: DemoProfile = {
-  role: 'Demo Engineer',
-  goal: 'Explore SkillForge in 30 seconds',
-  selectedSkillIds: ['skill-architecture', 'skill-performance', 'skill-research'],
+  role: 'Демо-инженер',
+  goal: 'Проверить SkillForge за 30 секунд',
+  selectedSkillIds: [
+    'skill-architecture',
+    'skill-performance',
+    'skill-backend',
+    'skill-system-design',
+    'skill-research',
+    'skill-communication',
+  ],
   decisions: [
     { scenarioId: 'scenario-1', decisionId: 'decision-1a' },
     { scenarioId: 'scenario-2', decisionId: 'decision-2a' },

@@ -7,6 +7,8 @@ import {
   ViewChildren,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AppStore } from '@/app/store/app.store';
+import { NotificationsStore } from '@/features/notifications';
 import { ErrorLogStore } from '@/shared/lib/errors';
 import { ToastHostWidget } from '../toast-host/toast-host.widget';
 
@@ -18,12 +20,12 @@ type NavItem = {
 };
 
 const NAV_ITEMS: readonly NavItem[] = [
-  { label: 'Overview', path: '/', exact: true, meta: 'Home' },
-  { label: 'Onboarding', path: '/onboarding', exact: false, meta: 'Start' },
-  { label: 'Skills', path: '/skills', exact: false, meta: 'Graph' },
-  { label: 'Simulator', path: '/simulator', exact: false, meta: 'Run' },
-  { label: 'Analytics', path: '/analytics', exact: false, meta: 'Insights' },
-  { label: 'Debug', path: '/debug', exact: false, meta: 'Dev' },
+  { label: 'Главная', path: '/', exact: true, meta: 'Старт' },
+  { label: 'Профиль', path: '/profile', exact: false, meta: 'Шаг 1' },
+  { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 2' },
+  { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
+  { label: 'Аналитика', path: '/analytics', exact: false, meta: 'Итоги' },
+  { label: 'Дебаг', path: '/debug', exact: false, meta: 'Dev' },
 ];
 
 @Component({
@@ -34,11 +36,14 @@ const NAV_ITEMS: readonly NavItem[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShellWidget {
+  private readonly store = inject(AppStore);
   protected readonly navItems = NAV_ITEMS;
   private readonly errorLog = inject(ErrorLogStore);
+  private readonly notifications = inject(NotificationsStore);
 
   protected readonly fatalError = this.errorLog.fatalError;
   protected readonly errorLogEntries = this.errorLog.lastFive;
+  protected readonly isRegistered = this.store.isRegistered;
 
   @ViewChildren('navLink') private readonly navLinks!: QueryList<ElementRef<HTMLElement>>;
 
@@ -48,7 +53,11 @@ export class AppShellWidget {
       return;
     }
 
-    const links = this.navLinks?.toArray().map((link) => link.nativeElement) ?? [];
+    const links =
+      this.navLinks
+        ?.toArray()
+        .map((link) => link.nativeElement)
+        .filter((link) => link.getAttribute('data-disabled') !== 'true') ?? [];
     if (links.length === 0) {
       return;
     }
@@ -76,5 +85,13 @@ export class AppShellWidget {
 
   protected clearAllErrors(): void {
     this.errorLog.clearAll();
+  }
+
+  protected isNavLocked(): boolean {
+    return !this.isRegistered();
+  }
+
+  protected notifyLockedNav(): void {
+    this.notifications.notify('Чтобы продолжить, зарегистрируйтесь.', 'info');
   }
 }

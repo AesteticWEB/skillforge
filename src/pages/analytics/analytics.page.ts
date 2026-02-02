@@ -20,12 +20,15 @@ export class AnalyticsPage {
     this.history()
       .slice(-5)
       .reverse()
-      .map((entry) => ({
-        key: `${entry.decidedAt}-${entry.decisionId}`,
-        ...entry,
-        formattedDate: new Date(entry.decidedAt).toLocaleString(),
-        effectsText: this.formatEffects(entry.effects),
-      })),
+      .map((entry) => {
+        const skillMap = new Map(this.store.skills().map((skill) => [skill.id, skill.name]));
+        return {
+          key: `${entry.decidedAt}-${entry.decisionId}`,
+          ...entry,
+          formattedDate: new Date(entry.decidedAt).toLocaleString(),
+          effectsText: this.formatEffects(entry.effects, skillMap),
+        };
+      }),
   );
   protected readonly completedScenarios = this.store.completedScenarioCount;
   protected readonly topSkills = this.store.topSkillsByLevel;
@@ -55,11 +58,26 @@ export class AnalyticsPage {
     }
   }
 
-  private formatEffects(effects: Record<string, number>): string {
+  private formatEffects(effects: Record<string, number>, skillMap: Map<string, string>): string {
     const entries = Object.entries(effects);
     if (entries.length === 0) {
-      return 'No effects';
+      return 'Без эффектов';
     }
-    return entries.map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`).join(', ');
+    return entries
+      .map(([key, delta]) => {
+        const label = this.formatEffectLabel(key, skillMap);
+        return `${label} ${delta >= 0 ? '+' : ''}${delta}`;
+      })
+      .join(', ');
+  }
+
+  private formatEffectLabel(key: string, skillMap: Map<string, string>): string {
+    if (key === 'reputation') {
+      return 'Репутация';
+    }
+    if (key === 'techDebt') {
+      return 'Техдолг';
+    }
+    return skillMap.get(key) ?? key;
   }
 }

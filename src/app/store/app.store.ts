@@ -31,11 +31,19 @@ import {
   createSkillUpgradedEvent,
   DomainEventBus,
 } from '@/shared/lib/events';
+import { getRankProgress } from '@/shared/lib/rank';
+import type { RankProgress } from '@/shared/lib/rank';
 
 type ScenarioAccess = {
   scenario: Scenario;
   available: boolean;
   reasons: string[];
+};
+
+type AuthState = {
+  login: string;
+  profession: string;
+  isRegistered: boolean;
 };
 
 type AppStateExport = {
@@ -44,12 +52,35 @@ type AppStateExport = {
   user: User;
   progress: Progress;
   featureFlags: FeatureFlags;
+  auth: AuthState;
+  xp: number;
 };
 
 type ImportResult = {
   ok: boolean;
   error?: string;
 };
+
+const createEmptyAuth = (): AuthState => ({
+  login: '',
+  profession: '',
+  isRegistered: false,
+});
+
+const createEmptyUser = (): User => ({
+  role: 'Без роли',
+  goals: [],
+  startDate: new Date().toISOString().slice(0, 10),
+  isProfileComplete: false,
+});
+
+const createEmptyProgress = (): Progress => ({
+  skillLevels: {},
+  decisionHistory: [],
+  reputation: 0,
+  techDebt: 0,
+  scenarioOverrides: {},
+});
 
 @Injectable({ providedIn: 'root' })
 export class AppStore {
@@ -61,12 +92,7 @@ export class AppStore {
   private readonly eventBus = inject(DomainEventBus);
 
   private hasHydrated = false;
-  private readonly _user = signal<User>({
-    role: 'Frontend Engineer',
-    goals: ['Architecture', 'Execution'],
-    startDate: '2026-02-02',
-    isProfileComplete: false,
-  });
+  private readonly _user = signal<User>(createEmptyUser());
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
   private readonly _skillsLoading = signal<boolean>(false);
@@ -74,13 +100,9 @@ export class AppStore {
   private readonly _skillsError = signal<string | null>(null);
   private readonly _scenariosError = signal<string | null>(null);
   private readonly _featureFlags = signal<FeatureFlags>(DEFAULT_FEATURE_FLAGS);
-  private readonly _progress = signal<Progress>({
-    skillLevels: {},
-    decisionHistory: [],
-    reputation: 0,
-    techDebt: 0,
-    scenarioOverrides: {},
-  });
+  private readonly _auth = signal<AuthState>(createEmptyAuth());
+  private readonly _xp = signal(0);
+  private readonly _progress = signal<Progress>(createEmptyProgress());
 
   readonly user = this._user.asReadonly();
   readonly skills = this._skills.asReadonly();
@@ -89,9 +111,13 @@ export class AppStore {
   readonly scenariosLoading = this._scenariosLoading.asReadonly();
   readonly progress = this._progress.asReadonly();
   readonly featureFlags = this._featureFlags.asReadonly();
+  readonly auth = this._auth.asReadonly();
+  readonly xp = this._xp.asReadonly();
   readonly skillsError = this._skillsError.asReadonly();
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
+  readonly isRegistered = computed(() => this._auth().isRegistered);
+  readonly rankProgress = computed<RankProgress>(() => getRankProgress(this._xp()));
 
   readonly skillsCount = computed(() => this._skills().length);
   readonly scenariosCount = computed(() => this._scenarios().length);
@@ -153,8 +179,8 @@ export class AppStore {
 
       return {
         ...entry,
-        scenarioTitle: scenario?.title ?? 'Unknown scenario',
-        decisionText: decision?.text ?? 'Unknown decision',
+        scenarioTitle: scenario?.title ?? 'Неизвестный сценарий',
+        decisionText: decision?.text ?? 'Неизвестное решение',
         effects: decision?.effects ?? {},
       };
     });
@@ -210,7 +236,7 @@ export class AppStore {
         this._skillsLoading.set(false);
       },
       error: () => {
-        this._skillsError.set('Failed to load skills.');
+        this._skillsError.set('Не удалось загрузить навыки.');
         this._skills.set([]);
         this._skillsLoading.set(false);
       },
@@ -222,7 +248,7 @@ export class AppStore {
         this._scenariosLoading.set(false);
       },
       error: () => {
-        this._scenariosError.set('Failed to load scenarios.');
+        this._scenariosError.set('Не удалось загрузить сценарии.');
         this._scenarios.set([]);
         this._scenariosLoading.set(false);
       },
@@ -233,6 +259,60 @@ export class AppStore {
     this._user.set(user);
   }
 
+  register(login: string, password: string, profession: string): boolean {
+    const normalizedLogin = login.trim();
+    const normalizedPassword = password.trim();
+    const normalizedProfession = profession.trim();
+
+    if (
+      normalizedLogin.length === 0 ||
+      normalizedPassword.length === 0 ||
+      normalizedProfession.length === 0
+    ) {
+      return false;
+    }
+
+    const profile: User = {
+      role: normalizedProfession.length > 0 ? normalizedProfession : 'Без роли',
+      goals: [],
+      startDate: new Date().toISOString().slice(0, 10),
+      isProfileComplete: true,
+    };
+
+    this._auth.set({
+      login: normalizedLogin,
+      profession: normalizedProfession,
+      isRegistered: true,
+    });
+    this._user.set(profile);
+    this._progress.set(createEmptyProgress());
+    this._xp.set(0);
+    this.setFeatureFlag('demoMode', false);
+    this.load();
+    this.eventBus.publish(createProfileCreatedEvent(profile));
+    return true;
+  }
+
+  setXp(value: number): void {
+    this._xp.set(this.normalizeXp(value));
+  }
+
+  addXp(delta: number): void {
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    this._xp.update((current) => this.normalizeXp(current + delta));
+  }
+
+  logout(): void {
+    this.resetAll();
+  }
+
+  resetAll(): void {
+    this.clearStorage();
+    this.resetState();
+  }
+
   createProfile(role: string, goal: string, selectedSkillIds: string[]): void {
     const startDate = new Date().toISOString().slice(0, 10);
     const normalizedRole = role.trim();
@@ -240,7 +320,7 @@ export class AppStore {
     const selected = new Set(selectedSkillIds);
 
     const profile: User = {
-      role: normalizedRole.length > 0 ? normalizedRole : 'Unassigned',
+      role: normalizedRole.length > 0 ? normalizedRole : 'Без роли',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
       isProfileComplete: true,
@@ -269,6 +349,7 @@ export class AppStore {
       techDebt: 0,
       scenarioOverrides: {},
     });
+    this._xp.set(0);
 
     this.setFeatureFlag('demoMode', false);
     this.eventBus.publish(createProfileCreatedEvent(profile));
@@ -290,6 +371,8 @@ export class AppStore {
       user: this._user(),
       progress: this._progress(),
       featureFlags: this._featureFlags(),
+      auth: this._auth(),
+      xp: this._xp(),
     };
     return JSON.stringify(payload, null, 2);
   }
@@ -299,33 +382,48 @@ export class AppStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return { ok: false, error: 'Invalid JSON format.' };
+      return { ok: false, error: 'Некорректный JSON.' };
     }
 
     if (!this.isRecord(parsed)) {
-      return { ok: false, error: 'JSON must be an object.' };
+      return { ok: false, error: 'JSON должен быть объектом.' };
     }
 
-    const version = parsed.version;
+    const version = parsed['version'];
     if (typeof version !== 'number' || version !== AppStore.STORAGE_VERSION) {
-      return { ok: false, error: 'Unsupported export version.' };
+      return { ok: false, error: 'Неподдерживаемая версия экспорта.' };
     }
 
-    const user = this.parseUser(parsed.user);
+    const user = this.parseUser(parsed['user']);
     if (!user) {
-      return { ok: false, error: 'Invalid user payload.' };
+      return { ok: false, error: 'Некорректные данные профиля.' };
     }
 
-    const progress = this.parseProgress(parsed.progress);
+    const progress = this.parseProgress(parsed['progress']);
     if (!progress) {
-      return { ok: false, error: 'Invalid progress payload.' };
+      return { ok: false, error: 'Некорректные данные прогресса.' };
     }
 
-    const featureFlags = this.parseFeatureFlags(parsed.featureFlags);
+    const featureFlags = this.parseFeatureFlags(parsed['featureFlags']);
+    const auth = this.parseAuth(parsed['auth']);
+    const xp = this.parseXp(parsed['xp']);
 
     this._user.set(user);
     this._progress.set(progress);
     this._featureFlags.set(featureFlags);
+    if (auth) {
+      this._auth.set(auth);
+      if (auth.isRegistered && !user.isProfileComplete) {
+        this._user.set({
+          ...user,
+          role: auth.profession || user.role,
+          isProfileComplete: true,
+        });
+      }
+    } else {
+      this._auth.set(createEmptyAuth());
+    }
+    this._xp.set(xp);
 
     if (this._skills().length > 0) {
       const mergedLevels = this.mergeSkillLevels(this._skills(), progress.skillLevels);
@@ -495,7 +593,7 @@ export class AppStore {
 
     if (stored.user) {
       this._user.set({
-        role: stored.user.role ?? 'Unassigned',
+        role: stored.user.role ?? 'Без роли',
         goals: stored.user.goals ?? [],
         startDate: stored.user.startDate ?? new Date().toISOString().slice(0, 10),
         isProfileComplete: stored.user.isProfileComplete ?? false,
@@ -510,6 +608,44 @@ export class AppStore {
         ...stored.featureFlags,
       });
     }
+    if (typeof stored.xp === 'number') {
+      this._xp.set(this.normalizeXp(stored.xp));
+    }
+    if (stored.auth) {
+      const auth = this.parseAuth(stored.auth);
+      if (auth) {
+        this._auth.set(auth);
+        if (auth.isRegistered && !this._user().isProfileComplete) {
+          this._user.update((current) => ({
+            ...current,
+            role: auth.profession || current.role,
+            isProfileComplete: true,
+          }));
+        }
+      }
+    }
+  }
+
+  private resetState(): void {
+    this._user.set(createEmptyUser());
+    this._auth.set(createEmptyAuth());
+    this._progress.set(createEmptyProgress());
+    this._xp.set(0);
+    this._featureFlags.set(DEFAULT_FEATURE_FLAGS);
+    this._skills.set([]);
+    this._scenarios.set([]);
+    this._skillsError.set(null);
+    this._scenariosError.set(null);
+    this._skillsLoading.set(false);
+    this._scenariosLoading.set(false);
+    this.load();
+  }
+
+  private clearStorage(): void {
+    if (!this.isStorageAvailable()) {
+      return;
+    }
+    localStorage.removeItem(AppStore.STORAGE_KEY);
   }
 
   private persistToStorage(): void {
@@ -522,6 +658,8 @@ export class AppStore {
       user: this._user(),
       progress: this._progress(),
       featureFlags: this._featureFlags(),
+      auth: this._auth(),
+      xp: this._xp(),
     };
 
     try {
@@ -536,6 +674,8 @@ export class AppStore {
     user: Partial<User>;
     progress: Partial<Progress>;
     featureFlags?: Partial<FeatureFlags>;
+    auth?: Partial<AuthState>;
+    xp?: number;
   } | null {
     if (!this.isStorageAvailable()) {
       return null;
@@ -552,6 +692,8 @@ export class AppStore {
         user: Partial<User>;
         progress: Partial<Progress>;
         featureFlags?: Partial<FeatureFlags>;
+        auth?: Partial<AuthState>;
+        xp?: number;
       };
       if (parsed?.version !== AppStore.STORAGE_VERSION) {
         return null;
@@ -584,10 +726,10 @@ export class AppStore {
     if (!this.isRecord(value)) {
       return null;
     }
-    const role = value.role;
-    const goals = value.goals;
-    const startDate = value.startDate;
-    const isProfileComplete = value.isProfileComplete;
+    const role = value['role'];
+    const goals = value['goals'];
+    const startDate = value['startDate'];
+    const isProfileComplete = value['isProfileComplete'];
 
     if (typeof role !== 'string' || typeof startDate !== 'string') {
       return null;
@@ -611,11 +753,11 @@ export class AppStore {
     if (!this.isRecord(value)) {
       return null;
     }
-    const skillLevels = this.parseNumberRecord(value.skillLevels);
-    const decisionHistory = this.parseDecisionHistory(value.decisionHistory);
-    const reputation = value.reputation;
-    const techDebt = value.techDebt;
-    const scenarioOverrides = this.parseBooleanRecord(value.scenarioOverrides);
+    const skillLevels = this.parseNumberRecord(value['skillLevels']);
+    const decisionHistory = this.parseDecisionHistory(value['decisionHistory']);
+    const reputation = value['reputation'];
+    const techDebt = value['techDebt'];
+    const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
 
     if (!skillLevels || !decisionHistory) {
       return null;
@@ -646,6 +788,35 @@ export class AppStore {
     return flags;
   }
 
+  private parseAuth(value: unknown): AuthState | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const login = value['login'];
+    const profession = value['profession'];
+    const isRegistered = value['isRegistered'];
+
+    if (typeof login !== 'string' || typeof profession !== 'string') {
+      return null;
+    }
+    if (typeof isRegistered !== 'boolean') {
+      return null;
+    }
+
+    return {
+      login,
+      profession,
+      isRegistered,
+    };
+  }
+
+  private parseXp(value: unknown): number {
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return 0;
+    }
+    return this.normalizeXp(value);
+  }
+
   private parseDecisionHistory(value: unknown): Progress['decisionHistory'] | null {
     if (!Array.isArray(value)) {
       return null;
@@ -661,9 +832,9 @@ export class AppStore {
     if (!this.isRecord(value)) {
       return null;
     }
-    const scenarioId = value.scenarioId;
-    const decisionId = value.decisionId;
-    const decidedAt = value.decidedAt;
+    const scenarioId = value['scenarioId'];
+    const decisionId = value['decisionId'];
+    const decidedAt = value['decidedAt'];
     if (typeof scenarioId !== 'string' || typeof decisionId !== 'string') {
       return null;
     }
@@ -671,8 +842,8 @@ export class AppStore {
       return null;
     }
 
-    const snapshot = this.parseSnapshot(value.snapshot);
-    if (value.snapshot !== undefined && snapshot === null) {
+    const snapshot = this.parseSnapshot(value['snapshot']);
+    if (value['snapshot'] !== undefined && snapshot === null) {
       return null;
     }
 
@@ -691,10 +862,10 @@ export class AppStore {
     if (!this.isRecord(value)) {
       return null;
     }
-    const skillLevels = this.parseNumberRecord(value.skillLevels);
-    const reputation = value.reputation;
-    const techDebt = value.techDebt;
-    const scenarioOverrides = this.parseBooleanRecord(value.scenarioOverrides);
+    const skillLevels = this.parseNumberRecord(value['skillLevels']);
+    const reputation = value['reputation'];
+    const techDebt = value['techDebt'];
+    const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
     if (!skillLevels) {
       return null;
     }
@@ -707,6 +878,13 @@ export class AppStore {
       techDebt,
       scenarioOverrides: scenarioOverrides ?? {},
     };
+  }
+
+  private normalizeXp(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
   }
 
   private parseNumberRecord(value: unknown): Record<string, number> | null {

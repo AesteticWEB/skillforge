@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
-import { AchievementsStore } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
 import { FeatureFlagKey } from '@/shared/config';
 import { ErrorLogStore } from '@/shared/lib/errors';
@@ -9,14 +8,14 @@ import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { DomainEvent } from '@/shared/lib/events';
 
-const FLAG_LABELS: Record<FeatureFlagKey, { title: string; description: string }> = {
+type DebugFlagKey = Exclude<FeatureFlagKey, 'demoMode'>;
+
+const DEBUG_FLAGS: DebugFlagKey[] = ['simulatorV2'];
+
+const FLAG_LABELS: Record<DebugFlagKey, { title: string; description: string }> = {
   simulatorV2: {
-    title: 'Simulator v2',
-    description: 'Extend search to descriptions and show beta badge in simulator.',
-  },
-  demoMode: {
-    title: 'Demo mode',
-    description: 'Tracks whether the demo profile is active.',
+    title: 'Симулятор v2',
+    description: 'Поиск по описанию и отметка beta в списке сценариев.',
   },
 };
 
@@ -29,20 +28,15 @@ const FLAG_LABELS: Record<FeatureFlagKey, { title: string; description: string }
 })
 export class SettingsDebugPage {
   private readonly store = inject(AppStore);
-  private readonly achievementsStore = inject(AchievementsStore);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly analyticsStore = inject(AnalyticsEventsStore);
   private readonly errorLogStore = inject(ErrorLogStore);
 
   protected readonly flags = this.store.featureFlags;
-  protected readonly flagEntries = computed(
-    () => Object.entries(this.flags()) as Array<[FeatureFlagKey, boolean]>,
+  protected readonly flagEntries = computed(() =>
+    DEBUG_FLAGS.map((flag) => [flag, this.flags()[flag]] as const),
   );
   protected readonly flagLabels = FLAG_LABELS;
-
-  protected readonly achievements = this.achievementsStore.achievements;
-  protected readonly scenarioStreak = this.achievementsStore.scenarioStreak;
-  protected readonly maxedSkillsCount = this.achievementsStore.maxedSkillsCount;
 
   protected readonly notifications = this.notificationsStore.notifications;
 
@@ -64,6 +58,8 @@ export class SettingsDebugPage {
     user: this.store.user(),
     progress: this.store.progress(),
     featureFlags: this.store.featureFlags(),
+    auth: this.store.auth(),
+    xp: this.store.xp(),
     skills: this.store.skills(),
     scenarios: this.store.scenarios(),
   }));
@@ -75,7 +71,7 @@ export class SettingsDebugPage {
   protected readonly importText = signal('');
   protected readonly importStatus = signal<string | null>(null);
 
-  protected toggleFlag(flag: FeatureFlagKey): void {
+  protected toggleFlag(flag: DebugFlagKey): void {
     this.store.toggleFeatureFlag(flag);
   }
 
@@ -110,25 +106,25 @@ export class SettingsDebugPage {
     const data = this.store.exportState();
     try {
       await navigator.clipboard.writeText(data);
-      this.importStatus.set('Export copied to clipboard.');
-      this.notificationsStore.success('Export copied to clipboard.');
+      this.importStatus.set('Экспорт скопирован в буфер.');
+      this.notificationsStore.success('Экспорт скопирован в буфер.');
     } catch {
-      this.importStatus.set('Failed to copy export.');
-      this.notificationsStore.error('Failed to copy export.');
+      this.importStatus.set('Не удалось скопировать экспорт.');
+      this.notificationsStore.error('Не удалось скопировать экспорт.');
     }
   }
 
   protected importState(): void {
     const result = this.store.importState(this.importText());
     if (result.ok) {
-      this.importStatus.set('Import completed.');
+      this.importStatus.set('Импорт завершён.');
       this.importText.set('');
-      this.notificationsStore.success('Import completed.');
+      this.notificationsStore.success('Импорт завершён.');
       return;
     }
-    this.importStatus.set(result.error ?? 'Import failed.');
-    this.errorLogStore.capture(result.error ?? 'Import failed', 'import', false);
-    this.notificationsStore.error(result.error ?? 'Import failed.');
+    this.importStatus.set(result.error ?? 'Импорт не выполнен.');
+    this.errorLogStore.capture(result.error ?? 'Импорт не выполнен.', 'import', false);
+    this.notificationsStore.error(result.error ?? 'Импорт не выполнен.');
   }
 
   private formatEvent(event: DomainEvent): string {

@@ -1,0 +1,196 @@
+<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col gap-6 px-6 py-16">
+  <sf-card>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Профиль игрока
+        </div>
+        <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Основные данные</h1>
+        <p class="mt-2 text-sm text-slate-400">
+          Здесь хранятся данные учётной записи и дата создания профиля.
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <sf-button variant="ghost" type="button" [disabled]="true">Изменить</sf-button>
+        <span class="text-xs text-slate-500">Скоро</span>
+      </div>
+    </div>
+
+    <div class="mt-5 grid gap-3 sm:grid-cols-3">
+      <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Логин</div>
+        <div class="mt-1 text-sm font-semibold text-slate-100">{{ auth().login || '—' }}</div>
+      </div>
+      <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Профессия</div>
+        <div class="mt-1 text-sm font-semibold text-slate-100">
+          {{ auth().profession || '—' }}
+        </div>
+      </div>
+      <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+        <div class="text-xs uppercase tracking-wide text-slate-500">Дата создания</div>
+        <div class="mt-1 text-sm font-semibold text-slate-100">
+          {{ createdAt() ?? '—' }}
+        </div>
+      </div>
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Прогресс</div>
+        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Статус и XP</h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Ранг рассчитывается автоматически по накопленному опыту.
+        </p>
+      </div>
+      <div class="rounded-2xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+        <div class="text-xs uppercase tracking-wide text-slate-400">Статус</div>
+        <div class="mt-1 text-lg font-semibold text-slate-100">
+          {{ rankProgress().stageTitle }}
+        </div>
+        <div class="mt-1 text-xs text-slate-400">XP: {{ xp() }}</div>
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+        @for (stage of rankStages; track stage.id) {
+          <span
+            [class.text-emerald-300]="stage.id === rankProgress().stageId"
+            [class.text-slate-400]="stage.id !== rankProgress().stageId"
+          >
+            {{ stage.title }}
+          </span>
+        }
+      </div>
+      <div class="mt-3 h-2 w-full rounded-full bg-slate-800">
+        <div
+          class="h-2 rounded-full bg-emerald-400 transition"
+          [style.width]="rankProgress().progressWidth"
+        ></div>
+      </div>
+      <div class="mt-2 text-xs text-slate-400">{{ rankProgress().nextLevelText }}</div>
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Достижения</div>
+        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Бейджи</h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Выполняй сценарии и прокачивай навыки, чтобы открывать награды.
+        </p>
+      </div>
+    </div>
+
+    @if (!hasAchievements()) {
+      <div class="mt-4">
+        <sf-empty-state
+          title="Пока пусто"
+          description="Пока пусто — пройди пару сценариев"
+          size="sm"
+        ></sf-empty-state>
+      </div>
+    }
+
+    <div class="mt-4 grid gap-3">
+      @for (achievement of achievementCards(); track achievement.id) {
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-sm font-semibold text-slate-100">{{ achievement.title }}</div>
+              <div class="mt-1 text-xs text-slate-400">{{ achievement.description }}</div>
+            </div>
+            <span
+              class="text-xs"
+              [class.text-emerald-300]="achievement.isEarned"
+              [class.text-slate-500]="!achievement.isEarned"
+            >
+              {{ achievement.isEarned ? 'Получено' : 'Не получено' }}
+            </span>
+          </div>
+          @if (achievement.isEarned && achievement.earnedAt) {
+            <div class="mt-2 text-xs text-slate-500">Получено: {{ achievement.earnedAt }}</div>
+          }
+        </div>
+      }
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Безопасность</div>
+        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Смена пароля</h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Обнови пароль, чтобы поддерживать безопасность аккаунта.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+      <label class="grid gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Текущий пароль
+        </span>
+        <sf-input
+          type="password"
+          placeholder="Введите текущий пароль"
+          [value]="currentPassword()"
+          (valueChange)="currentPassword.set($event)"
+        ></sf-input>
+      </label>
+      <label class="grid gap-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Новый пароль
+        </span>
+        <sf-input
+          type="password"
+          placeholder="Минимум 6 символов"
+          [value]="newPassword()"
+          (valueChange)="newPassword.set($event)"
+        ></sf-input>
+      </label>
+      <label class="grid gap-2 sm:col-span-2">
+        <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Повторите новый пароль
+        </span>
+        <sf-input
+          type="password"
+          placeholder="Повторите новый пароль"
+          [value]="repeatPassword()"
+          (valueChange)="repeatPassword.set($event)"
+        ></sf-input>
+      </label>
+    </div>
+
+    <div class="mt-4 flex flex-wrap items-center gap-3">
+      <sf-button type="button" [disabled]="isPasswordDisabled()" (click)="changePassword()">
+        Изменить пароль
+      </sf-button>
+      @if (passwordBlockReason(); as reason) {
+        <div class="text-xs text-slate-400">{{ reason }}</div>
+      }
+    </div>
+  </sf-card>
+
+  <sf-card>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Аккаунт</div>
+        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Сессия и сброс</h2>
+        <p class="mt-2 text-sm text-slate-400">
+          Управляй текущей сессией и создавай новый аккаунт.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-3">
+      <sf-button variant="ghost" type="button" (click)="logout()">Выйти</sf-button>
+      <sf-button type="button" (click)="createNewAccount()">Создать новый аккаунт</sf-button>
+    </div>
+  </sf-card>
+</section>

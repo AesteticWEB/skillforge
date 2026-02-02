@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { DomainEventBus, SkillUpgradedEvent } from '@/shared/lib/events';
-import { Achievement, AchievementId } from './model/achievement.model';
+import { Achievement, AchievementId, ACHIEVEMENTS_CATALOG } from './model/achievement.model';
 
 type AchievementState = {
   achievements: Achievement[];
@@ -13,6 +13,10 @@ const createInitialState = (): AchievementState => ({
   streak: 0,
   maxedSkills: new Set<string>(),
 });
+
+const ACHIEVEMENT_LOOKUP = new Map(
+  ACHIEVEMENTS_CATALOG.map((achievement) => [achievement.id, achievement]),
+);
 
 @Injectable({ providedIn: 'root' })
 export class AchievementsStore {
@@ -29,7 +33,7 @@ export class AchievementsStore {
     this.eventBus.subscribe('SkillUpgraded', (event) => this.handleSkillUpgraded(event));
   }
 
-  private reset(): void {
+  reset(): void {
     this.state.set(createInitialState());
   }
 
@@ -41,11 +45,7 @@ export class AchievementsStore {
     }));
 
     if (nextStreak >= 5) {
-      this.unlockAchievement(
-        'streak-5',
-        '5 scenarios in a row',
-        'Complete five scenarios consecutively without interruption.',
-      );
+      this.unlockAchievement('streak-5');
     }
   }
 
@@ -65,24 +65,25 @@ export class AchievementsStore {
     }
 
     if (nextMaxed.size >= 3) {
-      this.unlockAchievement(
-        'maxed-3',
-        'Maxed 3 skills',
-        'Reach the maximum level on three different skills.',
-      );
+      this.unlockAchievement('maxed-3');
     }
   }
 
-  private unlockAchievement(id: AchievementId, title: string, description: string): void {
+  private unlockAchievement(id: AchievementId): void {
     const existing = this.state().achievements.some((achievement) => achievement.id === id);
     if (existing) {
       return;
     }
 
+    const definition = ACHIEVEMENT_LOOKUP.get(id);
+    if (!definition) {
+      return;
+    }
+
     const achievement: Achievement = {
       id,
-      title,
-      description,
+      title: definition.title,
+      description: definition.description,
       earnedAt: new Date().toISOString(),
     };
 

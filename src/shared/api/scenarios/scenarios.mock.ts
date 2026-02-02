@@ -3,8 +3,8 @@ import { Scenario } from '@/entities/scenario';
 export const SCENARIOS_MOCK: Scenario[] = [
   {
     id: 'scenario-1',
-    title: 'Legacy Refactor',
-    description: 'A critical UI module is due for a refactor ahead of a major release.',
+    title: 'Рефакторинг легаси',
+    description: 'Критический UI-модуль нужно обновить перед большим релизом.',
     availabilityEffects: [
       {
         type: 'unlock',
@@ -14,7 +14,7 @@ export const SCENARIOS_MOCK: Scenario[] = [
     decisions: [
       {
         id: 'decision-1a',
-        text: 'Ship a minimal refactor with a rollback plan.',
+        text: 'Сделать минимальный рефакторинг с планом отката.',
         effects: {
           'skill-architecture': 1,
           'skill-performance': 1,
@@ -24,7 +24,7 @@ export const SCENARIOS_MOCK: Scenario[] = [
       },
       {
         id: 'decision-1b',
-        text: 'Freeze features and rewrite the module with tests.',
+        text: 'Заморозить фичи и переписать модуль с тестами.',
         effects: {
           'skill-architecture': 2,
           'skill-mentorship': 1,
@@ -36,8 +36,8 @@ export const SCENARIOS_MOCK: Scenario[] = [
   },
   {
     id: 'scenario-2',
-    title: 'Stakeholder Alignment',
-    description: 'Leadership requests evidence for prioritizing skills investment.',
+    title: 'Согласование со стейкхолдерами',
+    description: 'Руководство просит обоснование инвестиций в развитие навыков.',
     requirements: [
       {
         type: 'skill',
@@ -53,7 +53,7 @@ export const SCENARIOS_MOCK: Scenario[] = [
     decisions: [
       {
         id: 'decision-2a',
-        text: 'Present a skill-impact dashboard with weekly metrics.',
+        text: 'Показать дашборд влияния навыков с недельными метриками.',
         effects: {
           'skill-research': 1,
           'skill-mentorship': 1,
@@ -63,7 +63,7 @@ export const SCENARIOS_MOCK: Scenario[] = [
       },
       {
         id: 'decision-2b',
-        text: 'Run discovery interviews and map risks to skills.',
+        text: 'Провести интервью и связать риски с навыками.',
         effects: {
           'skill-research': 2,
           reputation: 1,

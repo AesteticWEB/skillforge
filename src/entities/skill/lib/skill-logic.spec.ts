@@ -15,7 +15,7 @@ describe('skill logic', () => {
       },
     ];
 
-    expect(getIncreaseBlockReason(skills, 'advanced')).toBe('Unlock deps first: Core');
+    expect(getIncreaseBlockReason(skills, 'advanced')).toBe('Нужно прокачать: Core до уровня 1');
 
     const coreResult = changeSkillLevel(skills, 'core', 1);
     expect(coreResult.nextLevel).toBe(1);

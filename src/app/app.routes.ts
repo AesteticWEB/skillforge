@@ -1,55 +1,61 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './guards/auth.guard';
 import { devOnlyGuard } from './guards/dev-only.guard';
-import { profileGuard } from './guards/profile.guard';
 
 export const routes: Routes = [
   {
     path: '',
-    title: 'SkillForge',
+    title: 'SkillForge — главная',
     loadComponent: () => import('../pages/home/home.page').then((m) => m.HomePage),
   },
   {
     path: 'onboarding',
-    title: 'Onboarding · SkillForge',
-    loadComponent: () =>
-      import('../pages/onboarding/onboarding.page').then((m) => m.OnboardingPage),
+    title: 'Профиль · SkillForge',
+    canMatch: [authGuard],
+    loadComponent: () => import('../pages/profile/profile.page').then((m) => m.ProfilePage),
+  },
+  {
+    path: 'profile',
+    title: 'Профиль · SkillForge',
+    canMatch: [authGuard],
+    loadComponent: () => import('../pages/profile/profile.page').then((m) => m.ProfilePage),
   },
   {
     path: 'skills',
-    title: 'Skills · SkillForge',
-    canMatch: [profileGuard],
+    title: 'Навыки · SkillForge',
+    canMatch: [authGuard],
     loadComponent: () => import('../pages/skills/skills.page').then((m) => m.SkillsPage),
   },
   {
     path: 'simulator',
-    title: 'Simulator · SkillForge',
-    canMatch: [profileGuard],
+    title: 'Симулятор · SkillForge',
+    canMatch: [authGuard],
     loadComponent: () => import('../pages/simulator/simulator.page').then((m) => m.SimulatorPage),
   },
   {
     path: 'simulator/:id',
-    title: 'Scenario · SkillForge',
-    canMatch: [profileGuard],
+    title: 'Сценарий · SkillForge',
+    canMatch: [authGuard],
     loadComponent: () =>
       import('../pages/simulator/simulator-detail.page').then((m) => m.SimulatorDetailPage),
   },
   {
     path: 'analytics',
-    title: 'Analytics · SkillForge',
-    canMatch: [profileGuard],
+    title: 'Аналитика · SkillForge',
+    canMatch: [authGuard],
     loadComponent: () => import('../pages/analytics/analytics.page').then((m) => m.AnalyticsPage),
   },
   {
     path: 'debug',
-    title: 'Debug - SkillForge',
-    canMatch: [devOnlyGuard],
+    title: 'Отладка · SkillForge',
+    canMatch: [authGuard, devOnlyGuard],
     loadComponent: () =>
       import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
   },
   {
     path: 'settings/debug',
-    canMatch: [devOnlyGuard],
-    title: 'Debug · SkillForge',
+    canMatch: [authGuard, devOnlyGuard],
+    title: 'Отладка · SkillForge',
     loadComponent: () =>
       import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
   },

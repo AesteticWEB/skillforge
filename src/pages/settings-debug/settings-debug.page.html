@@ -1,16 +1,16 @@
 <section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col gap-6 px-6 py-16">
   <sf-card>
-    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Settings / Debug</h1>
+    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Настройки / Отладка</h1>
     <p class="mt-3 text-base text-slate-300 sm:text-lg">
-      Dev-only switches and runtime diagnostics for SkillForge.
+      Технические переключатели и диагностика. Страница только для разработки.
     </p>
   </sf-card>
 
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Feature toggles</h2>
-        <p class="mt-1 text-sm text-slate-400">Beta flags for experiments.</p>
+        <h2 class="text-lg font-semibold text-slate-100">Фичи и эксперименты</h2>
+        <p class="mt-1 text-sm text-slate-400">Включай бета-флаги и проверяй гипотезы.</p>
       </div>
     </div>
     <div class="mt-4 grid gap-3">
@@ -40,30 +40,30 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">State export / import</h2>
-        <p class="mt-1 text-sm text-slate-400">Move progress between browsers.</p>
+        <h2 class="text-lg font-semibold text-slate-100">Экспорт / импорт состояния</h2>
+        <p class="mt-1 text-sm text-slate-400">Перенос прогресса между браузерами.</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <sf-button variant="ghost" type="button" (click)="exportState()">Generate</sf-button>
-        <sf-button variant="ghost" type="button" (click)="copyState()">Copy</sf-button>
-        <sf-button variant="ghost" type="button" (click)="downloadState()"> Download </sf-button>
+        <sf-button variant="ghost" type="button" (click)="exportState()">Сгенерировать</sf-button>
+        <sf-button variant="ghost" type="button" (click)="copyState()">Скопировать</sf-button>
+        <sf-button variant="ghost" type="button" (click)="downloadState()">Скачать</sf-button>
       </div>
     </div>
     <div class="mt-4 grid gap-3">
       <textarea
         class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-        placeholder="Exported JSON will appear here"
+        placeholder="Здесь появится JSON для экспорта"
         [value]="exportText()"
         (input)="exportText.set(($any($event.target).value ?? '').trim())"
       ></textarea>
       <textarea
         class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-        placeholder="Paste JSON to import"
+        placeholder="Вставь JSON для импорта"
         [value]="importText()"
         (input)="importText.set($any($event.target).value ?? '')"
       ></textarea>
       <div class="flex flex-wrap items-center gap-2">
-        <sf-button type="button" (click)="importState()">Import</sf-button>
+        <sf-button type="button" (click)="importState()">Импортировать</sf-button>
         @if (importStatus(); as message) {
           <div class="text-xs text-slate-400">{{ message }}</div>
         }
@@ -74,8 +74,8 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">State snapshot</h2>
-        <p class="mt-1 text-sm text-slate-400">Live view of the store.</p>
+        <h2 class="text-lg font-semibold text-slate-100">Снимок состояния</h2>
+        <p class="mt-1 text-sm text-slate-400">Живой вид на store.</p>
       </div>
     </div>
     <pre
@@ -87,32 +87,10 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Achievements</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Streak: {{ scenarioStreak() }} | Maxed skills: {{ maxedSkillsCount() }}
-        </p>
+        <h2 class="text-lg font-semibold text-slate-100">Уведомления</h2>
+        <p class="mt-1 text-sm text-slate-400">Последние доменные события.</p>
       </div>
-    </div>
-    <div class="mt-4 grid gap-3">
-      @for (achievement of achievements(); track achievement.id) {
-        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="text-sm font-semibold text-slate-100">{{ achievement.title }}</div>
-          <div class="mt-1 text-xs text-slate-400">{{ achievement.description }}</div>
-          <div class="mt-2 text-xs text-slate-500">Earned: {{ achievement.earnedAt }}</div>
-        </div>
-      } @empty {
-        <div class="text-sm text-slate-400">No achievements yet.</div>
-      }
-    </div>
-  </sf-card>
-
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Notifications</h2>
-        <p class="mt-1 text-sm text-slate-400">Recent domain events.</p>
-      </div>
-      <sf-button variant="ghost" type="button" (click)="clearNotifications()"> Clear </sf-button>
+      <sf-button variant="ghost" type="button" (click)="clearNotifications()">Очистить</sf-button>
     </div>
     <div class="mt-4 grid gap-3">
       @for (note of notifications(); track note.id) {
@@ -121,7 +99,7 @@
           <div class="mt-1 text-xs text-slate-500">{{ note.createdAt }}</div>
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">No notifications yet.</div>
+        <div class="text-sm text-slate-400">Уведомлений пока нет.</div>
       }
     </div>
   </sf-card>
@@ -129,16 +107,16 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Error log</h2>
-        <p class="mt-1 text-sm text-slate-400">Captured runtime errors.</p>
+        <h2 class="text-lg font-semibold text-slate-100">Лог ошибок</h2>
+        <p class="mt-1 text-sm text-slate-400">Собранные ошибки во время работы.</p>
       </div>
-      <sf-button variant="ghost" type="button" (click)="clearErrors()">Clear</sf-button>
+      <sf-button variant="ghost" type="button" (click)="clearErrors()">Очистить</sf-button>
     </div>
     @if (fatalError(); as error) {
       <div
         class="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
       >
-        Fatal: {{ error.message }}
+        Критично: {{ error.message }}
       </div>
     }
     <div class="mt-4 grid gap-3">
@@ -147,11 +125,11 @@
           <div class="text-xs text-slate-500">{{ entry.occurredAt }}</div>
           <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
           @if (entry.context) {
-            <div class="mt-1 text-xs text-slate-400">Context: {{ entry.context }}</div>
+            <div class="mt-1 text-xs text-slate-400">Контекст: {{ entry.context }}</div>
           }
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">No errors logged.</div>
+        <div class="text-sm text-slate-400">Ошибок пока нет.</div>
       }
     </div>
   </sf-card>
@@ -159,13 +137,13 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Event log</h2>
+        <h2 class="text-lg font-semibold text-slate-100">Лог событий</h2>
         <p class="mt-1 text-sm text-slate-400">
-          Profile: {{ eventCounts().profileCreated }} | Skills: {{ eventCounts().skillUpgraded }} |
-          Scenarios: {{ eventCounts().scenarioCompleted }}
+          Профиль: {{ eventCounts().profileCreated }} | Навыки: {{ eventCounts().skillUpgraded }} |
+          Сценарии: {{ eventCounts().scenarioCompleted }}
         </p>
       </div>
-      <sf-button variant="ghost" type="button" (click)="clearEvents()">Clear</sf-button>
+      <sf-button variant="ghost" type="button" (click)="clearEvents()">Очистить</sf-button>
     </div>
     <div class="mt-4 grid gap-3">
       @for (event of eventCards(); track event.key) {
@@ -175,7 +153,7 @@
           <div class="mt-1 text-xs text-slate-400">{{ event.summary }}</div>
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">No events yet.</div>
+        <div class="text-sm text-slate-400">Событий пока нет.</div>
       }
     </div>
   </sf-card>
