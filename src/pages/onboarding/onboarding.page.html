@@ -1,8 +1,27 @@
 <section
   class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16"
 >
-  <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Onboarding</h1>
-  <p class="mt-3 text-base text-slate-300 sm:text-lg">
-    Start by defining your role, goals, and the skills you want to level up.
-  </p>
+  <sf-card>
+    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Onboarding</h1>
+    <p class="mt-3 text-base text-slate-300 sm:text-lg">
+      Start by defining your role, goals, and the skills you want to level up.
+    </p>
+
+    <div class="mt-6 grid gap-4 text-left">
+      <label class="text-xs font-semibold uppercase tracking-wide text-slate-400" for="role">
+        Role Focus
+      </label>
+      <sf-input id="role" placeholder="e.g. Frontend Engineer"></sf-input>
+
+      <label class="text-xs font-semibold uppercase tracking-wide text-slate-400" for="goal">
+        Primary Goal
+      </label>
+      <sf-input id="goal" placeholder="e.g. Architecture and scalability"></sf-input>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      <sf-button>Continue</sf-button>
+      <sf-button variant="ghost">Skip for now</sf-button>
+    </div>
+  </sf-card>
 </section>
