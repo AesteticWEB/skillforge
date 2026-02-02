@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
-import { Scenario } from '../../../entities/scenario/model/scenario.model';
+import { Scenario } from '@/entities/scenario';
 import { SCENARIOS_MOCK } from './scenarios.mock';
 
 @Injectable({ providedIn: 'root' })

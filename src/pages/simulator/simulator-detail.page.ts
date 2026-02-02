@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { AppStore } from '../../app/store/app.store';
-import { Scenario } from '../../entities/scenario/model/scenario.model';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { CardComponent } from '../../shared/ui/card/card.component';
+import { AppStore } from '@/app/store/app.store';
+import { Scenario } from '@/entities/scenario';
+import { ButtonComponent } from '@/shared/ui/button';
+import { CardComponent } from '@/shared/ui/card';
 
 @Component({
   selector: 'app-simulator-detail-page',
@@ -53,8 +53,6 @@ export class SimulatorDetailPage {
     if (entries.length === 0) {
       return 'No effects';
     }
-    return entries
-      .map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`)
-      .join(', ');
+    return entries.map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`).join(', ');
   }
 }

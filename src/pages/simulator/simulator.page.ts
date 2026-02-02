@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AppStore } from '../../app/store/app.store';
-import { CardComponent } from '../../shared/ui/card/card.component';
-import { InputComponent } from '../../shared/ui/input/input.component';
+import { AppStore } from '@/app/store/app.store';
+import { CardComponent } from '@/shared/ui/card';
+import { InputComponent } from '@/shared/ui/input';
 
 @Component({
   selector: 'app-simulator-page',
@@ -23,8 +23,6 @@ export class SimulatorPage {
     if (!term) {
       return this.scenarios();
     }
-    return this.scenarios().filter((scenario) =>
-      scenario.title.toLowerCase().includes(term)
-    );
+    return this.scenarios().filter((scenario) => scenario.title.toLowerCase().includes(term));
   });
 }

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { CardComponent } from '../../shared/ui/card/card.component';
+import { ButtonComponent } from '@/shared/ui/button';
+import { CardComponent } from '@/shared/ui/card';
 
 @Component({
   selector: 'app-home-page',

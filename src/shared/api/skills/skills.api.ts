@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
-import { Skill } from '../../../entities/skill/model/skill.model';
+import { Skill } from '@/entities/skill';
 import { SKILLS_MOCK } from './skills.mock';
 
 @Injectable({ providedIn: 'root' })

@@ -1,4 +1,4 @@
-import { Skill } from '../../../entities/skill/model/skill.model';
+import { Skill } from '@/entities/skill';
 
 export const SKILLS_MOCK: Skill[] = [
   {

@@ -1,4 +1,4 @@
-import { Scenario } from '../../../entities/scenario/model/scenario.model';
+import { Scenario } from '@/entities/scenario';
 
 export const SCENARIOS_MOCK: Scenario[] = [
   {

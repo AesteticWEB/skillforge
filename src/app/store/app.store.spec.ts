@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { Skill } from '../../entities/skill/model/skill.model';
-import { Scenario } from '../../entities/scenario/model/scenario.model';
-import { ScenariosApi } from '../../shared/api/scenarios/scenarios.api';
-import { SkillsApi } from '../../shared/api/skills/skills.api';
+import { Scenario } from '@/entities/scenario';
+import { Skill } from '@/entities/skill';
+import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
+import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { AppStore } from './app.store';
 
 const createStore = (skills: Skill[], scenarios: Scenario[]): AppStore => {

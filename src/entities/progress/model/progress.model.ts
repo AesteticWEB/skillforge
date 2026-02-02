@@ -1,4 +1,4 @@
-import { IsoDateString } from '../../user/model/user.model';
+import { IsoDateString } from '@/entities/user';
 
 export interface DecisionHistoryEntry {
   scenarioId: string;

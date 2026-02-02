@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { AppStore } from '../../app/store/app.store';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { CardComponent } from '../../shared/ui/card/card.component';
+import { AppStore } from '@/app/store/app.store';
+import { ButtonComponent } from '@/shared/ui/button';
+import { CardComponent } from '@/shared/ui/card';
 
 @Component({
   selector: 'app-analytics-page',
@@ -24,7 +24,7 @@ export class AnalyticsPage {
         ...entry,
         formattedDate: new Date(entry.decidedAt).toLocaleString(),
         effectsText: this.formatEffects(entry.effects),
-      }))
+      })),
   );
   protected readonly completedScenarios = this.store.completedScenarioCount;
   protected readonly topSkills = this.store.topSkillsByLevel;
@@ -52,8 +52,6 @@ export class AnalyticsPage {
     if (entries.length === 0) {
       return 'No effects';
     }
-    return entries
-      .map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`)
-      .join(', ');
+    return entries.map(([key, delta]) => `${key} ${delta >= 0 ? '+' : ''}${delta}`).join(', ');
   }
 }

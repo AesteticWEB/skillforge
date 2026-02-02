@@ -25,6 +25,23 @@
         "prettier"
       ],
       "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "**/entities/*/model/*",
+                  "**/features/*/model/*",
+                  "**/shared/ui/*/*.component*",
+                  "**/shared/ui/*/*.html",
+                  "**/shared/ui/*/*.css"
+                ],
+                "message": "Use the slice public API (index.ts) instead of deep imports."
+              }
+            ]
+          }
+        ],
         "@angular-eslint/component-selector": [
           "error",
           {
@@ -41,6 +58,12 @@
             "style": "camelCase"
           }
         ]
+      }
+    },
+    {
+      "files": ["src/entities/*/index.ts", "src/shared/ui/*/index.ts", "src/features/*/index.ts"],
+      "rules": {
+        "no-restricted-imports": "off"
       }
     },
     {

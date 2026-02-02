@@ -1,4 +1,4 @@
-import { Decision } from '../../decision/model/decision.model';
+import { Decision } from '@/entities/decision';
 
 export interface Scenario {
   id: string;

@@ -1,9 +1,9 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { AppStore } from '../../app/store/app.store';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { CardComponent } from '../../shared/ui/card/card.component';
-import { InputComponent } from '../../shared/ui/input/input.component';
+import { AppStore } from '@/app/store/app.store';
+import { ButtonComponent } from '@/shared/ui/button';
+import { CardComponent } from '@/shared/ui/card';
+import { InputComponent } from '@/shared/ui/input';
 
 @Component({
   selector: 'app-skills-page',
@@ -62,5 +62,4 @@ export class SkillsPage {
   protected setCategory(category: string): void {
     this.selectedCategory.set(category);
   }
-
 }

@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { AppStore } from '../../app/store/app.store';
-import { ButtonComponent } from '../../shared/ui/button/button.component';
-import { CardComponent } from '../../shared/ui/card/card.component';
-import { InputComponent } from '../../shared/ui/input/input.component';
+import { AppStore } from '@/app/store/app.store';
+import { ButtonComponent } from '@/shared/ui/button';
+import { CardComponent } from '@/shared/ui/card';
+import { InputComponent } from '@/shared/ui/input';
 
 const ROLE_OPTIONS = [
   'Frontend Engineer',
@@ -33,7 +33,7 @@ export class OnboardingPage {
     () =>
       this.role().trim().length > 0 &&
       this.goal().trim().length > 0 &&
-      this.selectedSkillIds().length === 3
+      this.selectedSkillIds().length === 3,
   );
 
   protected toggleSkill(skillId: string): void {
