@@ -16,14 +16,22 @@ export class SimulatorPage {
   protected readonly scenariosError = this.store.scenariosError;
   protected readonly search = signal('');
   protected readonly hasSearch = computed(() => this.search().trim().length > 0);
+  protected readonly simulatorV2 = computed(() => this.store.featureFlags().simulatorV2);
 
   protected readonly filteredScenarios = computed(() => {
     const term = this.search().trim().toLowerCase();
     if (!term) {
       return this.store.scenarioAccessList();
     }
-    return this.store
-      .scenarioAccessList()
-      .filter((entry) => entry.scenario.title.toLowerCase().includes(term));
+    return this.store.scenarioAccessList().filter((entry) => {
+      const title = entry.scenario.title.toLowerCase();
+      if (title.includes(term)) {
+        return true;
+      }
+      if (!this.simulatorV2()) {
+        return false;
+      }
+      return entry.scenario.description.toLowerCase().includes(term);
+    });
   });
 }

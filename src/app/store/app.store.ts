@@ -20,8 +20,15 @@ import {
   Skill,
 } from '@/entities/skill';
 import { User } from '@/entities/user';
+import { DEFAULT_FEATURE_FLAGS, FeatureFlagKey, FeatureFlags } from '@/shared/config';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
+import {
+  createProfileCreatedEvent,
+  createScenarioCompletedEvent,
+  createSkillUpgradedEvent,
+  DomainEventBus,
+} from '@/shared/lib/events';
 
 type ScenarioAccess = {
   scenario: Scenario;
@@ -36,6 +43,7 @@ export class AppStore {
 
   private readonly skillsApi = inject(SkillsApi);
   private readonly scenariosApi = inject(ScenariosApi);
+  private readonly eventBus = inject(DomainEventBus);
 
   private hasHydrated = false;
   private readonly _user = signal<User>({
@@ -48,6 +56,7 @@ export class AppStore {
   private readonly _scenarios = signal<Scenario[]>([]);
   private readonly _skillsError = signal<string | null>(null);
   private readonly _scenariosError = signal<string | null>(null);
+  private readonly _featureFlags = signal<FeatureFlags>(DEFAULT_FEATURE_FLAGS);
   private readonly _progress = signal<Progress>({
     skillLevels: {},
     decisionHistory: [],
@@ -60,6 +69,7 @@ export class AppStore {
   readonly skills = this._skills.asReadonly();
   readonly scenarios = this._scenarios.asReadonly();
   readonly progress = this._progress.asReadonly();
+  readonly featureFlags = this._featureFlags.asReadonly();
   readonly skillsError = this._skillsError.asReadonly();
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
@@ -204,12 +214,14 @@ export class AppStore {
     const normalizedGoal = goal.trim();
     const selected = new Set(selectedSkillIds);
 
-    this._user.set({
+    const profile: User = {
       role: normalizedRole.length > 0 ? normalizedRole : 'Unassigned',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
       isProfileComplete: true,
-    });
+    };
+
+    this._user.set(profile);
 
     const updatedSkills = this._skills().map((skill) => {
       const level = selected.has(skill.id) ? 1 : 0;
@@ -232,6 +244,8 @@ export class AppStore {
       techDebt: 0,
       scenarioOverrides: {},
     });
+
+    this.eventBus.publish(createProfileCreatedEvent(profile));
   }
 
   applyDecision(scenarioId: string, decisionId: string): void {
@@ -249,14 +263,18 @@ export class AppStore {
     }
 
     const snapshot = createProgressSnapshot(this._progress());
+    const beforeSkills = this._skills();
     this.recordDecision(scenarioId, decisionId, snapshot);
-    const result = applyDecisionEffects(this._skills(), this._progress(), decision.effects);
+    const result = applyDecisionEffects(beforeSkills, this._progress(), decision.effects);
     const progressWithAvailability = applyScenarioAvailabilityEffects(
       result.progress,
       scenario.availabilityEffects ?? [],
     );
     this._skills.set(result.skills);
     this._progress.set(progressWithAvailability);
+
+    this.emitSkillUpgrades(beforeSkills, result.skills);
+    this.eventBus.publish(createScenarioCompletedEvent(scenarioId, decisionId));
   }
 
   clearDecisionHistory(): void {
@@ -276,8 +294,24 @@ export class AppStore {
     return true;
   }
 
+  toggleFeatureFlag(flag: FeatureFlagKey): void {
+    this._featureFlags.update((current) => ({
+      ...current,
+      [flag]: !current[flag],
+    }));
+  }
+
+  setFeatureFlag(flag: FeatureFlagKey, value: boolean): void {
+    this._featureFlags.update((current) => ({
+      ...current,
+      [flag]: value,
+    }));
+  }
+
   incrementSkillLevel(skillId: string, delta = 1): void {
-    const result = changeSkillLevel(this._skills(), skillId, delta);
+    const beforeSkills = this._skills();
+    const previousLevel = beforeSkills.find((skill) => skill.id === skillId)?.level ?? 0;
+    const result = changeSkillLevel(beforeSkills, skillId, delta);
     if (result.reason || result.nextLevel === null) {
       return;
     }
@@ -290,6 +324,13 @@ export class AppStore {
         [skillId]: result.nextLevel ?? progress.skillLevels[skillId] ?? 0,
       },
     }));
+
+    if (delta > 0 && result.nextLevel > previousLevel) {
+      const maxLevel = result.skills.find((skill) => skill.id === skillId)?.maxLevel ?? 0;
+      this.eventBus.publish(
+        createSkillUpgradedEvent(skillId, previousLevel, result.nextLevel, maxLevel),
+      );
+    }
   }
 
   canIncreaseSkill(skillId: string): boolean {
@@ -324,6 +365,18 @@ export class AppStore {
     return this.scenarioAccessMap().get(scenarioId) ?? null;
   }
 
+  private emitSkillUpgrades(before: Skill[], after: Skill[]): void {
+    const beforeById = new Map(before.map((skill) => [skill.id, skill]));
+    for (const skill of after) {
+      const previousLevel = beforeById.get(skill.id)?.level ?? 0;
+      if (skill.level > previousLevel) {
+        this.eventBus.publish(
+          createSkillUpgradedEvent(skill.id, previousLevel, skill.level, skill.maxLevel),
+        );
+      }
+    }
+  }
+
   private mergeSkillLevels(
     skills: Skill[],
     persisted: Record<string, number>,
@@ -355,6 +408,12 @@ export class AppStore {
     if (stored.progress) {
       this._progress.set(this.mergeProgressDefaults(stored.progress));
     }
+    if (stored.featureFlags) {
+      this._featureFlags.set({
+        ...DEFAULT_FEATURE_FLAGS,
+        ...stored.featureFlags,
+      });
+    }
   }
 
   private persistToStorage(): void {
@@ -366,6 +425,7 @@ export class AppStore {
       version: AppStore.STORAGE_VERSION,
       user: this._user(),
       progress: this._progress(),
+      featureFlags: this._featureFlags(),
     };
 
     try {
@@ -379,6 +439,7 @@ export class AppStore {
     version: number;
     user: Partial<User>;
     progress: Partial<Progress>;
+    featureFlags?: Partial<FeatureFlags>;
   } | null {
     if (!this.isStorageAvailable()) {
       return null;
@@ -394,6 +455,7 @@ export class AppStore {
         version: number;
         user: Partial<User>;
         progress: Partial<Progress>;
+        featureFlags?: Partial<FeatureFlags>;
       };
       if (parsed?.version !== AppStore.STORAGE_VERSION) {
         return null;

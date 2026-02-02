@@ -23,8 +23,7 @@ export const routes: Routes = [
     path: 'simulator',
     title: 'Simulator · SkillForge',
     canMatch: [profileGuard],
-    loadComponent: () =>
-      import('../pages/simulator/simulator.page').then((m) => m.SimulatorPage),
+    loadComponent: () => import('../pages/simulator/simulator.page').then((m) => m.SimulatorPage),
   },
   {
     path: 'simulator/:id',
@@ -37,7 +36,12 @@ export const routes: Routes = [
     path: 'analytics',
     title: 'Analytics · SkillForge',
     canMatch: [profileGuard],
+    loadComponent: () => import('../pages/analytics/analytics.page').then((m) => m.AnalyticsPage),
+  },
+  {
+    path: 'settings/debug',
+    title: 'Debug · SkillForge',
     loadComponent: () =>
-      import('../pages/analytics/analytics.page').then((m) => m.AnalyticsPage),
+      import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
   },
 ];
