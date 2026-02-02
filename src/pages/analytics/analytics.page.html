@@ -58,7 +58,11 @@
           <div class="mt-2 text-xs text-slate-400">Effects: {{ entry.effectsText }}</div>
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">History is empty.</div>
+        <sf-empty-state
+          size="sm"
+          title="No decisions yet"
+          description="Run a simulator scenario to generate decision history."
+        ></sf-empty-state>
       }
     </div>
   </sf-card>
@@ -82,7 +86,11 @@
                 </div>
               </div>
             } @empty {
-              <div class="text-sm text-slate-400">No skills yet.</div>
+              <sf-empty-state
+                size="sm"
+                title="No skills yet"
+                description="Finish onboarding to seed your initial skills."
+              ></sf-empty-state>
             }
           </div>
         }
@@ -108,7 +116,11 @@
               Total decisions: {{ progressChart().latest }}
             </div>
           } @else {
-            <div class="text-sm text-slate-400">No progress data yet.</div>
+            <sf-empty-state
+              size="sm"
+              title="No progress yet"
+              description="Complete scenarios to build a timeline."
+            ></sf-empty-state>
           }
         </div>
       </div>

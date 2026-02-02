@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ErrorLogStore } from '@/shared/lib/errors';
+import { ToastHostWidget } from '../toast-host/toast-host.widget';
 
 type NavItem = {
   label: string;
@@ -27,7 +28,7 @@ const NAV_ITEMS: readonly NavItem[] = [
 
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ToastHostWidget],
   templateUrl: './app-shell.widget.html',
   styleUrl: './app-shell.widget.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -3,11 +3,20 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { AppStore } from '@/app/store/app.store';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
+import { EmptyStateComponent } from '@/shared/ui/empty-state';
 import { InputComponent } from '@/shared/ui/input';
+import { SkeletonComponent } from '@/shared/ui/skeleton';
 
 @Component({
   selector: 'app-skills-page',
-  imports: [CardComponent, InputComponent, ButtonComponent, NgClass],
+  imports: [
+    CardComponent,
+    InputComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    SkeletonComponent,
+    NgClass,
+  ],
   templateUrl: './skills.page.html',
   styleUrl: './skills.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -17,6 +26,7 @@ export class SkillsPage {
   protected readonly skillsCount = this.store.skillsCount;
   protected readonly skills = this.store.skills;
   protected readonly skillsError = this.store.skillsError;
+  protected readonly skillsLoading = this.store.skillsLoading;
   protected readonly selectedCategory = signal<string>('All');
   protected readonly categories = computed(() => {
     const unique = new Set(this.skills().map((skill) => skill.category));

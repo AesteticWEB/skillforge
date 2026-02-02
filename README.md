@@ -70,6 +70,13 @@ install -> lint -> test -> build -> e2e
 
 PRs should be green before merging.
 
+## Release checklist
+
+- **Env:** Node.js 20+, npm 11+, clean working tree, `.env` (if added later).
+- **Build:** `npm run build` (verify output in `dist/`).
+- **Tests:** `npm run lint`, `npm test`, `npm run test:e2e` (optional for hotfixes).
+- **Deploy:** upload `dist/skillforge` to static hosting, verify `/debug` is dev-only.
+
 ## ADRs
 
 Decision records are stored in `docs/adr/`:

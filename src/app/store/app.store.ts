@@ -69,6 +69,8 @@ export class AppStore {
   });
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
+  private readonly _skillsLoading = signal<boolean>(false);
+  private readonly _scenariosLoading = signal<boolean>(false);
   private readonly _skillsError = signal<string | null>(null);
   private readonly _scenariosError = signal<string | null>(null);
   private readonly _featureFlags = signal<FeatureFlags>(DEFAULT_FEATURE_FLAGS);
@@ -83,6 +85,8 @@ export class AppStore {
   readonly user = this._user.asReadonly();
   readonly skills = this._skills.asReadonly();
   readonly scenarios = this._scenarios.asReadonly();
+  readonly skillsLoading = this._skillsLoading.asReadonly();
+  readonly scenariosLoading = this._scenariosLoading.asReadonly();
   readonly progress = this._progress.asReadonly();
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly skillsError = this._skillsError.asReadonly();
@@ -187,6 +191,8 @@ export class AppStore {
   load(): void {
     this._skillsError.set(null);
     this._scenariosError.set(null);
+    this._skillsLoading.set(true);
+    this._scenariosLoading.set(true);
 
     this.skillsApi.getSkills().subscribe({
       next: (skills) => {
@@ -201,18 +207,24 @@ export class AppStore {
           ...progress,
           skillLevels: mergedLevels,
         }));
+        this._skillsLoading.set(false);
       },
       error: () => {
         this._skillsError.set('Failed to load skills.');
         this._skills.set([]);
+        this._skillsLoading.set(false);
       },
     });
 
     this.scenariosApi.getScenarios().subscribe({
-      next: (scenarios) => this._scenarios.set(scenarios),
+      next: (scenarios) => {
+        this._scenarios.set(scenarios);
+        this._scenariosLoading.set(false);
+      },
       error: () => {
         this._scenariosError.set('Failed to load scenarios.');
         this._scenarios.set([]);
+        this._scenariosLoading.set(false);
       },
     });
   }

@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { AppStore } from '@/app/store/app.store';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
+import { EmptyStateComponent } from '@/shared/ui/empty-state';
 
 @Component({
   selector: 'app-analytics-page',
-  imports: [CardComponent, ButtonComponent],
+  imports: [CardComponent, ButtonComponent, EmptyStateComponent],
   templateUrl: './analytics.page.html',
   styleUrl: './analytics.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

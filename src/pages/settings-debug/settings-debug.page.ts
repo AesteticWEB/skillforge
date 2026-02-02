@@ -111,8 +111,10 @@ export class SettingsDebugPage {
     try {
       await navigator.clipboard.writeText(data);
       this.importStatus.set('Export copied to clipboard.');
+      this.notificationsStore.success('Export copied to clipboard.');
     } catch {
       this.importStatus.set('Failed to copy export.');
+      this.notificationsStore.error('Failed to copy export.');
     }
   }
 
@@ -121,10 +123,12 @@ export class SettingsDebugPage {
     if (result.ok) {
       this.importStatus.set('Import completed.');
       this.importText.set('');
+      this.notificationsStore.success('Import completed.');
       return;
     }
     this.importStatus.set(result.error ?? 'Import failed.');
     this.errorLogStore.capture(result.error ?? 'Import failed', 'import', false);
+    this.notificationsStore.error(result.error ?? 'Import failed.');
   }
 
   private formatEvent(event: DomainEvent): string {

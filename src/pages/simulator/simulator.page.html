@@ -29,7 +29,11 @@
       ></sf-input>
     </div>
 
-    @if (scenariosError(); as error) {
+    @if (scenariosLoading()) {
+      <div class="mt-6">
+        <sf-skeleton [count]="3"></sf-skeleton>
+      </div>
+    } @else if (scenariosError(); as error) {
       <div
         class="mt-6 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
       >
@@ -67,13 +71,10 @@
             </div>
           }
         } @empty {
-          <div class="text-sm text-slate-400">
-            @if (hasSearch()) {
-              No scenarios match your search.
-            } @else {
-              No scenarios available yet.
-            }
-          </div>
+          <sf-empty-state
+            title="No scenarios found"
+            description="Adjust the search term or unlock more scenarios by upgrading skills."
+          ></sf-empty-state>
         }
       </div>
     }
