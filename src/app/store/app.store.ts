@@ -7,6 +7,7 @@ import {
   ProgressSnapshot,
   undoLastDecision,
 } from '@/entities/progress';
+import type { ExamAnswer, ExamAttempt, ExamRun, ExamSession } from '@/entities/exam';
 import {
   applyScenarioAvailabilityEffects,
   createScenarioGateContext,
@@ -120,6 +121,8 @@ const createEmptyInventory = (): Inventory => ({
 const createEmptyProgress = (): Progress => ({
   skillLevels: {},
   decisionHistory: [],
+  examHistory: [],
+  activeExamRun: null,
   reputation: 0,
   techDebt: 0,
   coins: 0,
@@ -254,6 +257,8 @@ export class AppStore {
   readonly skillsCount = computed(() => this._skills().length);
   readonly scenariosCount = computed(() => this._scenarios().length);
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
+  readonly examHistory = computed(() => this._progress().examHistory);
+  readonly activeExamRun = computed(() => this._progress().activeExamRun);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
@@ -715,6 +720,37 @@ export class AppStore {
         coinsDelta,
       }),
     );
+  }
+
+  setActiveExamRun(run: ExamRun | null): void {
+    this._progress.update((progress) => ({
+      ...progress,
+      activeExamRun: run,
+    }));
+  }
+
+  updateActiveExamRun(patch: Partial<ExamRun>): void {
+    this._progress.update((progress) => {
+      if (!progress.activeExamRun) {
+        return progress;
+      }
+      return {
+        ...progress,
+        activeExamRun: {
+          ...progress.activeExamRun,
+          ...patch,
+        },
+      };
+    });
+  }
+
+  recordExamAttempt(attempt: ExamAttempt, rewardCoins: number): void {
+    this._progress.update((progress) => ({
+      ...progress,
+      coins: this.normalizeCoins(progress.coins + rewardCoins),
+      examHistory: [...progress.examHistory, attempt],
+      activeExamRun: null,
+    }));
   }
 
   clearDecisionHistory(): void {
@@ -1205,6 +1241,8 @@ export class AppStore {
     return {
       skillLevels: progress.skillLevels ?? {},
       decisionHistory: progress.decisionHistory ?? [],
+      examHistory: progress.examHistory ?? [],
+      activeExamRun: progress.activeExamRun ?? null,
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
       coins: this.normalizeCoins(progress.coins ?? 0),
@@ -1269,6 +1307,8 @@ export class AppStore {
     }
     const skillLevels = this.parseNumberRecord(value['skillLevels']);
     const decisionHistory = this.parseDecisionHistory(value['decisionHistory']);
+    const examHistory = this.parseExamHistory(value['examHistory']) ?? [];
+    const activeExamRun = this.parseExamRun(value['activeExamRun']);
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
     const coins = value['coins'];
@@ -1293,6 +1333,8 @@ export class AppStore {
     return {
       skillLevels,
       decisionHistory,
+      examHistory,
+      activeExamRun,
       reputation,
       techDebt,
       coins: this.normalizeCoins(typeof coins === 'number' ? coins : 0),
@@ -1408,6 +1450,148 @@ export class AppStore {
       decidedAt,
       snapshot: snapshot ?? undefined,
     };
+  }
+
+  private parseExamHistory(value: unknown): Progress['examHistory'] | null {
+    if (value === undefined) {
+      return null;
+    }
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const parsed = value
+      .map((entry) => this.parseExamAttempt(entry))
+      .filter((entry): entry is ExamAttempt => Boolean(entry));
+    return parsed;
+  }
+
+  private parseExamAttempt(value: unknown): ExamAttempt | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const attemptId = value['attemptId'];
+    const examId = value['examId'];
+    const startedAt = value['startedAt'];
+    if (
+      typeof attemptId !== 'string' ||
+      typeof examId !== 'string' ||
+      typeof startedAt !== 'string'
+    ) {
+      return null;
+    }
+    const finishedAt = value['finishedAt'];
+    const score = value['score'];
+    const passed = value['passed'];
+    const answers = this.parseExamAnswers(value['answers']);
+
+    return {
+      attemptId,
+      examId,
+      startedAt,
+      finishedAt: typeof finishedAt === 'string' ? finishedAt : undefined,
+      answers,
+      score: typeof score === 'number' && Number.isFinite(score) ? score : undefined,
+      passed: typeof passed === 'boolean' ? passed : undefined,
+    };
+  }
+
+  private parseExamRun(value: unknown): ExamRun | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const examId = value['examId'];
+    const session = this.parseExamSession(value['session']);
+    const startedAt = value['startedAt'];
+    const currentIndex = value['currentIndex'];
+    const attemptIndex = value['attemptIndex'];
+
+    if (
+      typeof examId !== 'string' ||
+      !session ||
+      typeof startedAt !== 'string' ||
+      typeof currentIndex !== 'number' ||
+      typeof attemptIndex !== 'number'
+    ) {
+      return null;
+    }
+
+    return {
+      examId,
+      session,
+      startedAt,
+      currentIndex: Math.max(0, Math.floor(currentIndex)),
+      answers: this.parseExamAnswers(value['answers']),
+      attemptIndex: Math.max(0, Math.floor(attemptIndex)),
+    };
+  }
+
+  private parseExamSession(value: unknown): ExamSession | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const examId = value['examId'];
+    const questionIds = value['questionIds'];
+    const seed = value['seed'];
+    if (typeof examId !== 'string' || typeof seed !== 'string' || !Array.isArray(questionIds)) {
+      return null;
+    }
+    if (!questionIds.every((id) => typeof id === 'string')) {
+      return null;
+    }
+    return {
+      examId,
+      questionIds,
+      seed,
+    };
+  }
+
+  private parseExamAnswers(value: unknown): Record<string, ExamAnswer> {
+    if (!this.isRecord(value)) {
+      return {};
+    }
+    const answers: Record<string, ExamAnswer> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      const parsed = this.parseExamAnswer(entry);
+      if (parsed) {
+        answers[key] = parsed;
+      }
+    }
+    return answers;
+  }
+
+  private parseExamAnswer(value: unknown): ExamAnswer | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const type = value['type'];
+    if (type === 'singleChoice' || type === 'caseDecision') {
+      const selectedOptionId = value['selectedOptionId'];
+      if (typeof selectedOptionId !== 'string') {
+        return null;
+      }
+      return { type, selectedOptionId } as ExamAnswer;
+    }
+    if (type === 'multiChoice') {
+      const selectedOptionIds = value['selectedOptionIds'];
+      if (
+        !Array.isArray(selectedOptionIds) ||
+        !selectedOptionIds.every((id) => typeof id === 'string')
+      ) {
+        return null;
+      }
+      return { type, selectedOptionIds } as ExamAnswer;
+    }
+    if (type === 'ordering') {
+      const orderedOptionIds = value['orderedOptionIds'];
+      if (
+        !Array.isArray(orderedOptionIds) ||
+        !orderedOptionIds.every((id) => typeof id === 'string')
+      ) {
+        return null;
+      }
+      return { type, orderedOptionIds } as ExamAnswer;
+    }
+    return null;
   }
 
   private parseSnapshot(value: unknown): ProgressSnapshot | null {

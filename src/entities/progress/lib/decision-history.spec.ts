@@ -18,6 +18,8 @@ describe('decision history undo', () => {
     const progress: Progress = {
       skillLevels: { core: 1 },
       decisionHistory: [],
+      examHistory: [],
+      activeExamRun: null,
       reputation: reputationGain,
       techDebt: techDebtGain * 2,
       coins: 5,

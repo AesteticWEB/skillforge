@@ -17,6 +17,11 @@ export const BALANCE = {
       minScoreMultiplier: 0.6,
       maxScoreMultiplier: 1.4,
     },
+    examSpeed: {
+      targetSeconds: 240,
+      stepSeconds: 15,
+      maxBonusRatio: 0.2,
+    },
   },
   skills: {
     upgradeCostPerLevel: 1,

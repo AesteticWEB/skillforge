@@ -1,0 +1,316 @@
+<div class="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-10">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80">Arena</div>
+      <h1 class="mt-2 text-2xl font-semibold text-slate-100">
+        {{ currentExam()?.title ?? 'Экзамен' }}
+      </h1>
+      <p class="mt-1 text-sm text-slate-400">Этап: {{ stageLabel() }}</p>
+    </div>
+    @if (activeRun()) {
+      <div class="rounded-xl border border-slate-800/80 bg-slate-900/70 px-4 py-2 text-sm">
+        Прошло: <span class="font-semibold text-slate-100">{{ elapsedLabel() }}</span>
+      </div>
+    }
+  </div>
+
+  @if (!currentExam()) {
+    <sf-empty-state
+      title="Экзамен недоступен"
+      description="Похоже, для вашего профиля пока нет экзамена. Проверьте профессию в профиле."
+    ></sf-empty-state>
+    <div class="flex flex-wrap gap-2">
+      <sf-button variant="ghost" (click)="goToProfile()">В профиль</sf-button>
+      @if (activeRun()) {
+        <sf-button variant="ghost" (click)="resetActiveRun()">Сбросить попытку</sf-button>
+      }
+    </div>
+  } @else if (activeRun()) {
+    <div class="rounded-2xl border border-slate-800/80 bg-slate-900/60 p-4">
+      <div class="flex items-center justify-between text-sm text-slate-400">
+        <span>{{ progressLabel() }}</span>
+        <span>Прогресс: {{ progressPercent() }}%</span>
+      </div>
+      <div class="mt-3 h-2 rounded-full bg-slate-800">
+        <div
+          class="h-2 rounded-full bg-emerald-400 transition-all"
+          [style.width.%]="progressPercent()"
+        ></div>
+      </div>
+    </div>
+
+    <sf-card>
+      @if (currentQuestion(); as question) {
+        <div class="text-xs uppercase tracking-wide text-slate-400">
+          Вопрос {{ (activeRun()?.currentIndex ?? 0) + 1 }}
+        </div>
+        <h2 class="mt-2 text-lg font-semibold text-slate-100">{{ question.prompt }}</h2>
+
+        <div class="mt-5 grid gap-3">
+          @if (question.type === 'singleChoice' || question.type === 'caseDecision') {
+            @for (option of question.options; track option.id) {
+              <label
+                class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 transition"
+                [ngClass]="{
+                  'border-emerald-400/60 bg-emerald-400/10': isSelected(option.id),
+                  'opacity-60': isReviewing(),
+                }"
+              >
+                <input
+                  type="radio"
+                  class="h-4 w-4 accent-emerald-400"
+                  [checked]="isSelected(option.id)"
+                  [disabled]="isReviewing()"
+                  [attr.name]="question.id"
+                  (change)="selectSingle(option.id)"
+                />
+                <span class="text-sm text-slate-100">{{ option.text }}</span>
+              </label>
+            }
+          } @else if (question.type === 'multiChoice') {
+            @for (option of question.options; track option.id) {
+              <label
+                class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 transition"
+                [ngClass]="{
+                  'border-emerald-400/60 bg-emerald-400/10': isSelected(option.id),
+                  'opacity-60': isReviewing(),
+                }"
+              >
+                <input
+                  type="checkbox"
+                  class="h-4 w-4 accent-emerald-400"
+                  [checked]="isSelected(option.id)"
+                  [disabled]="isReviewing()"
+                  (change)="toggleMulti(option.id)"
+                />
+                <span class="text-sm text-slate-100">{{ option.text }}</span>
+              </label>
+            }
+          } @else if (question.type === 'ordering') {
+            <div class="grid gap-4 lg:grid-cols-2">
+              <div class="grid gap-3">
+                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Варианты
+                </div>
+                @for (option of question.options; track option.id) {
+                  <div
+                    class="flex items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3"
+                  >
+                    <div class="text-sm text-slate-100">{{ option.text }}</div>
+                    <button
+                      type="button"
+                      class="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1 text-xs font-semibold text-slate-100 transition hover:border-slate-600"
+                      [disabled]="isReviewing() || orderingSequence().includes(option.id)"
+                      (click)="addOrderingOption(option.id)"
+                    >
+                      Добавить
+                    </button>
+                  </div>
+                }
+              </div>
+              <div class="grid gap-3">
+                <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Порядок
+                </div>
+                @if (orderingSequence().length > 0) {
+                  @for (id of orderingSequence(); track id) {
+                    <div
+                      class="flex items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3"
+                    >
+                      <span
+                        class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400/20 text-xs font-semibold text-emerald-200"
+                      >
+                        {{ $index + 1 }}
+                      </span>
+                      <span class="text-sm text-slate-100">{{ optionLabel(id) }}</span>
+                    </div>
+                  }
+                } @else {
+                  <div
+                    class="rounded-xl border border-dashed border-slate-800/80 p-4 text-sm text-slate-400"
+                  >
+                    Порядок пока пустой.
+                  </div>
+                }
+                <button
+                  type="button"
+                  class="rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:border-slate-600"
+                  [disabled]="isReviewing()"
+                  (click)="resetOrdering()"
+                >
+                  Сбросить порядок
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (isReviewing()) {
+          <div class="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/60 p-5">
+            <div
+              class="text-sm font-semibold"
+              [ngClass]="{
+                'text-emerald-300': currentAnswerCorrect(),
+                'text-rose-300': currentAnswerCorrect() === false,
+              }"
+            >
+              {{ currentAnswerCorrect() ? 'Правильно' : 'Неправильно' }}
+            </div>
+            <div class="mt-2 text-sm text-slate-300">
+              {{ question.explanation ?? 'Пояснение недоступно.' }}
+            </div>
+          </div>
+        }
+
+        <div class="mt-6 flex flex-wrap gap-2">
+          <sf-button variant="ghost" [disabled]="!canGoBack()" (click)="goBack()">Назад</sf-button>
+          @if (!isReviewing()) {
+            <sf-button [disabled]="!canProceed()" (click)="confirmAnswer()">
+              {{ isLastQuestion() ? 'Сдать экзамен' : 'Дальше' }}
+            </sf-button>
+          } @else {
+            <sf-button (click)="continueAfterExplanation()">
+              {{ isLastQuestion() ? 'Завершить экзамен' : 'Продолжить' }}
+            </sf-button>
+          }
+        </div>
+      } @else {
+        <div class="text-sm text-slate-400">Вопрос недоступен. Можно продолжить дальше.</div>
+        <div class="mt-4 flex gap-2">
+          <sf-button variant="ghost" [disabled]="!canGoBack()" (click)="goBack()">Назад</sf-button>
+          <sf-button (click)="skipMissingQuestion()">Дальше</sf-button>
+        </div>
+      }
+    </sf-card>
+  } @else if (resultData(); as result) {
+    <sf-card>
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-xs uppercase tracking-wide text-slate-400">Итог</div>
+          <div class="mt-2 text-3xl font-semibold text-slate-100">{{ result.score }}/100</div>
+          <div
+            class="mt-1 text-sm font-semibold"
+            [ngClass]="{ 'text-emerald-300': result.passed, 'text-rose-300': !result.passed }"
+          >
+            {{ result.passed ? 'Экзамен пройден' : 'Экзамен не пройден' }}
+          </div>
+        </div>
+        <div class="text-sm text-slate-400">
+          Правильно:
+          <span class="font-semibold text-slate-100"
+            >{{ result.correctCount }}/{{ result.total }}</span
+          >
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-3 sm:grid-cols-3">
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Время</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">
+            {{ formatDurationLabel(result.durationSeconds) }}
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Speed bonus</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">
+            +{{ result.speedBonus }} coins
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Награда</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">
+            +{{ result.totalCoins }} coins
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 grid gap-4 lg:grid-cols-2">
+        <div class="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-5">
+          <div class="text-sm font-semibold text-slate-100">Кратко</div>
+          <div class="mt-3 grid gap-2">
+            @for (line of result.breakdown.totals; track line.label) {
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400">{{ line.label }}</span>
+                <span [ngClass]="toneClass(line.tone)">{{ line.value }}</span>
+              </div>
+            }
+          </div>
+        </div>
+        <div class="rounded-2xl border border-slate-800/80 bg-slate-950/40 p-5">
+          <div class="text-sm font-semibold text-slate-100">Разбор награды</div>
+          <div class="mt-3 grid gap-2">
+            @for (line of result.breakdown.calculation; track line.label) {
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400">{{ line.label }}</span>
+                <span [ngClass]="toneClass(line.tone)">{{ line.value }}</span>
+              </div>
+              @if (line.hint) {
+                <div class="text-xs text-slate-500">{{ line.hint }}</div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-wrap gap-2">
+        <sf-button (click)="retryExam()">Пересдать</sf-button>
+        <sf-button variant="ghost" (click)="goToProfile()">В профиль</sf-button>
+      </div>
+    </sf-card>
+  } @else {
+    <sf-card>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Вопросов</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">
+            {{ currentExam()?.questionCount ?? 0 }}
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Порог</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">
+            {{ currentExam()?.passScore ?? 0 }}%
+          </div>
+        </div>
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
+          <div class="text-xs uppercase tracking-wide text-slate-500">Этап</div>
+          <div class="mt-2 text-lg font-semibold text-slate-100">{{ stageLabel() }}</div>
+        </div>
+      </div>
+
+      <div class="mt-6 flex flex-wrap gap-2">
+        <sf-button (click)="startExam()">Начать экзамен</sf-button>
+        <sf-button variant="ghost" (click)="goToProfile()">В профиль</sf-button>
+      </div>
+    </sf-card>
+
+    @if (attemptHistory().length > 0) {
+      <sf-card>
+        <div class="text-sm font-semibold text-slate-100">История попыток</div>
+        <div class="mt-4 grid gap-3">
+          @for (attempt of attemptHistory(); track attempt.attemptId) {
+            <div
+              class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm"
+            >
+              <div>
+                <div class="text-slate-100">Score: {{ attempt.score ?? 0 }}/100</div>
+                <div class="text-xs text-slate-500">
+                  {{ formatAttemptDate(attempt.finishedAt ?? attempt.startedAt) }}
+                </div>
+              </div>
+              <div
+                class="rounded-full px-3 py-1 text-xs font-semibold"
+                [ngClass]="{
+                  'bg-emerald-400/10 text-emerald-300': attempt.passed,
+                  'bg-rose-400/10 text-rose-300': !attempt.passed,
+                }"
+              >
+                {{ attempt.passed ? 'Passed' : 'Failed' }}
+              </div>
+            </div>
+          }
+        </div>
+      </sf-card>
+    }
+  }
+</div>

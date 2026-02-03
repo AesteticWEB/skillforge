@@ -11,6 +11,8 @@ describe('decision effects', () => {
     const progress: Progress = {
       skillLevels: { core: 0 },
       decisionHistory: [],
+      examHistory: [],
+      activeExamRun: null,
       reputation: 0,
       techDebt: 0,
       coins: 4,

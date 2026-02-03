@@ -49,12 +49,22 @@ export type ExamConfig = {
   stage: SkillStageId;
   questionCount: number;
   passScore: number;
+  questionIds: string[];
 };
 
 export type ExamSession = {
   examId: string;
   questionIds: string[];
   seed: string;
+};
+
+export type ExamRun = {
+  examId: string;
+  session: ExamSession;
+  startedAt: string;
+  currentIndex: number;
+  answers: Record<string, ExamAnswer>;
+  attemptIndex: number;
 };
 
 export type SingleChoiceAnswer = {

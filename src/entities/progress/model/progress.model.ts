@@ -1,3 +1,4 @@
+import type { ExamAttempt, ExamRun } from '@/entities/exam';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 
@@ -22,6 +23,8 @@ export interface DecisionHistoryEntry {
 export interface Progress {
   skillLevels: Record<string, number>;
   decisionHistory: DecisionHistoryEntry[];
+  examHistory: ExamAttempt[];
+  activeExamRun: ExamRun | null;
   reputation: number;
   techDebt: number;
   coins: number;
