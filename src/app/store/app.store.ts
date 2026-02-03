@@ -34,8 +34,10 @@ import {
   SKILL_STAGE_ORDER,
   SkillStageId,
 } from '@/shared/config';
+import { NotificationsStore } from '@/features/notifications';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
+import { ErrorLogStore } from '@/shared/lib/errors';
 import {
   createProfileCreatedEvent,
   createScenarioCompletedEvent,
@@ -43,6 +45,13 @@ import {
   createSkillUpgradedEvent,
   DomainEventBus,
 } from '@/shared/lib/events';
+import {
+  migratePersistedState,
+  PERSIST_LEGACY_KEYS,
+  PERSIST_SCHEMA_VERSION,
+  PERSIST_STORAGE_KEY,
+  type PersistedStateLatest,
+} from '@/shared/persist/schema';
 import {
   getCareerStageProgress,
   getStagePromotionStatus,
@@ -101,12 +110,15 @@ const createEmptyProgress = (): Progress => ({
 
 @Injectable({ providedIn: 'root' })
 export class AppStore {
-  private static readonly STORAGE_KEY = 'skillforge.state.v1';
-  private static readonly STORAGE_VERSION = 1;
+  private static readonly STORAGE_KEY = PERSIST_STORAGE_KEY;
+  private static readonly STORAGE_VERSION = PERSIST_SCHEMA_VERSION;
+  private static readonly LEGACY_STORAGE_KEYS = PERSIST_LEGACY_KEYS;
 
   private readonly skillsApi = inject(SkillsApi);
   private readonly scenariosApi = inject(ScenariosApi);
   private readonly eventBus = inject(DomainEventBus);
+  private readonly notificationsStore = inject(NotificationsStore);
+  private readonly errorLogStore = inject(ErrorLogStore);
 
   private hasHydrated = false;
   private readonly _user = signal<User>(createEmptyUser());
@@ -487,27 +499,27 @@ export class AppStore {
       return { ok: false, error: 'JSON РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕР±СЉРµРєС‚РѕРј.' };
     }
 
-    const version = parsed['version'];
-    if (typeof version !== 'number' || version !== AppStore.STORAGE_VERSION) {
+    const migrated = migratePersistedState(parsed);
+    if (!migrated) {
       return {
         ok: false,
         error: 'РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјР°СЏ РІРµСЂСЃРёСЏ СЌРєСЃРїРѕСЂС‚Р°.',
       };
     }
 
-    const user = this.parseUser(parsed['user']);
+    const user = this.parseUser(migrated.user);
     if (!user) {
       return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ.' };
     }
 
-    const progress = this.parseProgress(parsed['progress']);
+    const progress = this.parseProgress(migrated.progress);
     if (!progress) {
       return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕРіСЂРµСЃСЃР°.' };
     }
 
-    const featureFlags = this.parseFeatureFlags(parsed['featureFlags']);
-    const auth = this.parseAuth(parsed['auth']);
-    const xp = this.parseXp(parsed['xp']);
+    const featureFlags = this.parseFeatureFlags(migrated.featureFlags);
+    const auth = this.parseAuth(migrated.auth);
+    const xp = this.parseXp(migrated.xp);
 
     this._user.set(user);
     this._progress.set(progress);
@@ -856,6 +868,9 @@ export class AppStore {
       return;
     }
     localStorage.removeItem(AppStore.STORAGE_KEY);
+    for (const key of AppStore.LEGACY_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
   }
 
   private persistToStorage(): void {
@@ -879,39 +894,78 @@ export class AppStore {
     }
   }
 
-  private readStorage(): {
-    version: number;
-    user: Partial<User>;
-    progress: Partial<Progress>;
-    featureFlags?: Partial<FeatureFlags>;
-    auth?: Partial<AuthState>;
-    xp?: number;
-  } | null {
+  private readStorage(): PersistedStateLatest | null {
     if (!this.isStorageAvailable()) {
       return null;
     }
 
-    const raw = localStorage.getItem(AppStore.STORAGE_KEY);
-    if (!raw) {
+    const rawEntry = this.readRawStorage();
+    if (!rawEntry) {
       return null;
     }
 
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(raw) as {
-        version: number;
-        user: Partial<User>;
-        progress: Partial<Progress>;
-        featureFlags?: Partial<FeatureFlags>;
-        auth?: Partial<AuthState>;
-        xp?: number;
-      };
-      if (parsed?.version !== AppStore.STORAGE_VERSION) {
-        return null;
-      }
-      return parsed;
-    } catch {
+      parsed = JSON.parse(rawEntry.raw);
+    } catch (error) {
+      this.handleStorageError(error, 'parse');
+      this.removeStorageKey(rawEntry.key);
       return null;
     }
+
+    const migrated = migratePersistedState(parsed);
+    if (!migrated) {
+      this.handleStorageError(new Error('Unsupported save version'), 'migrate');
+      this.removeStorageKey(rawEntry.key);
+      return null;
+    }
+
+    if (rawEntry.key !== AppStore.STORAGE_KEY) {
+      this.persistMigratedState(rawEntry.key, migrated);
+    }
+
+    return migrated;
+  }
+
+  private readRawStorage(): { key: string; raw: string } | null {
+    const current = localStorage.getItem(AppStore.STORAGE_KEY);
+    if (current) {
+      return { key: AppStore.STORAGE_KEY, raw: current };
+    }
+
+    for (const key of AppStore.LEGACY_STORAGE_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        return { key, raw };
+      }
+    }
+
+    return null;
+  }
+
+  private persistMigratedState(fromKey: string, state: PersistedStateLatest): void {
+    try {
+      localStorage.setItem(AppStore.STORAGE_KEY, JSON.stringify(state));
+      if (fromKey !== AppStore.STORAGE_KEY) {
+        localStorage.removeItem(fromKey);
+      }
+    } catch {
+      // Ignore storage errors (quota or privacy mode).
+    }
+  }
+
+  private removeStorageKey(key: string): void {
+    if (!this.isStorageAvailable()) {
+      return;
+    }
+    localStorage.removeItem(key);
+  }
+
+  private handleStorageError(error: unknown, context: string): void {
+    this.errorLogStore.capture(error, `persist:${context}`, false);
+    this.notificationsStore.error(
+      'Не удалось прочитать сохранение. Выполнен сброс к пустому состоянию.',
+    );
   }
 
   private mergeProgressDefaults(progress: Partial<Progress>): Progress {

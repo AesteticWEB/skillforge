@@ -65,10 +65,10 @@ export class SettingsDebugPage {
     }
 
     const { steps, starting, outcomes, coins, cash, reputation, techDebt } = BALANCE.sandbox;
-    let currentCoins = starting.coins;
-    let currentCash = starting.cash;
-    let currentReputation = starting.reputation;
-    let currentTechDebt = starting.techDebt;
+    let currentCoins: number = starting.coins;
+    let currentCash: number = starting.cash;
+    let currentReputation: number = starting.reputation;
+    let currentTechDebt: number = starting.techDebt;
     const totalWeight = outcomes.positive + outcomes.neutral + outcomes.negative;
     const rows: BalanceSandboxRow[] = [];
 
