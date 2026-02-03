@@ -621,19 +621,6 @@ export class AppStore {
     const beforeSkills = this._skills();
     const previousLevel = beforeSkills.find((skill) => skill.id === skillId)?.level ?? 0;
     if (delta < 0) {
-      const result = changeSkillLevel(beforeSkills, skillId, delta);
-      if (result.reason || result.nextLevel === null) {
-        return;
-      }
-
-      this._skills.set(result.skills);
-      this._progress.update((progress) => ({
-        ...progress,
-        skillLevels: {
-          ...progress.skillLevels,
-          [skillId]: result.nextLevel ?? progress.skillLevels[skillId] ?? 0,
-        },
-      }));
       return;
     }
 

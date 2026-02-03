@@ -65,9 +65,7 @@ export class SkillsPage {
         skill.maxLevel > 0 ? Math.round((skill.level / skill.maxLevel) * 100) : 0;
       const upgradeMeta = this.store.getSkillUpgradeMeta(skill.id);
       const canIncrease = upgradeMeta.canIncrease;
-      const canDecrease = this.store.canDecreaseSkill(skill.id);
       const increaseReason = upgradeMeta.reason;
-      const decreaseReason = this.store.getDecreaseBlockReason(skill.id);
       const icon = this.categoryIcons[skill.category] ?? '✨';
       const nextCost = upgradeMeta.cost;
       const nextCostLabel = nextCost === null ? 'Максимальный уровень' : `${nextCost} XP`;
@@ -78,9 +76,7 @@ export class SkillsPage {
         missingDeps,
         progressPercent,
         canIncrease,
-        canDecrease,
         increaseReason,
-        decreaseReason,
         icon,
         nextCost,
         nextCostLabel,
@@ -90,10 +86,6 @@ export class SkillsPage {
 
   protected incrementSkill(skillId: string): void {
     this.store.incrementSkillLevel(skillId);
-  }
-
-  protected decrementSkill(skillId: string): void {
-    this.store.incrementSkillLevel(skillId, -1);
   }
 
   protected setCategory(category: string): void {

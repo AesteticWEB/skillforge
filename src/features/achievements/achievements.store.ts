@@ -103,8 +103,13 @@ export class AchievementsStore {
 
   private addSkillMastery(event: SkillUpgradedEvent): void {
     const { skillId, skillName, skillStage, profession } = event.payload;
+    const resolvedStage = skillStage ?? 'internship';
+    const resolvedProfession = profession ?? 'Unknown';
     const existing = this.state().skillMasteries.some(
-      (achievement) => achievement.skillId === skillId,
+      (achievement) =>
+        achievement.skillId === skillId &&
+        achievement.stage === resolvedStage &&
+        achievement.profession === resolvedProfession,
     );
     if (existing) {
       return;
@@ -114,8 +119,8 @@ export class AchievementsStore {
       type: 'skill_mastered',
       skillId,
       skillName: skillName ?? skillId,
-      stage: skillStage ?? 'internship',
-      profession: profession ?? 'Не указано',
+      stage: resolvedStage,
+      profession: resolvedProfession,
       earnedAt: new Date().toISOString(),
     };
 

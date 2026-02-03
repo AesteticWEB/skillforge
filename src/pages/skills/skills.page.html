@@ -106,19 +106,9 @@
                 <sf-button
                   variant="ghost"
                   type="button"
-                  [disabled]="!card.canDecrease"
-                  [attr.title]="!card.canDecrease ? card.decreaseReason : null"
-                  [ariaLabel]="'Понизить ' + card.name"
-                  (click)="decrementSkill(card.id)"
-                >
-                  -
-                </sf-button>
-                <sf-button
-                  variant="ghost"
-                  type="button"
                   [disabled]="!card.canIncrease"
                   [attr.title]="!card.canIncrease ? card.increaseReason : null"
-                  [ariaLabel]="'Повысить ' + card.name"
+                  [ariaLabel]="'Increase ' + card.name"
                   (click)="incrementSkill(card.id)"
                 >
                   +

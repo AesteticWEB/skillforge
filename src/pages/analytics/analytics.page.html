@@ -2,10 +2,13 @@
   <sf-card>
     <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Аналитика</h1>
     <p class="mt-3 text-base text-slate-300 sm:text-lg">Здесь видно последствия твоих решений.</p>
+    <p class="mt-2 text-sm text-slate-400">Текущий этап: {{ stageLabel() }}</p>
     <p class="mt-2 text-sm text-slate-400">Сценариев в треке: {{ scenariosCount() }}</p>
     <p class="mt-1 text-sm text-slate-400">Решений в истории: {{ decisionCount() }}</p>
     <div class="mt-5 flex flex-wrap gap-3">
-      <sf-button variant="ghost" (click)="logDecision()">Добавить тестовое решение</sf-button>
+      @if (isDevMode) {
+        <sf-button variant="ghost" (click)="logDecision()">Добавить тестовое решение</sf-button>
+      }
     </div>
   </sf-card>
 
@@ -23,6 +26,62 @@
       </div>
     </sf-card>
   }
+
+  @if (seniorSummary(); as summary) {
+    <sf-card class="mt-6">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Итог карьеры</h2>
+          <p class="mt-1 text-sm text-slate-400">Кем ты стал по стилю решений</p>
+        </div>
+        <div class="text-right text-sm text-slate-400">
+          Решений принято: {{ summary.decisions }}
+        </div>
+      </div>
+
+      <div class="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-4">
+        <div class="text-xs uppercase tracking-wide text-emerald-300">Тип Senior</div>
+        <div class="mt-2 text-lg font-semibold text-slate-100">
+          {{ summary.archetype.title }}
+        </div>
+        <p class="mt-2 text-sm text-slate-300">{{ summary.archetype.description }}</p>
+      </div>
+
+      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+          Техдолг итого: <span class="font-semibold text-slate-100">{{ summary.netDebt }}</span>
+        </div>
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+          Репутация итого: <span class="font-semibold text-slate-100">{{ summary.netRep }}</span>
+        </div>
+      </div>
+    </sf-card>
+  }
+
+  <sf-card class="mt-6">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-100">Цена решений</h2>
+        <p class="mt-1 text-sm text-slate-400">Как решения повлияли на метрики.</p>
+      </div>
+      <div class="text-xs text-slate-400">Всего решений: {{ decisionStats().total }}</div>
+    </div>
+
+    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      <div
+        class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-200"
+      >
+        Техдолг: +{{ decisionStats().debtUp }} / -{{ decisionStats().debtDown }}
+        <span class="text-slate-400">(итог {{ decisionStats().netDebt }})</span>
+      </div>
+      <div
+        class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-200"
+      >
+        Репутация: +{{ decisionStats().repUp }} / -{{ decisionStats().repDown }}
+        <span class="text-slate-400">(итог {{ decisionStats().netRep }})</span>
+      </div>
+    </div>
+  </sf-card>
 
   <sf-card class="mt-6">
     <div class="flex flex-wrap items-center justify-between gap-3">
@@ -66,40 +125,45 @@
   <sf-card class="mt-6">
     <div class="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Топ навыков</h2>
-        <p class="mt-1 text-sm text-slate-400">Лучшие {{ topSkills().length }} по уровню.</p>
+        <h2 class="text-lg font-semibold text-slate-100">Макснутые навыки</h2>
+        <p class="mt-1 text-sm text-slate-400">Навыки, которые ты довёл до максимума.</p>
         @if (skillsError()) {
           <div class="mt-4 text-sm text-slate-400">Навыки недоступны из-за ошибки.</div>
         } @else {
           <div class="mt-4 grid gap-3">
-            @for (skill of topSkills(); track skill.id) {
+            @for (skill of maxedCoreSkills(); track skill.id) {
               <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-                <div class="text-sm font-semibold text-slate-100">{{ skill.name }}</div>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-sm font-semibold text-slate-100">{{ skill.name }}</div>
+                  <span
+                    class="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200"
+                  >
+                    MAX
+                  </span>
+                </div>
                 <div class="mt-1 text-xs text-slate-400">
-                  {{ skill.category }} · Уровень {{ skill.level }} / {{ skill.maxLevel }}
+                  {{ skill.category }} · Уровень {{ skill.maxLevel }} / {{ skill.maxLevel }}
                 </div>
               </div>
             } @empty {
-              <sf-empty-state
-                size="sm"
-                title="Навыков пока нет"
-                description="Создай профиль, чтобы увидеть стартовые навыки."
-              ></sf-empty-state>
+              <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+                <div class="text-sm text-slate-200">
+                  Пока нет навыков на максимуме. Прокачай 4 ключевых навыка своей профессии до 5/5.
+                </div>
+              </div>
             }
           </div>
         }
       </div>
 
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Линия прогресса</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Пройдено сценариев: {{ completedScenarios() }} / {{ scenariosCount() }}
-        </p>
+        <h2 class="text-lg font-semibold text-slate-100">Напряжение системы</h2>
+        <p class="mt-1 text-sm text-slate-400">Решений принято: {{ decisionCount() }}</p>
         <div class="mt-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4">
-          @if (progressChart().points) {
+          @if (tensionChart().points) {
             <svg viewBox="0 0 120 40" class="h-28 w-full">
               <polyline
-                [attr.points]="progressChart().points"
+                [attr.points]="tensionChart().points"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
@@ -107,7 +171,10 @@
               ></polyline>
             </svg>
             <div class="mt-2 text-xs text-slate-400">
-              Всего решений: {{ progressChart().latest }}
+              Текущий уровень ({{ tensionChart().metricLabel }}): {{ tensionChart().latest }}
+            </div>
+            <div class="mt-1 text-xs text-slate-500">
+              Пики показывают моменты, когда система была под нагрузкой.
             </div>
           } @else {
             <sf-empty-state
@@ -120,6 +187,33 @@
       </div>
     </div>
   </sf-card>
+
+  @if (isSenior()) {
+    <sf-card class="mt-6">
+      <div class="grid gap-6 md:grid-cols-2">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Сильные стороны</h2>
+          <div class="mt-3 grid gap-2">
+            @for (item of seniorStrengths(); track item) {
+              <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+                {{ item }}
+              </div>
+            }
+          </div>
+        </div>
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Зоны риска</h2>
+          <div class="mt-3 grid gap-2">
+            @for (item of seniorRisks(); track item) {
+              <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+                {{ item }}
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </sf-card>
+  }
 
   <div
     class="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4 text-sm text-slate-300"
