@@ -23,7 +23,6 @@ import {
   EXAM_QUESTIONS_BY_ID,
   EXAMS_BY_ID,
   PROFESSION_OPTIONS,
-  SKILL_STAGE_LABELS,
   getExam,
 } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
@@ -44,6 +43,13 @@ const EXAM_PROFESSION_IDS = [
 ] as const;
 
 type ExamProfessionId = (typeof EXAM_PROFESSION_IDS)[number];
+
+const STAGE_LABELS_RU: Record<'internship' | 'junior' | 'middle' | 'senior', string> = {
+  internship: 'Стажировка',
+  junior: 'Джуниор',
+  middle: 'Миддл',
+  senior: 'Сеньор',
+};
 
 const mapProfessionToExamId = (profession: string): ExamProfessionId | null => {
   const index = PROFESSION_OPTIONS.indexOf(profession as (typeof PROFESSION_OPTIONS)[number]);
@@ -104,7 +110,7 @@ export class ExamPage implements OnDestroy {
   protected readonly activeRun = this.store.activeExamRun;
   protected readonly examHistory = this.store.examHistory;
   protected readonly careerStage = this.store.careerStage;
-  protected readonly stageLabel = computed(() => SKILL_STAGE_LABELS[this.careerStage()]);
+  protected readonly stageLabel = computed(() => STAGE_LABELS_RU[this.careerStage()]);
   protected readonly examProfessionId = computed(() => {
     const raw = this.store.professionId();
     return mapProfessionToExamId(raw);
@@ -453,6 +459,15 @@ export class ExamPage implements OnDestroy {
     };
 
     this.store.recordExamAttempt(attempt, totalCoins);
+    if (grade.passed) {
+      this.store.grantCertificateFromExam({
+        examId: exam.id,
+        professionId: exam.professionId,
+        stage: exam.stage,
+        score: grade.score,
+        issuedAt: finishedAt,
+      });
+    }
     this.result.set({
       score: grade.score,
       passed: grade.passed,
@@ -613,12 +628,12 @@ export class ExamPage implements OnDestroy {
 
     const totals: RewardBreakdownLine[] = [
       {
-        label: 'Coins',
+        label: 'Итого монет',
         value: `+${input.totalCoins}`,
         tone: 'positive',
       },
       {
-        label: 'Speed bonus',
+        label: 'Бонус за скорость',
         value: input.speedBonus > 0 ? `+${input.speedBonus}` : '0',
         tone: input.speedBonus > 0 ? 'positive' : 'neutral',
       },
@@ -626,43 +641,43 @@ export class ExamPage implements OnDestroy {
 
     const calculation: RewardBreakdownLine[] = [
       {
-        label: 'Base',
-        value: `${rewards.examCoins} coins`,
-        hint: 'Базовая награда экзамена.',
+        label: 'База',
+        value: `${rewards.examCoins} монет`,
+        hint: 'Базовая награда за экзамен.',
       },
       {
-        label: 'Score',
+        label: 'Множитель результата',
         value: `x${scoreMultiplier.toFixed(2)}`,
-        hint: `Результат: ${input.score}/100`,
+        hint: `Счёт: ${input.score}/100`,
         tone: scoreMultiplier >= 1 ? 'positive' : 'negative',
       },
       {
-        label: 'Репутация',
+        label: 'Множитель репутации',
         value: `x${repMultiplier.toFixed(2)}`,
         hint: `Репутация: ${reputation}`,
         tone: repMultiplier >= 1 ? 'positive' : 'negative',
       },
       {
-        label: 'Техдолг',
+        label: 'Множитель техдолга',
         value: `x${debtMultiplier.toFixed(2)}`,
         hint: `Техдолг: ${techDebt}`,
         tone: debtMultiplier >= 1 ? 'positive' : 'negative',
       },
       {
-        label: 'Баффы',
+        label: 'Усиления',
         value: `x${buffMultiplier.toFixed(2)} +${buffBonus}`,
-        hint: 'Эффекты предметов.',
+        hint: 'Активные усиления.',
       },
       {
-        label: 'Speed bonus',
+        label: 'Бонус за скорость',
         value: `+${input.speedBonus}`,
         hint: `Цель: ${rewards.examSpeed.targetSeconds} сек`,
         tone: input.speedBonus > 0 ? 'positive' : 'neutral',
       },
       {
-        label: 'Итог',
-        value: `${input.totalCoins} coins`,
-        hint: `Минимум ${rewards.minCoins} coin.`,
+        label: 'Итого',
+        value: `${input.totalCoins} монет`,
+        hint: `Минимум ${rewards.minCoins} монет.`,
       },
     ];
 

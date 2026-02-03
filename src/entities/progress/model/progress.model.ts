@@ -1,4 +1,5 @@
 import type { ExamAttempt, ExamRun } from '@/entities/exam';
+import type { Certificate } from '@/entities/certificates';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 
@@ -25,6 +26,7 @@ export interface Progress {
   decisionHistory: DecisionHistoryEntry[];
   examHistory: ExamAttempt[];
   activeExamRun: ExamRun | null;
+  certificates: Certificate[];
   reputation: number;
   techDebt: number;
   coins: number;

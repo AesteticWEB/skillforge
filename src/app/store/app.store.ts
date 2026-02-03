@@ -8,6 +8,8 @@ import {
   undoLastDecision,
 } from '@/entities/progress';
 import type { ExamAnswer, ExamAttempt, ExamRun, ExamSession } from '@/entities/exam';
+import type { Certificate } from '@/entities/certificates';
+import { makeCertificateId, upsertCertificate } from '@/entities/certificates';
 import {
   applyScenarioAvailabilityEffects,
   createScenarioGateContext,
@@ -67,6 +69,8 @@ import {
   getStagePromotionStatus,
   selectCoreSkillsForStage,
 } from '@/shared/lib/stage';
+
+declare const ngDevMode: boolean | undefined;
 type ScenarioAccess = {
   scenario: Scenario;
   available: boolean;
@@ -123,6 +127,7 @@ const createEmptyProgress = (): Progress => ({
   decisionHistory: [],
   examHistory: [],
   activeExamRun: null,
+  certificates: [],
   reputation: 0,
   techDebt: 0,
   coins: 0,
@@ -259,6 +264,7 @@ export class AppStore {
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
   readonly examHistory = computed(() => this._progress().examHistory);
   readonly activeExamRun = computed(() => this._progress().activeExamRun);
+  readonly certificates = computed(() => this._progress().certificates);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
@@ -507,6 +513,9 @@ export class AppStore {
     this._progress.set({
       skillLevels,
       decisionHistory: [],
+      examHistory: [],
+      activeExamRun: null,
+      certificates: [],
       reputation: 0,
       techDebt: 0,
       coins: 0,
@@ -750,6 +759,36 @@ export class AppStore {
       coins: this.normalizeCoins(progress.coins + rewardCoins),
       examHistory: [...progress.examHistory, attempt],
       activeExamRun: null,
+    }));
+  }
+
+  grantCertificateFromExam(input: {
+    examId: string;
+    professionId: string | null | undefined;
+    stage: SkillStageId | null | undefined;
+    score: number;
+    issuedAt: string;
+  }): void {
+    const professionId = input.professionId?.trim();
+    const stage = input.stage;
+    if (!professionId || !stage || !this.isValidStage(stage)) {
+      this.logDevError('certificate-invalid-data', input);
+      return;
+    }
+
+    const score = this.normalizeScore(input.score);
+    const certificate: Certificate = {
+      id: makeCertificateId(professionId, stage),
+      professionId,
+      stage,
+      examId: input.examId,
+      issuedAt: input.issuedAt,
+      score,
+    };
+
+    this._progress.update((progress) => ({
+      ...progress,
+      certificates: upsertCertificate(progress.certificates ?? [], certificate),
     }));
   }
 
@@ -1243,6 +1282,7 @@ export class AppStore {
       decisionHistory: progress.decisionHistory ?? [],
       examHistory: progress.examHistory ?? [],
       activeExamRun: progress.activeExamRun ?? null,
+      certificates: progress.certificates ?? [],
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
       coins: this.normalizeCoins(progress.coins ?? 0),
@@ -1309,6 +1349,7 @@ export class AppStore {
     const decisionHistory = this.parseDecisionHistory(value['decisionHistory']);
     const examHistory = this.parseExamHistory(value['examHistory']) ?? [];
     const activeExamRun = this.parseExamRun(value['activeExamRun']);
+    const certificates = this.parseCertificates(value['certificates']) ?? [];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
     const coins = value['coins'];
@@ -1335,6 +1376,7 @@ export class AppStore {
       decisionHistory,
       examHistory,
       activeExamRun,
+      certificates,
       reputation,
       techDebt,
       coins: this.normalizeCoins(typeof coins === 'number' ? coins : 0),
@@ -1463,6 +1505,53 @@ export class AppStore {
       .map((entry) => this.parseExamAttempt(entry))
       .filter((entry): entry is ExamAttempt => Boolean(entry));
     return parsed;
+  }
+
+  private parseCertificates(value: unknown): Progress['certificates'] | null {
+    if (value === undefined) {
+      return null;
+    }
+    if (!Array.isArray(value)) {
+      return null;
+    }
+    const parsed = value
+      .map((entry) => this.parseCertificate(entry))
+      .filter((entry): entry is Certificate => Boolean(entry));
+    return parsed;
+  }
+
+  private parseCertificate(value: unknown): Certificate | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const id = value['id'];
+    const professionId = value['professionId'];
+    const stage = value['stage'];
+    const examId = value['examId'];
+    const issuedAt = value['issuedAt'];
+    const score = value['score'];
+
+    if (
+      typeof id !== 'string' ||
+      typeof professionId !== 'string' ||
+      typeof stage !== 'string' ||
+      typeof examId !== 'string' ||
+      typeof issuedAt !== 'string'
+    ) {
+      return null;
+    }
+    if (!this.isValidStage(stage)) {
+      return null;
+    }
+
+    return {
+      id,
+      professionId,
+      stage,
+      examId,
+      issuedAt,
+      score: this.normalizeScore(typeof score === 'number' ? score : 0),
+    };
   }
 
   private parseExamAttempt(value: unknown): ExamAttempt | null {
@@ -1676,6 +1765,24 @@ export class AppStore {
       return 0;
     }
     return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeScore(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.min(100, Math.max(0, Math.floor(value)));
+  }
+
+  private isValidStage(value: string): value is SkillStageId {
+    return (SKILL_STAGE_ORDER as readonly string[]).includes(value);
+  }
+
+  private logDevError(message: string, payload: unknown): void {
+    const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
+    if (isDev) {
+      console.error(`[certificates] ${message}`, payload);
+    }
   }
 
   private normalizeCash(value: number): number {

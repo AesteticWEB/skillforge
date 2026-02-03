@@ -1,5 +1,5 @@
 import type { ExamConfig } from '@/entities/exam';
-import { SKILL_STAGE_LABELS, type SkillStageId } from '@/shared/config/professions';
+import type { SkillStageId } from '@/shared/config/professions';
 import { EXAM_QUESTIONS_BY_ID } from './questions';
 
 type ExamProfessionId =
@@ -21,19 +21,25 @@ type ProfessionConfig = {
 };
 
 const PROFESSIONS: ProfessionConfig[] = [
-  { id: 'frontend', label: 'Frontend', questionPrefix: 'q_fe_' },
-  { id: 'backend', label: 'Backend', questionPrefix: 'q_be_' },
-  { id: 'fullstack', label: 'Fullstack', questionPrefix: 'q_fs_' },
-  { id: 'mobile', label: 'Mobile', questionPrefix: 'q_mob_' },
-  { id: 'qa', label: 'QA', questionPrefix: 'q_qa_' },
-  { id: 'devops', label: 'DevOps', questionPrefix: 'q_ops_' },
-  { id: 'data-engineer', label: 'Data Engineer', questionPrefix: 'q_de_' },
-  { id: 'data-scientist-ml', label: 'Data Scientist / ML', questionPrefix: 'q_ml_' },
-  { id: 'security', label: 'Security', questionPrefix: 'q_sec_' },
-  { id: 'gamedev', label: 'GameDev', questionPrefix: 'q_gd_' },
+  { id: 'frontend', label: 'Фронтенд', questionPrefix: 'q_fe_' },
+  { id: 'backend', label: 'Бэкенд', questionPrefix: 'q_be_' },
+  { id: 'fullstack', label: 'Фуллстек', questionPrefix: 'q_fs_' },
+  { id: 'mobile', label: 'Мобайл', questionPrefix: 'q_mob_' },
+  { id: 'qa', label: 'Тестирование (QA)', questionPrefix: 'q_qa_' },
+  { id: 'devops', label: 'DevOps / SRE', questionPrefix: 'q_ops_' },
+  { id: 'data-engineer', label: 'Дата-инженер', questionPrefix: 'q_de_' },
+  { id: 'data-scientist-ml', label: 'Дата-сайентист / ML', questionPrefix: 'q_ml_' },
+  { id: 'security', label: 'Безопасность', questionPrefix: 'q_sec_' },
+  { id: 'gamedev', label: 'Геймдев', questionPrefix: 'q_gd_' },
 ];
 
 const STAGES: SkillStageId[] = ['internship', 'junior', 'middle', 'senior'];
+const STAGE_LABELS_RU: Record<SkillStageId, string> = {
+  internship: 'Стажировка',
+  junior: 'Джуниор',
+  middle: 'Миддл',
+  senior: 'Сеньор',
+};
 
 const QUESTION_COUNT = 10;
 const PASS_SCORE = 70;
@@ -68,7 +74,7 @@ const buildExamId = (professionId: ExamProfessionId, stage: SkillStageId): strin
   `exam_${professionId}_${stage}`;
 
 const buildExamTitle = (profession: ProfessionConfig, stage: SkillStageId): string =>
-  `${profession.label} ${SKILL_STAGE_LABELS[stage]} Exam`;
+  `${profession.label} · ${STAGE_LABELS_RU[stage]} — экзамен`;
 
 const buildExamConfig = (
   profession: ProfessionConfig,

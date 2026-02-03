@@ -13,6 +13,7 @@ describe('decision effects', () => {
       decisionHistory: [],
       examHistory: [],
       activeExamRun: null,
+      certificates: [],
       reputation: 0,
       techDebt: 0,
       coins: 4,

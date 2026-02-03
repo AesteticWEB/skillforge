@@ -25,7 +25,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 2' },
   { label: 'Магазин', path: '/shop', exact: false, meta: 'Бонусы' },
   { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
-  { label: '???????', path: '/exam', exact: false, meta: 'Arena' },
+  { label: 'Экзамен', path: '/exam', exact: false, meta: 'Арена' },
   { label: 'Аналитика', path: '/analytics', exact: false, meta: 'Итоги' },
   { label: 'Дебаг', path: '/debug', exact: false, meta: 'Dev' },
 ];

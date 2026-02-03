@@ -1,7 +1,7 @@
 <div class="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-10">
   <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
     <div>
-      <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80">Arena</div>
+      <div class="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300/80">Арена</div>
       <h1 class="mt-2 text-2xl font-semibold text-slate-100">
         {{ currentExam()?.title ?? 'Экзамен' }}
       </h1>
@@ -211,15 +211,15 @@
           </div>
         </div>
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
-          <div class="text-xs uppercase tracking-wide text-slate-500">Speed bonus</div>
+          <div class="text-xs uppercase tracking-wide text-slate-500">Бонус за скорость</div>
           <div class="mt-2 text-lg font-semibold text-slate-100">
-            +{{ result.speedBonus }} coins
+            +{{ result.speedBonus }} монет
           </div>
         </div>
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 p-4">
           <div class="text-xs uppercase tracking-wide text-slate-500">Награда</div>
           <div class="mt-2 text-lg font-semibold text-slate-100">
-            +{{ result.totalCoins }} coins
+            +{{ result.totalCoins }} монет
           </div>
         </div>
       </div>
@@ -293,7 +293,7 @@
               class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm"
             >
               <div>
-                <div class="text-slate-100">Score: {{ attempt.score ?? 0 }}/100</div>
+                <div class="text-slate-100">Результат: {{ attempt.score ?? 0 }}/100</div>
                 <div class="text-xs text-slate-500">
                   {{ formatAttemptDate(attempt.finishedAt ?? attempt.startedAt) }}
                 </div>
@@ -305,7 +305,7 @@
                   'bg-rose-400/10 text-rose-300': !attempt.passed,
                 }"
               >
-                {{ attempt.passed ? 'Passed' : 'Failed' }}
+                {{ attempt.passed ? 'Сдан' : 'Не сдан' }}
               </div>
             </div>
           }

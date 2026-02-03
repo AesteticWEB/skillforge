@@ -5,7 +5,13 @@ import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
 import { AchievementsStore, SkillMasteryAchievement } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
-import { PROFESSION_STAGE_SKILLS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
+import type { SkillStageId } from '@/shared/config';
+import {
+  EXAMS_BY_ID,
+  PROFESSION_STAGE_SKILLS,
+  SKILL_STAGE_LABELS,
+  SKILL_STAGE_ORDER,
+} from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -17,6 +23,21 @@ type StageMasteryCard = {
   masteredCount: number;
   total: number;
   achievements: SkillMasteryAchievement[];
+};
+
+type CertificateRow = {
+  id: string;
+  professionLabel: string;
+  stageLabel: string;
+  score: number;
+  issuedAt: string;
+};
+
+const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
+  internship: 'Стажировка',
+  junior: 'Джуниор',
+  middle: 'Миддл',
+  senior: 'Сеньор',
 };
 
 @Component({
@@ -40,6 +61,26 @@ export class ProfilePage {
   protected readonly nextStageLabel = this.store.nextStageLabel;
   protected readonly canAdvanceStage = this.store.canAdvanceSkillStage;
   protected readonly stagePromotionReasons = this.store.stagePromotionReasons;
+  protected readonly certificates = this.store.certificates;
+  protected readonly hasCertificates = computed(() => this.certificates().length > 0);
+  protected readonly certificateRows = computed<CertificateRow[]>(() => {
+    return this.certificates()
+      .slice()
+      .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt))
+      .map((certificate) => {
+        const exam = EXAMS_BY_ID[certificate.examId];
+        const professionLabel = exam
+          ? this.extractProfessionLabel(exam.title)
+          : certificate.professionId;
+        return {
+          id: certificate.id,
+          professionLabel,
+          stageLabel: CERT_STAGE_LABELS[certificate.stage] ?? certificate.stage,
+          score: certificate.score,
+          issuedAt: this.formatCertificateDate(certificate.issuedAt),
+        };
+      });
+  });
   protected readonly createdAt = computed(() => {
     const value = this.user().startDate?.trim() ?? '';
     return value.length > 0 ? value : null;
@@ -116,5 +157,24 @@ export class ProfilePage {
     this.analyticsStore.clear();
     this.achievementsStore.reset();
     void this.router.navigateByUrl('/');
+  }
+
+  private extractProfessionLabel(title: string): string {
+    const separator = ' · ';
+    if (title.includes(separator)) {
+      return title.split(separator)[0]?.trim() || title;
+    }
+    return title;
+  }
+
+  private formatCertificateDate(value: string): string {
+    if (!value) {
+      return '—';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString();
   }
 }
