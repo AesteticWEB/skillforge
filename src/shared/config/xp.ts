@@ -1,1 +1,3 @@
-export const SCENARIO_REWARD_XP = 5;
+import { BALANCE } from './balance';
+
+export const SCENARIO_REWARD_XP = BALANCE.rewards.scenarioXp;

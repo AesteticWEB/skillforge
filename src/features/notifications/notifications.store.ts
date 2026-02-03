@@ -1,5 +1,5 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { SCENARIO_REWARD_XP, SKILL_STAGE_LABELS } from '@/shared/config';
+﻿import { Injectable, computed, inject, signal } from '@angular/core';
+import { BALANCE, SKILL_STAGE_LABELS } from '@/shared/config';
 import { DomainEventBus, DomainEvent } from '@/shared/lib/events';
 
 export type NotificationType = 'success' | 'error' | 'info';
@@ -79,7 +79,7 @@ export class NotificationsStore {
     if (event.type !== 'ProfileCreated') {
       return '';
     }
-    return 'Профиль создан.';
+    return 'РџСЂРѕС„РёР»СЊ СЃРѕР·РґР°РЅ.';
   }
 
   private formatSkillUpgraded(event: DomainEvent): string {
@@ -89,9 +89,9 @@ export class NotificationsStore {
     const name = event.payload.skillName ?? event.payload.skillId;
     const cost = event.payload.cost;
     if (typeof cost === 'number') {
-      return `Навык ${name} повышен до уровня ${event.payload.level}. Потрачено: ${cost} XP.`;
+      return `РќР°РІС‹Рє ${name} РїРѕРІС‹С€РµРЅ РґРѕ СѓСЂРѕРІРЅСЏ ${event.payload.level}. РџРѕС‚СЂР°С‡РµРЅРѕ: ${cost} XP.`;
     }
-    return `Навык ${name} повышен до уровня ${event.payload.level}.`;
+    return `РќР°РІС‹Рє ${name} РїРѕРІС‹С€РµРЅ РґРѕ СѓСЂРѕРІРЅСЏ ${event.payload.level}.`;
   }
 
   private formatScenarioCompleted(event: DomainEvent): string {
@@ -99,7 +99,9 @@ export class NotificationsStore {
       return '';
     }
     const reward =
-      typeof event.payload.rewardXp === 'number' ? event.payload.rewardXp : SCENARIO_REWARD_XP;
+      typeof event.payload.rewardXp === 'number'
+        ? event.payload.rewardXp
+        : BALANCE.rewards.scenarioXp;
     const reputationDelta = event.payload.reputationDelta ?? 0;
     const techDebtDelta = event.payload.techDebtDelta ?? 0;
     const metricParts: string[] = [];
@@ -107,14 +109,14 @@ export class NotificationsStore {
     const formatDelta = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
 
     if (reputationDelta !== 0) {
-      metricParts.push(`Репутация ${formatDelta(reputationDelta)}`);
+      metricParts.push(`Р РµРїСѓС‚Р°С†РёСЏ ${formatDelta(reputationDelta)}`);
     }
     if (techDebtDelta !== 0) {
-      metricParts.push(`Техдолг ${formatDelta(techDebtDelta)}`);
+      metricParts.push(`РўРµС…РґРѕР»Рі ${formatDelta(techDebtDelta)}`);
     }
 
     const metrics = metricParts.length > 0 ? ` (${metricParts.join(', ')})` : '';
-    return `Решение принято. +${reward} XP.${metrics}`;
+    return `Р РµС€РµРЅРёРµ РїСЂРёРЅСЏС‚Рѕ. +${reward} XP.${metrics}`;
   }
 
   private formatStagePromoted(event: DomainEvent): string {
@@ -122,6 +124,6 @@ export class NotificationsStore {
       return '';
     }
     const label = SKILL_STAGE_LABELS[event.payload.toStage];
-    return `Поздравляем! Ты теперь ${label}.`;
+    return `РџРѕР·РґСЂР°РІР»СЏРµРј! РўС‹ С‚РµРїРµСЂСЊ ${label}.`;
   }
 }

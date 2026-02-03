@@ -4,6 +4,7 @@ import { Scenario } from '@/entities/scenario';
 import { Skill } from '@/entities/skill';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
+import { BALANCE } from '@/shared/config';
 import { AppStore } from './app.store';
 
 const createStore = (skills: Skill[], scenarios: Scenario[]): AppStore => {
@@ -69,6 +70,8 @@ describe('AppStore', () => {
     const skills: Skill[] = [
       { id: 'core', name: 'Core', category: 'Engineering', level: 0, maxLevel: 3, deps: [] },
     ];
+    const reputationDelta = BALANCE.effects.reputation.gain * 2;
+    const techDebtDelta = -BALANCE.effects.techDebt.relief;
     const scenarios: Scenario[] = [
       {
         id: 'scenario-1',
@@ -76,16 +79,16 @@ describe('AppStore', () => {
         description: 'Test scenario',
         stage: 'internship',
         profession: 'all',
-        rewardXp: 10,
+        rewardXp: BALANCE.rewards.scenarioXp,
         correctOptionIds: ['decision-1'],
         decisions: [
           {
             id: 'decision-1',
             text: 'Apply effects',
             effects: {
-              reputation: 2,
-              techDebt: -1,
-              core: 1,
+              reputation: reputationDelta,
+              techDebt: techDebtDelta,
+              core: BALANCE.effects.skill.gain,
             },
           },
         ],
@@ -95,8 +98,8 @@ describe('AppStore', () => {
     const store = createStore(skills, scenarios);
     store.applyDecision('scenario-1', 'decision-1');
 
-    expect(store.reputation()).toBe(2);
-    expect(store.techDebt()).toBe(-1);
+    expect(store.reputation()).toBe(reputationDelta);
+    expect(store.techDebt()).toBe(techDebtDelta);
     expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(0);
     expect(store.progress().decisionHistory).toHaveLength(1);
     expect(store.progress().decisionHistory[0]?.scenarioId).toBe('scenario-1');

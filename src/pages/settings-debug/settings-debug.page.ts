@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
 import { NotificationsStore } from '@/features/notifications';
+import { BALANCE } from '@/shared/config';
 import { ErrorLogStore } from '@/shared/lib/errors';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
@@ -14,6 +16,7 @@ import { DomainEvent } from '@/shared/lib/events';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsDebugPage {
+  private readonly appStore = inject(AppStore);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly analyticsStore = inject(AnalyticsEventsStore);
   private readonly errorLogStore = inject(ErrorLogStore);
@@ -24,6 +27,10 @@ export class SettingsDebugPage {
   });
 
   protected readonly notifications = this.notificationsStore.notifications;
+  protected readonly hasProfile = this.appStore.hasProfile;
+  protected readonly sandboxSteps = BALANCE.sandbox.steps;
+  private readonly _sandboxRows = signal<BalanceSandboxRow[]>([]);
+  protected readonly sandboxRows = this._sandboxRows.asReadonly();
 
   protected readonly eventLog = this.analyticsStore.eventLog;
   protected readonly eventCounts = this.analyticsStore.counts;
@@ -51,6 +58,70 @@ export class SettingsDebugPage {
     this.errorLogStore.clearAll();
   }
 
+  protected runBalanceSandbox(): void {
+    if (!this.hasProfile()) {
+      this._sandboxRows.set([]);
+      return;
+    }
+
+    const { steps, starting, outcomes, coins, cash, reputation, techDebt } = BALANCE.sandbox;
+    let currentCoins = starting.coins;
+    let currentCash = starting.cash;
+    let currentReputation = starting.reputation;
+    let currentTechDebt = starting.techDebt;
+    const totalWeight = outcomes.positive + outcomes.neutral + outcomes.negative;
+    const rows: BalanceSandboxRow[] = [];
+
+    const rollBetween = (min: number, max: number): number => {
+      const low = Math.min(min, max);
+      const high = Math.max(min, max);
+      return low + Math.floor(Math.random() * (high - low + 1));
+    };
+
+    for (let step = 1; step <= steps; step += 1) {
+      let outcome: 'positive' | 'neutral' | 'negative' = 'neutral';
+      if (totalWeight > 0) {
+        const roll = rollBetween(1, totalWeight);
+        if (roll <= outcomes.positive) {
+          outcome = 'positive';
+        } else if (roll <= outcomes.positive + outcomes.neutral) {
+          outcome = 'neutral';
+        } else {
+          outcome = 'negative';
+        }
+      }
+
+      if (outcome === 'positive') {
+        currentCoins += rollBetween(coins.gainMin, coins.gainMax);
+        currentCash += rollBetween(cash.gainMin, cash.gainMax);
+        currentReputation += rollBetween(reputation.gainMin, reputation.gainMax);
+        currentTechDebt -= rollBetween(techDebt.reliefMin, techDebt.reliefMax);
+      } else if (outcome === 'negative') {
+        currentCoins -= rollBetween(coins.lossMin, coins.lossMax);
+        currentCash -= rollBetween(cash.lossMin, cash.lossMax);
+        currentReputation -= rollBetween(reputation.lossMin, reputation.lossMax);
+        currentTechDebt += rollBetween(techDebt.gainMin, techDebt.gainMax);
+      } else {
+        currentCoins += rollBetween(coins.gainMin, coins.gainMax);
+        currentCash += rollBetween(cash.gainMin, cash.gainMax);
+        currentTechDebt += rollBetween(techDebt.gainMin, techDebt.gainMax);
+      }
+
+      currentCoins = Math.max(0, currentCoins);
+      currentCash = Math.max(0, currentCash);
+
+      rows.push({
+        step,
+        coins: currentCoins,
+        cash: currentCash,
+        reputation: currentReputation,
+        techDebt: currentTechDebt,
+      });
+    }
+
+    this._sandboxRows.set(rows);
+  }
+
   private formatEvent(event: DomainEvent): string {
     if (event.type === 'ProfileCreated') {
       return `role=${event.payload.user.role}`;
@@ -72,3 +143,11 @@ export class SettingsDebugPage {
     return this.dateFormatter.format(date);
   }
 }
+
+type BalanceSandboxRow = {
+  step: number;
+  coins: number;
+  cash: number;
+  reputation: number;
+  techDebt: number;
+};

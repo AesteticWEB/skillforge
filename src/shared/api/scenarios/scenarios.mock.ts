@@ -1,15 +1,20 @@
 ﻿import type { DecisionEffects } from '@/entities/decision';
 import type { Scenario } from '@/entities/scenario';
 import {
+  BALANCE,
   PROFESSION_OPTIONS,
   PROFESSION_STAGE_SCENARIOS,
   PROFESSION_STAGE_SKILLS,
-  SCENARIO_REWARD_XP,
   type ProfessionId,
   type SkillStageId,
 } from '@/shared/config';
 
 const STAGES: SkillStageId[] = ['internship', 'junior', 'middle', 'senior'];
+const SCENARIO_REWARD_XP = BALANCE.rewards.scenarioXp;
+const SKILL_GAIN = BALANCE.effects.skill.gain;
+const REP_GAIN = BALANCE.effects.reputation.gain;
+const REP_LOSS = BALANCE.effects.reputation.loss;
+const TECH_DEBT_GAIN = BALANCE.effects.techDebt.gain;
 
 type ScenarioSeed = {
   title: string;
@@ -229,22 +234,22 @@ const buildOptions = (
   const options: ScenarioOption[] = [
     {
       text: fillTemplate(template.goodA, focus),
-      effects: { [skillA]: 1, reputation: 1 } as DecisionEffects,
+      effects: { [skillA]: SKILL_GAIN, reputation: REP_GAIN } as DecisionEffects,
       correct: true,
     },
     {
       text: fillTemplate(template.goodB, focus),
-      effects: { [skillB]: 1, reputation: 1 } as DecisionEffects,
+      effects: { [skillB]: SKILL_GAIN, reputation: REP_GAIN } as DecisionEffects,
       correct: true,
     },
     {
       text: fillTemplate(template.badA, focus),
-      effects: { techDebt: 1 } as DecisionEffects,
+      effects: { techDebt: TECH_DEBT_GAIN } as DecisionEffects,
       correct: false,
     },
     {
       text: fillTemplate(template.badB, focus),
-      effects: { reputation: -1, techDebt: 1 } as DecisionEffects,
+      effects: { reputation: -REP_LOSS, techDebt: TECH_DEBT_GAIN } as DecisionEffects,
       correct: false,
     },
   ];

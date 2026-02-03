@@ -1,6 +1,7 @@
 import { DecisionEffects } from '@/entities/decision';
 import { applyDecisionEffects, Progress } from '@/entities/progress';
 import { Skill } from '@/entities/skill';
+import { BALANCE } from '@/shared/config';
 
 describe('decision effects', () => {
   it('applies metrics without auto-upgrading skills', () => {
@@ -16,16 +17,18 @@ describe('decision effects', () => {
       spentXpOnSkills: 0,
       careerStage: 'internship',
     };
+    const reputationDelta = BALANCE.effects.reputation.gain * 2;
+    const techDebtDelta = -BALANCE.effects.techDebt.relief;
     const effects: DecisionEffects = {
-      reputation: 2,
-      techDebt: -1,
-      core: 1,
+      reputation: reputationDelta,
+      techDebt: techDebtDelta,
+      core: BALANCE.effects.skill.gain,
     };
 
     const result = applyDecisionEffects(skills, progress, effects);
 
-    expect(result.progress.reputation).toBe(2);
-    expect(result.progress.techDebt).toBe(-1);
+    expect(result.progress.reputation).toBe(reputationDelta);
+    expect(result.progress.techDebt).toBe(techDebtDelta);
     expect(result.skills[0]?.level).toBe(0);
     expect(result.progress.skillLevels.core).toBe(0);
   });

@@ -1,9 +1,9 @@
-import { NgClass } from '@angular/common';
+﻿import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
 import { Scenario } from '@/entities/scenario';
-import { SCENARIO_REWARD_XP } from '@/shared/config';
+import { BALANCE } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 
@@ -46,7 +46,7 @@ export class SimulatorDetailPage {
   });
   protected readonly lockReasons = computed(() => this.scenarioAccess()?.reasons ?? []);
   protected readonly decisionCards = computed(() => this.scenario()?.decisions ?? []);
-  protected readonly rewardXp = computed(() => SCENARIO_REWARD_XP);
+  protected readonly rewardXp = computed(() => BALANCE.rewards.scenarioXp);
   protected readonly errorText = this.errorMessage.asReadonly();
   protected readonly wrongOption = this.wrongOptionId.asReadonly();
 
@@ -62,7 +62,7 @@ export class SimulatorDetailPage {
 
     const isCorrect = current.correctOptionIds.includes(decisionId);
     if (!isCorrect) {
-      this.errorMessage.set('Неверно, попробуй ещё раз');
+      this.errorMessage.set('РќРµРІРµСЂРЅРѕ, РїРѕРїСЂРѕР±СѓР№ РµС‰С‘ СЂР°Р·');
       this.wrongOptionId.set(decisionId);
       return;
     }

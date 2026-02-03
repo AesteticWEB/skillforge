@@ -1,4 +1,4 @@
-import { Injectable, computed, effect, inject, signal } from '@angular/core';
+﻿import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import {
   applyDecisionEffects,
   createDecisionEntry,
@@ -23,13 +23,13 @@ import {
 } from '@/entities/skill';
 import { User } from '@/entities/user';
 import {
+  BALANCE,
   DEFAULT_FEATURE_FLAGS,
   DEMO_PROFILE,
   FeatureFlagKey,
   FeatureFlags,
   PROFESSION_STAGE_SKILLS,
   PROFESSION_STAGE_SCENARIOS,
-  SCENARIO_REWARD_XP,
   SKILL_STAGE_LABELS,
   SKILL_STAGE_ORDER,
   SkillStageId,
@@ -48,7 +48,6 @@ import {
   getStagePromotionStatus,
   selectCoreSkillsForStage,
 } from '@/shared/lib/stage';
-
 type ScenarioAccess = {
   scenario: Scenario;
   available: boolean;
@@ -84,7 +83,7 @@ const createEmptyAuth = (): AuthState => ({
 });
 
 const createEmptyUser = (): User => ({
-  role: 'Без роли',
+  role: 'Р‘РµР· СЂРѕР»Рё',
   goals: [],
   startDate: new Date().toISOString().slice(0, 10),
   isProfileComplete: false,
@@ -202,7 +201,7 @@ export class AppStore {
     }
     const reasons: string[] = [];
     if (status.skills.completed < status.skills.total) {
-      reasons.push('Прокачай все 4 навыка этапа до максимума');
+      reasons.push('РџСЂРѕРєР°С‡Р°Р№ РІСЃРµ 4 РЅР°РІС‹РєР° СЌС‚Р°РїР° РґРѕ РјР°РєСЃРёРјСѓРјР°');
     }
     return reasons;
   });
@@ -271,8 +270,8 @@ export class AppStore {
 
       return {
         ...entry,
-        scenarioTitle: scenario?.title ?? 'Неизвестный сценарий',
-        decisionText: decision?.text ?? 'Неизвестное решение',
+        scenarioTitle: scenario?.title ?? 'РќРµРёР·РІРµСЃС‚РЅС‹Р№ СЃС†РµРЅР°СЂРёР№',
+        decisionText: decision?.text ?? 'РќРµРёР·РІРµСЃС‚РЅРѕРµ СЂРµС€РµРЅРёРµ',
         effects: decision?.effects ?? {},
       };
     });
@@ -333,7 +332,7 @@ export class AppStore {
         this._skillsLoading.set(false);
       },
       error: () => {
-        this._skillsError.set('Не удалось загрузить навыки.');
+        this._skillsError.set('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°РІС‹РєРё.');
         this._skills.set([]);
         this._skillsLoading.set(false);
       },
@@ -345,7 +344,7 @@ export class AppStore {
         this._scenariosLoading.set(false);
       },
       error: () => {
-        this._scenariosError.set('Не удалось загрузить сценарии.');
+        this._scenariosError.set('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СЃС†РµРЅР°СЂРёРё.');
         this._scenarios.set([]);
         this._scenariosLoading.set(false);
       },
@@ -370,7 +369,7 @@ export class AppStore {
     }
 
     const profile: User = {
-      role: normalizedProfession.length > 0 ? normalizedProfession : 'Без роли',
+      role: normalizedProfession.length > 0 ? normalizedProfession : 'Р‘РµР· СЂРѕР»Рё',
       goals: [],
       startDate: new Date().toISOString().slice(0, 10),
       isProfileComplete: true,
@@ -417,7 +416,7 @@ export class AppStore {
     const selected = new Set(selectedSkillIds);
 
     const profile: User = {
-      role: normalizedRole.length > 0 ? normalizedRole : 'Без роли',
+      role: normalizedRole.length > 0 ? normalizedRole : 'Р‘РµР· СЂРѕР»Рё',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
       isProfileComplete: true,
@@ -481,26 +480,29 @@ export class AppStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return { ok: false, error: 'Некорректный JSON.' };
+      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ JSON.' };
     }
 
     if (!this.isRecord(parsed)) {
-      return { ok: false, error: 'JSON должен быть объектом.' };
+      return { ok: false, error: 'JSON РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕР±СЉРµРєС‚РѕРј.' };
     }
 
     const version = parsed['version'];
     if (typeof version !== 'number' || version !== AppStore.STORAGE_VERSION) {
-      return { ok: false, error: 'Неподдерживаемая версия экспорта.' };
+      return {
+        ok: false,
+        error: 'РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјР°СЏ РІРµСЂСЃРёСЏ СЌРєСЃРїРѕСЂС‚Р°.',
+      };
     }
 
     const user = this.parseUser(parsed['user']);
     if (!user) {
-      return { ok: false, error: 'Некорректные данные профиля.' };
+      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ.' };
     }
 
     const progress = this.parseProgress(parsed['progress']);
     if (!progress) {
-      return { ok: false, error: 'Некорректные данные прогресса.' };
+      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕРіСЂРµСЃСЃР°.' };
     }
 
     const featureFlags = this.parseFeatureFlags(parsed['featureFlags']);
@@ -564,6 +566,7 @@ export class AppStore {
 
     const reputationDelta = decision.effects['reputation'] ?? 0;
     const techDebtDelta = decision.effects['techDebt'] ?? 0;
+    const rewardXp = BALANCE.rewards.scenarioXp;
     const snapshot = createProgressSnapshot(this._progress());
     const beforeSkills = this._skills();
     this.recordDecision(scenarioId, decisionId, snapshot);
@@ -574,12 +577,12 @@ export class AppStore {
     );
     this._skills.set(result.skills);
     this._progress.set(progressWithAvailability);
-    this.addXp(SCENARIO_REWARD_XP);
+    this.addXp(rewardXp);
 
     this.emitSkillUpgrades(beforeSkills, result.skills);
     this.eventBus.publish(
       createScenarioCompletedEvent(scenarioId, decisionId, {
-        rewardXp: SCENARIO_REWARD_XP,
+        rewardXp,
         reputationDelta,
         techDebtDelta,
       }),
@@ -702,7 +705,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий уже пройден.'],
+        reasons: ['РЎС†РµРЅР°СЂРёР№ СѓР¶Рµ РїСЂРѕР№РґРµРЅ.'],
         status: 'completed',
       };
     }
@@ -710,7 +713,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий доступен на другом этапе.'],
+        reasons: ['РЎС†РµРЅР°СЂРёР№ РґРѕСЃС‚СѓРїРµРЅ РЅР° РґСЂСѓРіРѕРј СЌС‚Р°РїРµ.'],
         status: 'active',
       };
     }
@@ -721,7 +724,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий доступен на другом этапе.'],
+        reasons: ['РЎС†РµРЅР°СЂРёР№ РґРѕСЃС‚СѓРїРµРЅ РЅР° РґСЂСѓРіРѕРј СЌС‚Р°РїРµ.'],
         status: 'active',
       };
     }
@@ -729,7 +732,7 @@ export class AppStore {
       this.scenarioAccessMap().get(scenarioId) ?? {
         scenario,
         available: false,
-        reasons: ['Сценарий недоступен.'],
+        reasons: ['РЎС†РµРЅР°СЂРёР№ РЅРµРґРѕСЃС‚СѓРїРµРЅ.'],
         status: 'active',
       }
     );
@@ -800,7 +803,7 @@ export class AppStore {
 
     if (stored.user) {
       this._user.set({
-        role: stored.user.role ?? 'Без роли',
+        role: stored.user.role ?? 'Р‘РµР· СЂРѕР»Рё',
         goals: stored.user.goals ?? [],
         startDate: stored.user.startDate ?? new Date().toISOString().slice(0, 10),
         isProfileComplete: stored.user.isProfileComplete ?? false,

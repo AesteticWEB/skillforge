@@ -5,17 +5,21 @@ import {
   Progress,
   undoLastDecision,
 } from '@/entities/progress';
+import { BALANCE } from '@/shared/config';
 
 describe('decision history undo', () => {
   it('restores skills, metrics, overrides, and history', () => {
     const skills: Skill[] = [
       { id: 'core', name: 'Core', category: 'Engineering', level: 1, maxLevel: 3, deps: [] },
     ];
+    const reputationGain = BALANCE.effects.reputation.gain;
+    const techDebtGain = BALANCE.effects.techDebt.gain;
+    const skillCost = BALANCE.skills.upgradeCostPerLevel;
     const progress: Progress = {
       skillLevels: { core: 1 },
       decisionHistory: [],
-      reputation: 1,
-      techDebt: 2,
+      reputation: reputationGain,
+      techDebt: techDebtGain * 2,
       scenarioOverrides: { 'scenario-2': true },
       spentXpOnSkills: 0,
       careerStage: 'internship',
@@ -28,18 +32,18 @@ describe('decision history undo', () => {
     const progressedProgress: Progress = {
       ...progress,
       skillLevels: { core: 2 },
-      reputation: 3,
-      techDebt: 1,
+      reputation: reputationGain * 3,
+      techDebt: techDebtGain,
       scenarioOverrides: { 'scenario-2': false },
       decisionHistory: [historyEntry],
-      spentXpOnSkills: 8,
+      spentXpOnSkills: skillCost * 8,
     };
 
     const result = undoLastDecision(progressedSkills, progressedProgress);
 
     expect(result.undone).toBe(true);
-    expect(result.progress.reputation).toBe(1);
-    expect(result.progress.techDebt).toBe(2);
+    expect(result.progress.reputation).toBe(reputationGain);
+    expect(result.progress.techDebt).toBe(techDebtGain * 2);
     expect(result.progress.skillLevels.core).toBe(1);
     expect(result.progress.scenarioOverrides['scenario-2']).toBe(true);
     expect(result.progress.decisionHistory).toHaveLength(0);
