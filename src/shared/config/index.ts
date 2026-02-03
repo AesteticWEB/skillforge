@@ -4,3 +4,4 @@ export * from './professions';
 export * from './balance';
 export * from './shop-items';
 export * from './xp';
+export * from './exams/questions';

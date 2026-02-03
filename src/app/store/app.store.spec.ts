@@ -236,4 +236,54 @@ describe('AppStore', () => {
     expect(store.coins()).toBe(0);
     expect(errorSpy).toHaveBeenCalled();
   });
+
+  it('buys a luxury item with cash when company mode is unlocked', () => {
+    const luxuryItem = SHOP_ITEMS.find((item) => item.currency === 'cash');
+    if (!luxuryItem) {
+      throw new Error('No luxury items configured');
+    }
+
+    const store = createStore([], []);
+    const notifications = TestBed.inject(NotificationsStore);
+    const successSpy = jest.spyOn(notifications, 'success');
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    const payload = JSON.parse(store.exportState());
+    payload.company = { cash: luxuryItem.price + 50 };
+    payload.progress = { ...payload.progress, careerStage: 'senior' };
+    const importResult = store.importState(JSON.stringify(payload));
+
+    expect(importResult.ok).toBe(true);
+    const result = store.buyItem(luxuryItem.id);
+
+    expect(result).toBe(true);
+    expect(store.inventory().ownedItemIds).toContain(luxuryItem.id);
+    expect(store.company().cash).toBe(payload.company.cash - luxuryItem.price);
+    expect(successSpy).toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks luxury purchases when company mode is locked', () => {
+    const luxuryItem = SHOP_ITEMS.find((item) => item.currency === 'cash');
+    if (!luxuryItem) {
+      throw new Error('No luxury items configured');
+    }
+
+    const store = createStore([], []);
+    const notifications = TestBed.inject(NotificationsStore);
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    const payload = JSON.parse(store.exportState());
+    payload.company = { cash: luxuryItem.price + 50 };
+    payload.progress = { ...payload.progress, careerStage: 'junior' };
+    const importResult = store.importState(JSON.stringify(payload));
+
+    expect(importResult.ok).toBe(true);
+    const result = store.buyItem(luxuryItem.id);
+
+    expect(result).toBe(false);
+    expect(store.inventory().ownedItemIds).not.toContain(luxuryItem.id);
+    expect(store.company().cash).toBe(payload.company.cash);
+    expect(errorSpy).toHaveBeenCalled();
+  });
 });

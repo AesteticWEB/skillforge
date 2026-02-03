@@ -139,7 +139,8 @@ export class SettingsDebugPage {
       return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
     }
     if (event.type === 'PurchaseMade') {
-      return `purchase=${event.payload.itemId}, price=${event.payload.price}`;
+      const currency = event.payload.currency ?? 'coins';
+      return `purchase=${event.payload.itemId}, price=${event.payload.price} ${currency}`;
     }
     return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
   }

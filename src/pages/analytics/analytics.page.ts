@@ -140,7 +140,7 @@ export class AnalyticsPage {
   protected readonly tensionChart = computed<TensionChart>(() => {
     const history = this.history();
     const hasTechDebt = history.some((entry) => typeof entry.effects['techDebt'] === 'number');
-    const metricLabel = hasTechDebt ? 'С‚РµС…РґРѕР»Рі' : 'СЂРµРїСѓС‚Р°С†РёСЏ';
+    const metricLabel = hasTechDebt ? 'техдолг' : 'репутация';
 
     let current = 0;
     const values = history.map((entry) => {
@@ -196,7 +196,7 @@ export class AnalyticsPage {
     }
     const skills = this.topSkills();
     if (skills.length === 0) {
-      return ['РЎРёР»СЊРЅС‹Рµ СЃС‚РѕСЂРѕРЅС‹ РµС‰С‘ РЅРµ РѕРїСЂРµРґРµР»РµРЅС‹'];
+      return ['Сильные стороны ещё не определены'];
     }
     return skills.map((skill) => skill.name);
   });
@@ -207,18 +207,16 @@ export class AnalyticsPage {
     const stats = this.decisionStats();
     const risks: string[] = [];
     if (stats.netDebt >= 3) {
-      risks.push(
-        'Р’С‹СЃРѕРєРёР№ С‚РµС…РґРѕР»Рі: С‡Р°СЃС‚Рѕ РІС‹Р±РёСЂР°Р»РёСЃСЊ Р±С‹СЃС‚СЂС‹Рµ СЂРµС€РµРЅРёСЏ',
-      );
+      risks.push('Высокий техдолг: часто выбирались быстрые решения');
     }
     if (stats.netRep <= -2) {
-      risks.push('РџСЂРѕСЃРµР»Р° СЂРµРїСѓС‚Р°С†РёСЏ: РєРѕРЅС„Р»РёРєС‚РЅС‹Рµ СЂРµС€РµРЅРёСЏ');
+      risks.push('Просела репутация: конфликтные решения');
     }
     if (stats.total < 4) {
-      risks.push('РњР°Р»Рѕ СЂРµС€РµРЅРёР№: РЅРµ С…РІР°С‚РёР»Рѕ РїСЂР°РєС‚РёРєРё');
+      risks.push('Мало решений: не хватило практики');
     }
     if (risks.length === 0) {
-      risks.push('Р РёСЃРєРё РЅРµ РІС‹СЏРІР»РµРЅС‹');
+      risks.push('Риски не выявлены');
     }
     return risks.slice(0, 3);
   });
@@ -254,39 +252,35 @@ export class AnalyticsPage {
     if (stats.netDebt <= 1 && debtBias <= -2) {
       return {
         id: 'optimizer',
-        title: 'РЎРёСЃС‚РµРјРЅС‹Р№ РѕРїС‚РёРјРёР·Р°С‚РѕСЂ',
-        description:
-          'РЎС‚Р°Р±РёР»РёР·РёСЂСѓРµС€СЊ РїР»Р°С‚С„РѕСЂРјСѓ Рё РґРµСЂР¶РёС€СЊ С‚РµС…РґРѕР»Рі РїРѕРґ РєРѕРЅС‚СЂРѕР»РµРј.',
+        title: 'Системный оптимизатор',
+        description: 'Стабилизируешь платформу и держишь техдолг под контролем.',
       };
     }
     if (stats.netDebt >= 4 || debtBias >= 2) {
       return {
         id: 'firefighter',
-        title: 'РџРѕР¶Р°СЂРЅС‹Р№-СЃРїР°СЃР°С‚РµР»СЊ',
-        description:
-          'Р‘РµСЂС‘С€СЊСЃСЏ Р·Р° СЃСЂРѕС‡РЅС‹Рµ Р·Р°РґР°С‡Рё, РЅРѕ СЌС‚Рѕ СѓРІРµР»РёС‡РёРІР°РµС‚ С‚РµС…РґРѕР»Рі.',
+        title: 'Пожарный-спасатель',
+        description: 'Берёшься за срочные задачи, но это увеличивает техдолг.',
       };
     }
     if (stats.netRep >= 4 || repBias >= 2) {
       return {
         id: 'diplomat',
-        title: 'Р”РёРїР»РѕРјР°С‚',
-        description:
-          'Р’С‹Р±РёСЂР°РµС€СЊ СЂРµС€РµРЅРёСЏ, РєРѕС‚РѕСЂС‹Рµ СѓРєСЂРµРїР»СЏСЋС‚ РґРѕРІРµСЂРёРµ Рё РєРѕРјРјСѓРЅРёРєР°С†РёСЋ.',
+        title: 'Дипломат',
+        description: 'Выбираешь решения, которые укрепляют доверие и коммуникацию.',
       };
     }
     return {
       id: 'pragmatist',
-      title: 'РџСЂР°РіРјР°С‚РёРє',
-      description:
-        'Р”РµСЂР¶РёС€СЊ Р±Р°Р»Р°РЅСЃ РјРµР¶РґСѓ СЃРєРѕСЂРѕСЃС‚СЊСЋ, РєР°С‡РµСЃС‚РІРѕРј Рё РѕС‚РЅРѕС€РµРЅРёСЏРјРё.',
+      title: 'Прагматик',
+      description: 'Держишь баланс между скоростью, качеством и отношениями.',
     };
   }
 
   private formatEffects(effects: Record<string, number>, skillMap: Map<string, string>): string {
     const entries = Object.entries(effects);
     if (entries.length === 0) {
-      return 'Р вЂР ВµР В· РЎРЊРЎвЂћРЎвЂћР ВµР С”РЎвЂљР С•Р Р†';
+      return 'Без эффектов';
     }
     return entries
       .map(([key, delta]) => {

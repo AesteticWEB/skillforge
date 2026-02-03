@@ -79,7 +79,7 @@ export class NotificationsStore {
     if (event.type !== 'ProfileCreated') {
       return '';
     }
-    return 'РџСЂРѕС„РёР»СЊ СЃРѕР·РґР°РЅ.';
+    return 'Профиль создан.';
   }
 
   private formatSkillUpgraded(event: DomainEvent): string {
@@ -89,9 +89,9 @@ export class NotificationsStore {
     const name = event.payload.skillName ?? event.payload.skillId;
     const cost = event.payload.cost;
     if (typeof cost === 'number') {
-      return `РќР°РІС‹Рє ${name} РїРѕРІС‹С€РµРЅ РґРѕ СѓСЂРѕРІРЅСЏ ${event.payload.level}. РџРѕС‚СЂР°С‡РµРЅРѕ: ${cost} XP.`;
+      return `Навык ${name} повышен до уровня ${event.payload.level}. Потрачено: ${cost} XP.`;
     }
-    return `РќР°РІС‹Рє ${name} РїРѕРІС‹С€РµРЅ РґРѕ СѓСЂРѕРІРЅСЏ ${event.payload.level}.`;
+    return `Навык ${name} повышен до уровня ${event.payload.level}.`;
   }
 
   private formatScenarioCompleted(event: DomainEvent): string {
@@ -110,17 +110,17 @@ export class NotificationsStore {
     const formatDelta = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
 
     if (reputationDelta !== 0) {
-      metricParts.push(`Р РµРїСѓС‚Р°С†РёСЏ ${formatDelta(reputationDelta)}`);
+      metricParts.push(`Репутация ${formatDelta(reputationDelta)}`);
     }
     if (techDebtDelta !== 0) {
-      metricParts.push(`РўРµС…РґРѕР»Рі ${formatDelta(techDebtDelta)}`);
+      metricParts.push(`Техдолг ${formatDelta(techDebtDelta)}`);
     }
     if (coinsDelta !== 0) {
       metricParts.push(`Coins ${formatDelta(coinsDelta)}`);
     }
 
     const metrics = metricParts.length > 0 ? ` (${metricParts.join(', ')})` : '';
-    return `Р РµС€РµРЅРёРµ РїСЂРёРЅСЏС‚Рѕ. +${reward} XP.${metrics}`;
+    return `Решение принято. +${reward} XP.${metrics}`;
   }
 
   private formatStagePromoted(event: DomainEvent): string {
@@ -128,6 +128,6 @@ export class NotificationsStore {
       return '';
     }
     const label = SKILL_STAGE_LABELS[event.payload.toStage];
-    return `РџРѕР·РґСЂР°РІР»СЏРµРј! РўС‹ С‚РµРїРµСЂСЊ ${label}.`;
+    return `Поздравляем! Ты теперь ${label}.`;
   }
 }

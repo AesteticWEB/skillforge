@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "jest",
     "test:e2e": "playwright test",
-    "lint": "eslint \"src/**/*.{ts,html}\" --max-warnings=0",
+    "lint": "node scripts/check-encoding.js && eslint \"src/**/*.{ts,html}\" --max-warnings=0",
     "format": "prettier --write \"**/*.{ts,html,css,scss,md,json}\"",
     "format:check": "prettier --check \"**/*.{ts,html,css,scss,md,json}\"",
     "prepare": "husky install"

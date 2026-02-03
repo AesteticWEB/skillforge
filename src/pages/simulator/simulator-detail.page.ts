@@ -71,7 +71,7 @@ export class SimulatorDetailPage {
 
     const isCorrect = current.correctOptionIds.includes(decisionId);
     if (!isCorrect) {
-      this.errorMessage.set('РќРµРІРµСЂРЅРѕ, РїРѕРїСЂРѕР±СѓР№ РµС‰С‘ СЂР°Р·');
+      this.errorMessage.set('Неверно, попробуй ещё раз');
       this.wrongOptionId.set(decisionId);
       return;
     }
@@ -103,7 +103,10 @@ export class SimulatorDetailPage {
     this.rewardModalOpen.set(true);
   }
 
-  private buildScenarioRewardBreakdown(current: Scenario, decision: Scenario['decisions'][number]): RewardBreakdown {
+  private buildScenarioRewardBreakdown(
+    current: Scenario,
+    decision: Scenario['decisions'][number],
+  ): RewardBreakdown {
     const progress = this.store.progress();
     const rewards = BALANCE.rewards;
     const reputation = Number.isFinite(progress.reputation) ? progress.reputation : 0;

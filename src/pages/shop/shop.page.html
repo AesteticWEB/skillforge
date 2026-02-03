@@ -1,0 +1,246 @@
+<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-5xl flex-col gap-6 px-6 py-16">
+  <sf-card>
+    <div class="flex flex-col gap-4">
+      <div>
+        <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Магазин</h1>
+        <p class="mt-3 text-base text-slate-300 sm:text-lg">
+          Покупай предметы, чтобы получать бонусы
+        </p>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        @for (tab of tabs; track tab) {
+          <button
+            type="button"
+            class="rounded-full border px-4 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+            [ngClass]="
+              activeTab() === tab
+                ? 'border-emerald-400/70 bg-emerald-400/10 text-emerald-200'
+                : 'border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
+            "
+            (click)="setTab(tab)"
+          >
+            {{ tabLabel(tab) }}
+          </button>
+        }
+      </div>
+
+      @if (activeTab() === 'items') {
+        <div
+          class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4"
+        >
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Баланс</div>
+            <div class="mt-2 text-lg font-semibold text-slate-100">
+              Монеты: {{ formatAmount(coins()) }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 text-xs text-slate-400">
+            <span>Товаров: {{ visibleItems().length }}</span>
+            <span>Фильтр: {{ categoryLabel(selectedCategory()) }}</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Категории</div>
+          <div class="flex flex-wrap gap-2">
+            @for (category of categories; track category) {
+              <button
+                type="button"
+                class="rounded-full border px-3 py-1 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+                [ngClass]="
+                  selectedCategory() === category
+                    ? 'border-emerald-400/70 bg-emerald-400/10 text-emerald-200'
+                    : 'border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
+                "
+                (click)="setCategory(category)"
+              >
+                {{ categoryLabel(category) }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Сортировка</div>
+          <select
+            class="rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+            [value]="sortKey()"
+            (change)="setSort($event)"
+            aria-label="Сортировка товаров"
+          >
+            @for (option of sortOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="mt-2 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (item of visibleItems(); track item.id) {
+            <sf-card>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-base font-semibold text-slate-100">{{ item.name }}</div>
+                  <div class="mt-1 text-xs text-slate-500">{{ categoryLabel(item.category) }}</div>
+                </div>
+                <span
+                  class="rounded-full border border-slate-700/70 bg-slate-950/70 px-2 py-1 text-xs font-semibold uppercase text-slate-300"
+                >
+                  {{ item.rarityLabel }}
+                </span>
+              </div>
+
+              <p class="mt-3 text-sm text-slate-400 description-clamp">{{ item.description }}</p>
+
+              <div class="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-100">
+                    @if (item.currency === 'coins') {
+                      <span class="inline-flex items-center gap-2">
+                        <span class="coin-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" role="img" focusable="false">
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="9"
+                              fill="#22c55e"
+                              stroke="#15803d"
+                              stroke-width="1.5"
+                            />
+                            <circle
+                              cx="12"
+                              cy="12"
+                              r="5.5"
+                              fill="none"
+                              stroke="#bbf7d0"
+                              stroke-width="1"
+                              opacity="0.85"
+                            />
+                            <path
+                              d="M8 9.5c1.6-2 6.4-2 8 0"
+                              fill="none"
+                              stroke="#ecfdf3"
+                              stroke-width="1.2"
+                              stroke-linecap="round"
+                              opacity="0.85"
+                            />
+                          </svg>
+                        </span>
+                        {{ item.priceText }}
+                      </span>
+                    } @else {
+                      Кэш: {{ item.priceText }}
+                    }
+                  </div>
+                  @if (item.isOwned) {
+                    <div class="mt-1 text-xs text-emerald-200">Куплено</div>
+                  }
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                  <sf-button type="button" [disabled]="!item.canBuy" (click)="buyItem(item.id)">
+                    {{ item.buttonLabel }}
+                  </sf-button>
+                  @if (item.hint) {
+                    <small class="text-xs text-amber-200">{{ item.hint }}</small>
+                  }
+                </div>
+              </div>
+            </sf-card>
+          } @empty {
+            <div class="md:col-span-2 xl:col-span-3">
+              <sf-empty-state
+                title="Ничего не найдено"
+                description="Попробуйте изменить фильтры или сортировку."
+              ></sf-empty-state>
+              <div class="mt-4 flex justify-center">
+                <sf-button type="button" (click)="resetFilters()">Сбросить фильтры</sf-button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div>
+          <h2 class="text-2xl font-semibold text-slate-100">Люкс-магазин</h2>
+          <p class="mt-2 text-sm text-slate-300">
+            Премиальные предметы за кэш для поздних этапов и концовок.
+          </p>
+        </div>
+
+        <div
+          class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4"
+        >
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Баланс</div>
+            <div class="mt-2 text-lg font-semibold text-slate-100">
+              Кэш: {{ formatAmount(companyCash()) }}
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 text-xs text-slate-400">
+            <span>Товаров: {{ luxuryItems().length }}</span>
+            @if (!companyUnlocked()) {
+              <span>Режим компании: закрыт</span>
+            }
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Сортировка</div>
+          <select
+            class="rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-2 text-sm text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+            [value]="luxurySortKey()"
+            (change)="setLuxurySort($event)"
+            aria-label="Сортировка люкса"
+          >
+            @for (option of luxurySortOptions; track option.value) {
+              <option [value]="option.value">{{ option.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="mt-2 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          @for (item of luxuryItems(); track item.id) {
+            <sf-card>
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-base font-semibold text-slate-100">{{ item.name }}</div>
+                  <div class="mt-1 text-xs text-slate-500">{{ categoryLabel(item.category) }}</div>
+                </div>
+                <span
+                  class="rounded-full border border-slate-700/70 bg-slate-950/70 px-2 py-1 text-xs font-semibold uppercase text-slate-300"
+                >
+                  {{ item.rarityLabel }}
+                </span>
+              </div>
+
+              <p class="mt-3 text-sm text-slate-400 description-clamp">{{ item.description }}</p>
+
+              <div class="mt-4 flex items-end justify-between gap-3">
+                <div>
+                  <div class="text-sm font-semibold text-slate-100">Кэш: {{ item.priceText }}</div>
+                  @if (item.isOwned) {
+                    <div class="mt-1 text-xs text-emerald-200">Куплено</div>
+                  }
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                  <sf-button type="button" [disabled]="!item.canBuy" (click)="buyItem(item.id)">
+                    {{ item.buttonLabel }}
+                  </sf-button>
+                  @if (item.hint) {
+                    <small class="text-xs text-amber-200">{{ item.hint }}</small>
+                  }
+                </div>
+              </div>
+            </sf-card>
+          } @empty {
+            <div class="md:col-span-2 xl:col-span-3">
+              <sf-empty-state
+                title="Пока нет люксовых предметов"
+                description="Загляни позже — каталог пополняется."
+              ></sf-empty-state>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </sf-card>
+</section>

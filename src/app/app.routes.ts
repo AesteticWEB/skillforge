@@ -5,49 +5,55 @@ import { devOnlyGuard } from './guards/dev-only.guard';
 export const routes: Routes = [
   {
     path: '',
-    title: 'SkillForge — главная',
+    title: '\u0413\u043b\u0430\u0432\u043d\u0430\u044f | SkillForge',
     loadComponent: () => import('../pages/home/home.page').then((m) => m.HomePage),
   },
   {
     path: 'onboarding',
-    title: 'Профиль · SkillForge',
+    title: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c | SkillForge',
     canMatch: [authGuard],
     loadComponent: () => import('../pages/profile/profile.page').then((m) => m.ProfilePage),
   },
   {
     path: 'profile',
-    title: 'Профиль · SkillForge',
+    title: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c | SkillForge',
     canMatch: [authGuard],
     loadComponent: () => import('../pages/profile/profile.page').then((m) => m.ProfilePage),
   },
   {
     path: 'skills',
-    title: 'Навыки · SkillForge',
+    title: '\u041d\u0430\u0432\u044b\u043a\u0438 | SkillForge',
     canMatch: [authGuard],
     loadComponent: () => import('../pages/skills/skills.page').then((m) => m.SkillsPage),
   },
   {
+    path: 'shop',
+    title: '\u041c\u0430\u0433\u0430\u0437\u0438\u043d | SkillForge',
+    canMatch: [authGuard],
+    loadComponent: () => import('../pages/shop/shop.page').then((m) => m.ShopPage),
+  },
+  {
     path: 'simulator',
-    title: 'Симулятор · SkillForge',
+    title: '\u0421\u0438\u043c\u0443\u043b\u044f\u0442\u043e\u0440 | SkillForge',
     canMatch: [authGuard],
     loadComponent: () => import('../pages/simulator/simulator.page').then((m) => m.SimulatorPage),
   },
   {
     path: 'simulator/:id',
-    title: 'Сценарий · SkillForge',
+    title: '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439 | SkillForge',
     canMatch: [authGuard],
     loadComponent: () =>
       import('../pages/simulator/simulator-detail.page').then((m) => m.SimulatorDetailPage),
   },
   {
     path: 'analytics',
-    title: 'Аналитика · SkillForge',
+    title: '\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430 | SkillForge',
     canMatch: [authGuard],
     loadComponent: () => import('../pages/analytics/analytics.page').then((m) => m.AnalyticsPage),
   },
   {
     path: 'debug',
-    title: 'Отладка · SkillForge',
+    title: '\u041e\u0442\u043b\u0430\u0434\u043a\u0430 | SkillForge',
     canMatch: [authGuard, devOnlyGuard],
     loadComponent: () =>
       import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
@@ -55,7 +61,7 @@ export const routes: Routes = [
   {
     path: 'settings/debug',
     canMatch: [authGuard, devOnlyGuard],
-    title: 'Отладка · SkillForge',
+    title: '\u041e\u0442\u043b\u0430\u0434\u043a\u0430 | SkillForge',
     loadComponent: () =>
       import('../pages/settings-debug/settings-debug.page').then((m) => m.SettingsDebugPage),
   },

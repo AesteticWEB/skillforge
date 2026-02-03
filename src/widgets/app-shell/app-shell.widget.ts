@@ -23,6 +23,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Главная', path: '/', exact: true, meta: 'Старт' },
   { label: 'Профиль', path: '/profile', exact: false, meta: 'Шаг 1' },
   { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 2' },
+  { label: 'Магазин', path: '/shop', exact: false, meta: 'Бонусы' },
   { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
   { label: 'Аналитика', path: '/analytics', exact: false, meta: 'Итоги' },
   { label: 'Дебаг', path: '/debug', exact: false, meta: 'Dev' },

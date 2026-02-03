@@ -22,6 +22,7 @@ import {
   Skill,
 } from '@/entities/skill';
 import { Company } from '@/entities/company';
+import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward } from '@/entities/rewards';
 import { User } from '@/entities/user';
@@ -102,7 +103,7 @@ const createEmptyAuth = (): AuthState => ({
 });
 
 const createEmptyUser = (): User => ({
-  role: 'Р‘РµР· СЂРѕР»Рё',
+  role: 'Без роли',
   goals: [],
   startDate: new Date().toISOString().slice(0, 10),
   isProfileComplete: false,
@@ -256,7 +257,23 @@ export class AppStore {
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
+  readonly totalBuffs = computed(() => {
+    const owned = new Set(this._inventory().ownedItemIds);
+    const sources = SHOP_ITEMS.filter((item) => owned.has(item.id)).map((item) => ({
+      effects: {
+        coinBonus:
+          'coins' in item.effects && typeof item.effects.coins === 'number'
+            ? item.effects.coins
+            : 0,
+      },
+    }));
+    return getTotalBuffs(sources);
+  });
   readonly companyCash = computed(() => this._company().cash);
+  readonly companyUnlocked = computed(() => {
+    const company = this._company();
+    return Boolean(company) && Number.isFinite(company.cash) && this.careerStage() === 'senior';
+  });
   readonly canUndoDecision = computed(() => {
     const history = this._progress().decisionHistory;
     const lastEntry = history[history.length - 1];
@@ -311,8 +328,8 @@ export class AppStore {
 
       return {
         ...entry,
-        scenarioTitle: scenario?.title ?? 'РќРµРёР·РІРµСЃС‚РЅС‹Р№ СЃС†РµРЅР°СЂРёР№',
-        decisionText: decision?.text ?? 'РќРµРёР·РІРµСЃС‚РЅРѕРµ СЂРµС€РµРЅРёРµ',
+        scenarioTitle: scenario?.title ?? 'Неизвестный сценарий',
+        decisionText: decision?.text ?? 'Неизвестное решение',
         effects: decision?.effects ?? {},
       };
     });
@@ -374,7 +391,7 @@ export class AppStore {
         this._skillsLoading.set(false);
       },
       error: () => {
-        this._skillsError.set('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ РЅР°РІС‹РєРё.');
+        this._skillsError.set('Не удалось загрузить навыки.');
         this._skills.set([]);
         this._skillsLoading.set(false);
       },
@@ -386,7 +403,7 @@ export class AppStore {
         this._scenariosLoading.set(false);
       },
       error: () => {
-        this._scenariosError.set('РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ СЃС†РµРЅР°СЂРёРё.');
+        this._scenariosError.set('Не удалось загрузить сценарии.');
         this._scenarios.set([]);
         this._scenariosLoading.set(false);
       },
@@ -411,7 +428,7 @@ export class AppStore {
     }
 
     const profile: User = {
-      role: normalizedProfession.length > 0 ? normalizedProfession : 'Р‘РµР· СЂРѕР»Рё',
+      role: normalizedProfession.length > 0 ? normalizedProfession : 'Без роли',
       goals: [],
       startDate: new Date().toISOString().slice(0, 10),
       isProfileComplete: true,
@@ -460,7 +477,7 @@ export class AppStore {
     const selected = new Set(selectedSkillIds);
 
     const profile: User = {
-      role: normalizedRole.length > 0 ? normalizedRole : 'Р‘РµР· СЂРѕР»Рё',
+      role: normalizedRole.length > 0 ? normalizedRole : 'Без роли',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
       isProfileComplete: true,
@@ -529,18 +546,18 @@ export class AppStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ JSON.' };
+      return { ok: false, error: 'Некорректный JSON.' };
     }
 
     if (!this.isRecord(parsed)) {
-      return { ok: false, error: 'JSON РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕР±СЉРµРєС‚РѕРј.' };
+      return { ok: false, error: 'JSON должен быть объектом.' };
     }
 
     const migrated = migratePersistedState(parsed);
     if (!migrated) {
       return {
         ok: false,
-        error: 'РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјР°СЏ РІРµСЂСЃРёСЏ СЌРєСЃРїРѕСЂС‚Р°.',
+        error: 'Неподдерживаемая версия экспорта.',
       };
     }
     return this.applyPersistedState(migrated);
@@ -587,20 +604,20 @@ export class AppStore {
   private applyPersistedState(migrated: PersistedStateLatest): ImportResult {
     const user = this.parseUser(migrated.user);
     if (!user) {
-      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ.' };
+      return { ok: false, error: 'Некорректные данные профиля.' };
     }
 
     const progress = this.parseProgress(migrated.progress);
     if (!progress) {
-      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕРіСЂРµСЃСЃР°.' };
+      return { ok: false, error: 'Некорректные данные прогресса.' };
     }
     const company = this.parseCompany(migrated.company);
     if (!company) {
-      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РєРѕРјРїР°РЅРёРё.' };
+      return { ok: false, error: 'Некорректные данные компании.' };
     }
     const inventory = this.parseInventory(migrated.inventory);
     if (!inventory) {
-      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РёРЅРІРµРЅС‚Р°СЂСЏ.' };
+      return { ok: false, error: 'Некорректные данные инвентаря.' };
     }
 
     const featureFlags = this.parseFeatureFlags(migrated.featureFlags);
@@ -734,19 +751,54 @@ export class AppStore {
   buyItem(itemId: string): boolean {
     const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
     if (!item) {
-      this.notificationsStore.error('Unknown item.');
+      this.notificationsStore.error('Неизвестный предмет.');
       return false;
     }
 
     const inventory = this._inventory();
     if (ownsItem(inventory, item.id as ShopItemId)) {
-      this.notificationsStore.error('Item already owned.');
+      this.notificationsStore.error('Предмет уже куплен.');
       return false;
+    }
+
+    if (!Number.isFinite(item.price) || item.price <= 0) {
+      this.notificationsStore.error('Предмет недоступен.');
+      return false;
+    }
+
+    const currency = item.currency === 'cash' ? 'cash' : 'coins';
+    if (currency === 'cash') {
+      if (!this.isCompanyUnlocked()) {
+        this.notificationsStore.error('Люкс-магазин откроется после Senior/Company Mode.');
+        return false;
+      }
+      const company = this._company();
+      const currentCash = company?.cash ?? 0;
+      if (currentCash < item.price) {
+        this.notificationsStore.error('Не хватает кэша.');
+        return false;
+      }
+      const cashAfter = this.normalizeCash(currentCash - item.price);
+      this._company.update((current) => ({
+        ...current,
+        cash: cashAfter,
+      }));
+      this._inventory.update((current) => addItem(current, item.id as ShopItemId));
+      this.notificationsStore.success(`Куплено: ${item.name}.`);
+      this.eventBus.publish(
+        createPurchaseMadeEvent(item.id, item.price, {
+          itemName: item.name,
+          currency: 'cash',
+          cashBefore: currentCash,
+          cashAfter,
+        }),
+      );
+      return true;
     }
 
     const currentCoins = this._progress().coins;
     if (currentCoins < item.price) {
-      this.notificationsStore.error('Not enough coins.');
+      this.notificationsStore.error('Не хватает монет.');
       return false;
     }
 
@@ -756,10 +808,11 @@ export class AppStore {
       coins: coinsAfter,
     }));
     this._inventory.update((current) => addItem(current, item.id as ShopItemId));
-    this.notificationsStore.success(`Purchased ${item.name}.`);
+    this.notificationsStore.success(`Куплено: ${item.name}.`);
     this.eventBus.publish(
       createPurchaseMadeEvent(item.id, item.price, {
         itemName: item.name,
+        currency: 'coins',
         coinsBefore: currentCoins,
         coinsAfter,
       }),
@@ -852,7 +905,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['РЎС†РµРЅР°СЂРёР№ СѓР¶Рµ РїСЂРѕР№РґРµРЅ.'],
+        reasons: ['Сценарий уже пройден.'],
         status: 'completed',
       };
     }
@@ -860,7 +913,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['РЎС†РµРЅР°СЂРёР№ РґРѕСЃС‚СѓРїРµРЅ РЅР° РґСЂСѓРіРѕРј СЌС‚Р°РїРµ.'],
+        reasons: ['Сценарий доступен на другом этапе.'],
         status: 'active',
       };
     }
@@ -871,7 +924,7 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['РЎС†РµРЅР°СЂРёР№ РґРѕСЃС‚СѓРїРµРЅ РЅР° РґСЂСѓРіРѕРј СЌС‚Р°РїРµ.'],
+        reasons: ['Сценарий доступен на другом этапе.'],
         status: 'active',
       };
     }
@@ -879,7 +932,7 @@ export class AppStore {
       this.scenarioAccessMap().get(scenarioId) ?? {
         scenario,
         available: false,
-        reasons: ['РЎС†РµРЅР°СЂРёР№ РЅРµРґРѕСЃС‚СѓРїРµРЅ.'],
+        reasons: ['Сценарий недоступен.'],
         status: 'active',
       }
     );
@@ -950,7 +1003,7 @@ export class AppStore {
 
     if (stored.user) {
       this._user.set({
-        role: stored.user.role ?? 'Р‘РµР· СЂРѕР»Рё',
+        role: stored.user.role ?? 'Без роли',
         goals: stored.user.goals ?? [],
         startDate: stored.user.startDate ?? new Date().toISOString().slice(0, 10),
         isProfileComplete: stored.user.isProfileComplete ?? false,
@@ -1407,6 +1460,14 @@ export class AppStore {
 
   private matchesScenarioProfession(scenario: Scenario, profession: string): boolean {
     return scenario.profession === 'all' || scenario.profession === profession;
+  }
+
+  private isCompanyUnlocked(): boolean {
+    const company = this._company();
+    if (!company || !Number.isFinite(company.cash)) {
+      return false;
+    }
+    return this.careerStage() === 'senior';
   }
 
   private normalizeCareerStage(value: unknown): SkillStageId {

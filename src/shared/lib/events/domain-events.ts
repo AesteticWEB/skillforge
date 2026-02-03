@@ -46,8 +46,11 @@ export type PurchaseMadeEvent = DomainEventBase<
     itemId: string;
     itemName?: string;
     price: number;
+    currency?: 'coins' | 'cash';
     coinsBefore?: number;
     coinsAfter?: number;
+    cashBefore?: number;
+    cashAfter?: number;
   }
 >;
 
@@ -109,8 +112,11 @@ export const createPurchaseMadeEvent = (
   price: number,
   meta: {
     itemName?: string;
+    currency?: 'coins' | 'cash';
     coinsBefore?: number;
     coinsAfter?: number;
+    cashBefore?: number;
+    cashAfter?: number;
   } = {},
 ): PurchaseMadeEvent => createEvent('PurchaseMade', { itemId, price, ...meta });
 
