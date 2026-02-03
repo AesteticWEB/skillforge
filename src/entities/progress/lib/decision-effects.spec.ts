@@ -14,6 +14,7 @@ describe('decision effects', () => {
       techDebt: 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
+      skillStage: 'internship',
     };
     const effects: DecisionEffects = {
       reputation: 2,

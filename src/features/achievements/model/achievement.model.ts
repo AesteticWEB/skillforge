@@ -1,4 +1,7 @@
+import type { SkillStageId } from '@/shared/config';
+
 export type AchievementId = 'streak-5' | 'maxed-3';
+export type SkillMasteryType = 'skill_mastered';
 
 export type AchievementDefinition = {
   id: AchievementId;
@@ -25,3 +28,12 @@ export interface Achievement {
   description: string;
   earnedAt: string;
 }
+
+export type SkillMasteryAchievement = {
+  type: SkillMasteryType;
+  skillId: string;
+  skillName: string;
+  stage: SkillStageId;
+  profession: string;
+  earnedAt: string;
+};

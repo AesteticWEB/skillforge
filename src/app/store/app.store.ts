@@ -22,17 +22,29 @@ import {
   Skill,
 } from '@/entities/skill';
 import { User } from '@/entities/user';
-import { DEFAULT_FEATURE_FLAGS, DEMO_PROFILE, FeatureFlagKey, FeatureFlags } from '@/shared/config';
+import {
+  DEFAULT_FEATURE_FLAGS,
+  DEMO_PROFILE,
+  FeatureFlagKey,
+  FeatureFlags,
+  PROFESSION_STAGE_SKILLS,
+  SKILL_STAGE_LABELS,
+  SKILL_STAGE_ORDER,
+  STAGE_SCENARIOS,
+  SkillStageId,
+} from '@/shared/config';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
 import {
   createProfileCreatedEvent,
   createScenarioCompletedEvent,
+  createStagePromotedEvent,
   createSkillUpgradedEvent,
   DomainEventBus,
 } from '@/shared/lib/events';
 import { getRankProgress } from '@/shared/lib/rank';
 import type { RankProgress } from '@/shared/lib/rank';
+import { getStagePromotionStatus } from '@/shared/lib/stage';
 
 type ScenarioAccess = {
   scenario: Scenario;
@@ -81,6 +93,7 @@ const createEmptyProgress = (): Progress => ({
   techDebt: 0,
   scenarioOverrides: {},
   spentXpOnSkills: 0,
+  skillStage: 'internship',
 });
 
 @Injectable({ providedIn: 'root' })
@@ -118,6 +131,53 @@ export class AppStore {
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
   );
+  readonly professionId = computed(() => this._auth().profession || this._user().role);
+  readonly skillStage = computed(() => this._progress().skillStage);
+  readonly stageLabel = computed(() => SKILL_STAGE_LABELS[this.skillStage()]);
+  readonly stageSkillIds = computed(() => {
+    const profession = this.professionId();
+    const stage = this.skillStage();
+    const mapping = PROFESSION_STAGE_SKILLS[profession as keyof typeof PROFESSION_STAGE_SKILLS];
+    return mapping?.[stage] ?? [];
+  });
+  readonly stageSkills = computed(() => {
+    const ids = this.stageSkillIds();
+    const byId = new Map(this._skills().map((skill) => [skill.id, skill]));
+    return ids.map((id) => byId.get(id)).filter((skill): skill is Skill => Boolean(skill));
+  });
+  readonly stageScenarioIds = computed(() => STAGE_SCENARIOS[this.skillStage()] ?? []);
+  readonly stageScenarioIdSet = computed(() => new Set(this.stageScenarioIds()));
+  readonly stageScenarios = computed(() => {
+    const ids = this.stageScenarioIdSet();
+    return this._scenarios().filter((scenario) => ids.has(scenario.id));
+  });
+  readonly stagePromotion = computed(() =>
+    getStagePromotionStatus(this._progress(), this._skills(), this.professionId()),
+  );
+  readonly stageSkillProgress = computed(() => this.stagePromotion().skills);
+  readonly stageScenarioProgress = computed(() => this.stagePromotion().scenarios);
+  readonly nextSkillStage = computed(() => this.stagePromotion().nextStage);
+  readonly nextStageLabel = computed(() => {
+    const next = this.nextSkillStage();
+    return next ? SKILL_STAGE_LABELS[next] : null;
+  });
+  readonly canAdvanceSkillStage = computed(() => this.stagePromotion().canPromote);
+  readonly stagePromotionReasons = computed(() => {
+    const status = this.stagePromotion();
+    if (!status.nextStage || status.canPromote) {
+      return [];
+    }
+    const reasons: string[] = [];
+    if (status.skills.completed < status.skills.total) {
+      const remaining = status.skills.total - status.skills.completed;
+      reasons.push(`Осталось прокачать навыки: ${remaining}/${status.skills.total}`);
+    }
+    if (status.scenarios.completed < status.scenarios.total) {
+      const remaining = status.scenarios.total - status.scenarios.completed;
+      reasons.push(`Осталось пройти сценарии: ${remaining}/${status.scenarios.total}`);
+    }
+    return reasons;
+  });
   readonly skillsError = this._skillsError.asReadonly();
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
@@ -194,7 +254,7 @@ export class AppStore {
     const skills = this._skills();
     const progress = this._progress();
     const context = createScenarioGateContext(skills, progress);
-    return this._scenarios().map((scenario) => {
+    return this.stageScenarios().map((scenario) => {
       const gate = getScenarioGateResultWithContext(scenario, context);
       return {
         scenario,
@@ -358,6 +418,7 @@ export class AppStore {
       techDebt: 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
+      skillStage: 'internship',
     });
     this._xp.set(0);
 
@@ -560,10 +621,14 @@ export class AppStore {
     if (result.nextLevel > previousLevel) {
       const maxLevel = result.skills.find((skill) => skill.id === skillId)?.maxLevel ?? 0;
       const skillName = result.skills.find((skill) => skill.id === skillId)?.name ?? skillId;
+      const skillStage = this.resolveSkillStageForSkill(skillId);
+      const profession = this._auth().profession || this._user().role;
       this.eventBus.publish(
         createSkillUpgradedEvent(skillId, previousLevel, result.nextLevel, maxLevel, {
           skillName,
           cost: upgradeCost,
+          skillStage: skillStage ?? undefined,
+          profession: profession || undefined,
         }),
       );
     }
@@ -602,7 +667,38 @@ export class AppStore {
   }
 
   getScenarioAccess(scenarioId: string): ScenarioAccess | null {
-    return this.scenarioAccessMap().get(scenarioId) ?? null;
+    const scenario = this._scenarios().find((item) => item.id === scenarioId);
+    if (!scenario) {
+      return null;
+    }
+    if (!this.stageScenarioIdSet().has(scenarioId)) {
+      return {
+        scenario,
+        available: false,
+        reasons: ['Сценарий доступен на другом этапе.'],
+      };
+    }
+    return (
+      this.scenarioAccessMap().get(scenarioId) ?? {
+        scenario,
+        available: false,
+        reasons: ['Сценарий недоступен.'],
+      }
+    );
+  }
+
+  advanceSkillStage(): boolean {
+    const status = this.stagePromotion();
+    const nextStage = status.nextStage;
+    if (!nextStage || !status.canPromote) {
+      return false;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      skillStage: nextStage,
+    }));
+    this.eventBus.publish(createStagePromotedEvent(status.stage, nextStage));
+    return true;
   }
 
   private emitSkillUpgrades(before: Skill[], after: Skill[]): void {
@@ -614,6 +710,8 @@ export class AppStore {
           createSkillUpgradedEvent(skill.id, previousLevel, skill.level, skill.maxLevel, {
             skillName: skill.name,
             cost: null,
+            skillStage: this.resolveSkillStageForSkill(skill.id) ?? undefined,
+            profession: this._auth().profession || this._user().role || undefined,
           }),
         );
       }
@@ -762,6 +860,7 @@ export class AppStore {
       techDebt: progress.techDebt ?? 0,
       scenarioOverrides: progress.scenarioOverrides ?? {},
       spentXpOnSkills: progress.spentXpOnSkills ?? 0,
+      skillStage: this.normalizeSkillStage(progress.skillStage),
     };
   }
 
@@ -810,6 +909,7 @@ export class AppStore {
     const techDebt = value['techDebt'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
     const spentXpOnSkills = value['spentXpOnSkills'];
+    const skillStage = value['skillStage'];
 
     if (!skillLevels || !decisionHistory) {
       return null;
@@ -828,6 +928,7 @@ export class AppStore {
       techDebt,
       scenarioOverrides: scenarioOverrides ?? {},
       spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
+      skillStage: this.normalizeSkillStage(skillStage),
     };
   }
 
@@ -939,6 +1040,29 @@ export class AppStore {
       scenarioOverrides: scenarioOverrides ?? {},
       spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
     };
+  }
+
+  private resolveSkillStageForSkill(skillId: string): SkillStageId | null {
+    const profession = this._auth().profession || this._user().role;
+    const mapping = PROFESSION_STAGE_SKILLS[profession as keyof typeof PROFESSION_STAGE_SKILLS];
+    if (mapping) {
+      for (const stage of SKILL_STAGE_ORDER) {
+        if (mapping[stage]?.includes(skillId)) {
+          return stage;
+        }
+      }
+    }
+    return this._progress().skillStage ?? 'internship';
+  }
+
+  private normalizeSkillStage(value: unknown): SkillStageId {
+    if (typeof value !== 'string') {
+      return 'internship';
+    }
+    if ((SKILL_STAGE_ORDER as readonly string[]).includes(value)) {
+      return value as SkillStageId;
+    }
+    return 'internship';
   }
 
   private normalizeXp(value: number): number {

@@ -134,6 +134,9 @@ export class SettingsDebugPage {
     if (event.type === 'SkillUpgraded') {
       return `skill=${event.payload.skillId}, level=${event.payload.level}/${event.payload.maxLevel}`;
     }
-    return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
+    if (event.type === 'ScenarioCompleted') {
+      return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
+    }
+    return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
   }
 }

@@ -1,4 +1,5 @@
 import { User } from '@/entities/user';
+import type { SkillStageId } from '@/shared/config';
 
 export type DomainEventBase<Type extends string, Payload> = {
   type: Type;
@@ -22,6 +23,8 @@ export type SkillUpgradedEvent = DomainEventBase<
     level: number;
     maxLevel: number;
     cost?: number | null;
+    skillStage?: SkillStageId;
+    profession?: string;
   }
 >;
 
@@ -33,7 +36,19 @@ export type ScenarioCompletedEvent = DomainEventBase<
   }
 >;
 
-export type DomainEvent = ProfileCreatedEvent | SkillUpgradedEvent | ScenarioCompletedEvent;
+export type StagePromotedEvent = DomainEventBase<
+  'StagePromoted',
+  {
+    fromStage: SkillStageId;
+    toStage: SkillStageId;
+  }
+>;
+
+export type DomainEvent =
+  | ProfileCreatedEvent
+  | SkillUpgradedEvent
+  | ScenarioCompletedEvent
+  | StagePromotedEvent;
 export type DomainEventType = DomainEvent['type'];
 
 const createEvent = <Type extends DomainEventType, Payload>(
@@ -53,7 +68,12 @@ export const createSkillUpgradedEvent = (
   previousLevel: number,
   level: number,
   maxLevel: number,
-  meta: { skillName?: string; cost?: number | null } = {},
+  meta: {
+    skillName?: string;
+    cost?: number | null;
+    skillStage?: SkillStageId;
+    profession?: string;
+  } = {},
 ): SkillUpgradedEvent =>
   createEvent('SkillUpgraded', { skillId, previousLevel, level, maxLevel, ...meta });
 
@@ -61,3 +81,8 @@ export const createScenarioCompletedEvent = (
   scenarioId: string,
   decisionId: string,
 ): ScenarioCompletedEvent => createEvent('ScenarioCompleted', { scenarioId, decisionId });
+
+export const createStagePromotedEvent = (
+  fromStage: SkillStageId,
+  toStage: SkillStageId,
+): StagePromotedEvent => createEvent('StagePromoted', { fromStage, toStage });

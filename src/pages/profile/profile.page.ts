@@ -2,20 +2,21 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
-import { AchievementsStore, ACHIEVEMENTS_CATALOG, AchievementId } from '@/features/achievements';
+import { AchievementsStore, SkillMasteryAchievement } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
+import { PROFESSION_STAGE_SKILLS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
 import { RANK_STAGES } from '@/shared/lib/rank';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
 import { InputComponent } from '@/shared/ui/input';
 
-type AchievementCard = {
-  id: AchievementId;
-  title: string;
-  description: string;
-  earnedAt: string | null;
-  isEarned: boolean;
+type StageMasteryCard = {
+  stageId: keyof typeof SKILL_STAGE_LABELS;
+  stageLabel: string;
+  masteredCount: number;
+  total: number;
+  achievements: SkillMasteryAchievement[];
 };
 
 @Component({
@@ -42,19 +43,27 @@ export class ProfilePage {
     return value.length > 0 ? value : null;
   });
 
-  protected readonly achievements = this.achievementsStore.achievements;
-  protected readonly hasAchievements = computed(() => this.achievements().length > 0);
-  protected readonly achievementCards = computed<AchievementCard[]>(() => {
-    const earnedMap = new Map(
-      this.achievements().map((achievement) => [achievement.id, achievement]),
-    );
+  protected readonly skillMasteries = this.achievementsStore.skillMasteries;
+  protected readonly hasMasteries = computed(() => this.skillMasteries().length > 0);
+  protected readonly stageMasteryCards = computed<StageMasteryCard[]>(() => {
+    const profession = this.auth().profession || this.user().role;
+    const mapping =
+      PROFESSION_STAGE_SKILLS[profession as keyof typeof PROFESSION_STAGE_SKILLS] ?? null;
 
-    return ACHIEVEMENTS_CATALOG.map((definition) => {
-      const earned = earnedMap.get(definition.id);
+    return SKILL_STAGE_ORDER.map((stageId) => {
+      const stageSkills = mapping?.[stageId] ?? [];
+      const achievements = this.skillMasteries().filter(
+        (achievement) => achievement.stage === stageId,
+      );
+      const achievedIds = new Set(achievements.map((item) => item.skillId));
+      const masteredCount = stageSkills.filter((id) => achievedIds.has(id)).length;
+
       return {
-        ...definition,
-        earnedAt: earned?.earnedAt ?? null,
-        isEarned: Boolean(earned),
+        stageId,
+        stageLabel: SKILL_STAGE_LABELS[stageId],
+        masteredCount,
+        total: stageSkills.length,
+        achievements,
       };
     });
   });

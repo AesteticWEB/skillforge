@@ -29,6 +29,40 @@
       </div>
     </div>
 
+    <div
+      class="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4"
+    >
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Этап</div>
+        <div class="mt-1 text-lg font-semibold text-slate-100">{{ stageLabel() }}</div>
+        <div class="mt-1 text-xs text-slate-400">
+          Навыки: {{ stageSkillProgress().completed }}/{{ stageSkillProgress().total }} закрыто
+        </div>
+        <div class="text-xs text-slate-400">
+          Сценарии: {{ stageScenarioProgress().completed }}/{{ stageScenarioProgress().total }}
+          пройдено
+        </div>
+      </div>
+      <div class="flex flex-col items-start gap-2">
+        @if (nextStageLabel(); as nextLabel) {
+          <sf-button type="button" [disabled]="!canAdvanceStage()" (click)="advanceStage()">
+            Перейти к этапу {{ nextLabel }}
+          </sf-button>
+          @if (!canAdvanceStage() && stagePromotionReasons().length > 0) {
+            <div class="flex flex-col gap-1 text-xs text-amber-200">
+              @for (reason of stagePromotionReasons(); track reason) {
+                <span>{{ reason }}</span>
+              }
+            </div>
+          }
+        } @else {
+          <div class="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Максимальный этап достигнут
+          </div>
+        }
+      </div>
+    </div>
+
     @if (skillsLoading()) {
       <div class="mt-6">
         <sf-skeleton [count]="4" [columns]="true"></sf-skeleton>

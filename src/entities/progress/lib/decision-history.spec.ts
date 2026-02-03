@@ -18,6 +18,7 @@ describe('decision history undo', () => {
       techDebt: 2,
       scenarioOverrides: { 'scenario-2': true },
       spentXpOnSkills: 0,
+      skillStage: 'internship',
     };
 
     const snapshot = createProgressSnapshot(progress);

@@ -79,42 +79,48 @@
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Достижения</div>
-        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Бейджи</h2>
+        <h2 class="mt-2 text-2xl font-semibold text-slate-100">Достижения</h2>
         <p class="mt-2 text-sm text-slate-400">
-          Выполняй сценарии и прокачивай навыки, чтобы открывать награды.
+          Прокачивай навыки до максимума, чтобы открывать достижения по этапам.
         </p>
       </div>
     </div>
 
-    @if (!hasAchievements()) {
+    @if (!hasMasteries()) {
       <div class="mt-4">
         <sf-empty-state
           title="Пока пусто"
-          description="Пока пусто — пройди пару сценариев"
+          description="Прокачай навыки до максимума, чтобы открыть достижения"
           size="sm"
         ></sf-empty-state>
       </div>
     }
 
-    <div class="mt-4 grid gap-3">
-      @for (achievement of achievementCards(); track achievement.id) {
+    <div class="mt-4 grid gap-4">
+      @for (stage of stageMasteryCards(); track stage.stageId) {
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="flex items-start justify-between gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div class="text-sm font-semibold text-slate-100">{{ achievement.title }}</div>
-              <div class="mt-1 text-xs text-slate-400">{{ achievement.description }}</div>
+              <div class="text-sm font-semibold text-slate-100">{{ stage.stageLabel }}</div>
+              <div class="mt-1 text-xs text-slate-400">Этап навыков</div>
             </div>
-            <span
-              class="text-xs"
-              [class.text-emerald-300]="achievement.isEarned"
-              [class.text-slate-500]="!achievement.isEarned"
-            >
-              {{ achievement.isEarned ? 'Получено' : 'Не получено' }}
+            <span class="text-xs text-emerald-300">
+              {{ stage.masteredCount }}/{{ stage.total }} mastered
             </span>
           </div>
-          @if (achievement.isEarned && achievement.earnedAt) {
-            <div class="mt-2 text-xs text-slate-500">Получено: {{ achievement.earnedAt }}</div>
-          }
+
+          <div class="mt-3 grid gap-2">
+            @if (stage.achievements.length === 0) {
+              <div class="text-xs text-slate-500">Пока нет прокачанных навыков.</div>
+            } @else {
+              @for (achievement of stage.achievements; track achievement.skillId) {
+                <div class="flex items-start justify-between gap-3 text-xs">
+                  <div class="text-slate-200">{{ achievement.skillName }}</div>
+                  <div class="text-slate-500">{{ achievement.earnedAt }}</div>
+                </div>
+              }
+            }
+          </div>
         </div>
       }
     </div>

@@ -1,4 +1,5 @@
 import { IsoDateString } from '@/entities/user';
+import type { SkillStageId } from '@/shared/config';
 
 export type MetricKey = 'reputation' | 'techDebt';
 
@@ -24,4 +25,5 @@ export interface Progress {
   techDebt: number;
   scenarioOverrides: Record<string, boolean>;
   spentXpOnSkills: number;
+  skillStage: SkillStageId;
 }

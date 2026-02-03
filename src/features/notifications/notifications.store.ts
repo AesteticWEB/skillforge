@@ -1,4 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { SKILL_STAGE_LABELS } from '@/shared/config';
 import { DomainEventBus, DomainEvent } from '@/shared/lib/events';
 
 export type NotificationType = 'success' | 'error' | 'info';
@@ -33,6 +34,9 @@ export class NotificationsStore {
     });
     this.eventBus.subscribe('ScenarioCompleted', (event) => {
       this.pushNotification(this.formatScenarioCompleted(event), 'success');
+    });
+    this.eventBus.subscribe('StagePromoted', (event) => {
+      this.pushNotification(this.formatStagePromoted(event), 'success');
     });
   }
 
@@ -95,5 +99,13 @@ export class NotificationsStore {
       return '';
     }
     return 'Сценарий пройден.';
+  }
+
+  private formatStagePromoted(event: DomainEvent): string {
+    if (event.type !== 'StagePromoted') {
+      return '';
+    }
+    const label = SKILL_STAGE_LABELS[event.payload.toStage];
+    return `Поздравляем! Ты теперь ${label}.`;
   }
 }
