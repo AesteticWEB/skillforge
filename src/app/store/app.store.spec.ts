@@ -2,9 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { Scenario } from '@/entities/scenario';
 import { Skill } from '@/entities/skill';
+import { calcScenarioReward } from '@/entities/rewards';
+import { NotificationsStore } from '@/features/notifications';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
-import { BALANCE } from '@/shared/config';
+import { BALANCE, SHOP_ITEMS } from '@/shared/config';
 import { AppStore } from './app.store';
 
 const createStore = (skills: Skill[], scenarios: Scenario[]): AppStore => {
@@ -73,6 +75,10 @@ describe('AppStore', () => {
     const reputationDelta = BALANCE.effects.reputation.gain * 2;
     const techDebtDelta = -BALANCE.effects.techDebt.relief;
     const coinsDelta = 5;
+    const expectedRewardCoins = calcScenarioReward({
+      reputation: reputationDelta,
+      techDebt: techDebtDelta,
+    });
     const scenarios: Scenario[] = [
       {
         id: 'scenario-1',
@@ -102,7 +108,7 @@ describe('AppStore', () => {
 
     expect(store.reputation()).toBe(reputationDelta);
     expect(store.techDebt()).toBe(techDebtDelta);
-    expect(store.coins()).toBe(coinsDelta);
+    expect(store.coins()).toBe(coinsDelta + expectedRewardCoins);
     expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(0);
     expect(store.progress().decisionHistory).toHaveLength(1);
     expect(store.progress().decisionHistory[0]?.scenarioId).toBe('scenario-1');
@@ -127,5 +133,107 @@ describe('AppStore', () => {
     const top = store.topSkillsByLevel();
 
     expect(top.map((skill) => skill.id)).toEqual(['advanced', 'ux', 'core']);
+  });
+
+  it('buys a shop item when enough coins', () => {
+    const item = SHOP_ITEMS[0];
+    const scenarios: Scenario[] = [
+      {
+        id: 'scenario-buy',
+        title: 'Scenario Buy',
+        description: 'Earn coins',
+        stage: 'internship',
+        profession: 'all',
+        rewardXp: BALANCE.rewards.scenarioXp,
+        correctOptionIds: ['decision-buy'],
+        decisions: [
+          {
+            id: 'decision-buy',
+            text: 'Earn',
+            effects: {
+              coins: 300,
+            },
+          },
+        ],
+      },
+    ];
+
+    const store = createStore([], scenarios);
+    const notifications = TestBed.inject(NotificationsStore);
+    const successSpy = jest.spyOn(notifications, 'success');
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    store.applyDecision('scenario-buy', 'decision-buy');
+    const beforeCoins = store.coins();
+    const result = store.buyItem(item.id);
+
+    expect(result).toBe(true);
+    expect(store.inventory().ownedItemIds).toContain(item.id);
+    expect(store.coins()).toBe(beforeCoins - item.price);
+    expect(successSpy).toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('blocks duplicate purchases', () => {
+    const item = SHOP_ITEMS[1];
+    const scenarios: Scenario[] = [
+      {
+        id: 'scenario-dupe',
+        title: 'Scenario Dupe',
+        description: 'Earn coins',
+        stage: 'internship',
+        profession: 'all',
+        rewardXp: BALANCE.rewards.scenarioXp,
+        correctOptionIds: ['decision-dupe'],
+        decisions: [
+          {
+            id: 'decision-dupe',
+            text: 'Earn',
+            effects: {
+              coins: 300,
+            },
+          },
+        ],
+      },
+    ];
+
+    const store = createStore([], scenarios);
+    const notifications = TestBed.inject(NotificationsStore);
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    store.applyDecision('scenario-dupe', 'decision-dupe');
+    expect(store.buyItem(item.id)).toBe(true);
+    const secondAttempt = store.buyItem(item.id);
+
+    expect(secondAttempt).toBe(false);
+    expect(store.inventory().ownedItemIds.filter((id) => id === item.id)).toHaveLength(1);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('rejects purchases without enough coins', () => {
+    const item = SHOP_ITEMS[2];
+    const store = createStore([], []);
+    const notifications = TestBed.inject(NotificationsStore);
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    const result = store.buyItem(item.id);
+
+    expect(result).toBe(false);
+    expect(store.inventory().ownedItemIds).toHaveLength(0);
+    expect(store.coins()).toBe(0);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('rejects unknown items without changes', () => {
+    const store = createStore([], []);
+    const notifications = TestBed.inject(NotificationsStore);
+    const errorSpy = jest.spyOn(notifications, 'error');
+
+    const result = store.buyItem('unknown-item');
+
+    expect(result).toBe(false);
+    expect(store.inventory().ownedItemIds).toHaveLength(0);
+    expect(store.coins()).toBe(0);
+    expect(errorSpy).toHaveBeenCalled();
   });
 });

@@ -1,24 +1,23 @@
-﻿<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col gap-6 px-6 py-16">
+<section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col gap-6 px-6 py-16">
   <sf-card>
     <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-      РќР°СЃС‚СЂРѕР№РєРё / РћС‚Р»Р°РґРєР°
+      Настройки / Отладка
     </h1>
     <p class="mt-3 text-base text-slate-300 sm:text-lg">
-      РўРµС…РЅРёС‡РµСЃРєРёРµ РїРµСЂРµРєР»СЋС‡Р°С‚РµР»Рё Рё РґРёР°РіРЅРѕСЃС‚РёРєР°. РЎС‚СЂР°РЅРёС†Р°
-      С‚РѕР»СЊРєРѕ РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚РєРё.
+      Технические переключатели и диагностика. Страница только для разработки.
     </p>
   </sf-card>
 
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">РЈРІРµРґРѕРјР»РµРЅРёСЏ</h2>
+        <h2 class="text-lg font-semibold text-slate-100">Уведомления</h2>
         <p class="mt-1 text-sm text-slate-400">
-          РџРѕСЃР»РµРґРЅРёРµ РґРѕРјРµРЅРЅС‹Рµ СЃРѕР±С‹С‚РёСЏ.
+          Последние доменные события.
         </p>
       </div>
       <sf-button variant="ghost" type="button" (click)="clearNotifications()"
-        >РћС‡РёСЃС‚РёС‚СЊ</sf-button
+        >Очистить</sf-button
       >
     </div>
     <div class="mt-4 grid gap-3">
@@ -28,7 +27,7 @@
           <div class="mt-1 text-xs text-slate-500">{{ formatDate(note.createdAt) }}</div>
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">РЈРІРµРґРѕРјР»РµРЅРёР№ РїРѕРєР° РЅРµС‚.</div>
+        <div class="text-sm text-slate-400">Уведомлений пока нет.</div>
       }
     </div>
   </sf-card>
@@ -54,6 +53,18 @@
         Backup отсутствует.
       </div>
     }
+  </sf-card>
+  <sf-card>
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-lg font-semibold text-slate-100">Company</h2>
+        <p class="mt-1 text-sm text-slate-400">Текущее состояние компании.</p>
+      </div>
+    </div>
+    <div class="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+      <div class="text-slate-400">Cash</div>
+      <div class="mt-1 text-lg font-semibold text-slate-100">{{ companyCash() }}</div>
+    </div>
   </sf-card>
   <sf-card>
     <div class="flex items-center justify-between gap-3">
@@ -119,18 +130,18 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Р›РѕРі РѕС€РёР±РѕРє</h2>
+        <h2 class="text-lg font-semibold text-slate-100">Лог ошибок</h2>
         <p class="mt-1 text-sm text-slate-400">
-          РЎРѕР±СЂР°РЅРЅС‹Рµ РѕС€РёР±РєРё РІРѕ РІСЂРµРјСЏ СЂР°Р±РѕС‚С‹.
+          Собранные ошибки во время работы.
         </p>
       </div>
-      <sf-button variant="ghost" type="button" (click)="clearErrors()">РћС‡РёСЃС‚РёС‚СЊ</sf-button>
+      <sf-button variant="ghost" type="button" (click)="clearErrors()">Очистить</sf-button>
     </div>
     @if (fatalError(); as error) {
       <div
         class="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
       >
-        РљСЂРёС‚РёС‡РЅРѕ: {{ error.message }}
+        Критично: {{ error.message }}
       </div>
     }
     <div class="mt-4 grid gap-3">
@@ -139,11 +150,11 @@
           <div class="text-xs text-slate-500">{{ formatDate(entry.occurredAt) }}</div>
           <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
           @if (entry.context) {
-            <div class="mt-1 text-xs text-slate-400">РљРѕРЅС‚РµРєСЃС‚: {{ entry.context }}</div>
+            <div class="mt-1 text-xs text-slate-400">Контекст: {{ entry.context }}</div>
           }
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">РћС€РёР±РѕРє РїРѕРєР° РЅРµС‚.</div>
+        <div class="text-sm text-slate-400">Ошибок пока нет.</div>
       }
     </div>
   </sf-card>
@@ -151,14 +162,14 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Р›РѕРі СЃРѕР±С‹С‚РёР№</h2>
+        <h2 class="text-lg font-semibold text-slate-100">Лог событий</h2>
         <p class="mt-1 text-sm text-slate-400">
-          РџСЂРѕС„РёР»СЊ: {{ eventCounts().profileCreated }} | РќР°РІС‹РєРё:
-          {{ eventCounts().skillUpgraded }} | РЎС†РµРЅР°СЂРёРё:
+          Профиль: {{ eventCounts().profileCreated }} | Навыки:
+          {{ eventCounts().skillUpgraded }} | Сценарии:
           {{ eventCounts().scenarioCompleted }}
         </p>
       </div>
-      <sf-button variant="ghost" type="button" (click)="clearEvents()">РћС‡РёСЃС‚РёС‚СЊ</sf-button>
+      <sf-button variant="ghost" type="button" (click)="clearEvents()">Очистить</sf-button>
     </div>
     <div class="mt-4 grid gap-3">
       @for (event of eventCards(); track event.key) {
@@ -168,7 +179,7 @@
           <div class="mt-1 text-xs text-slate-400">{{ event.summary }}</div>
         </div>
       } @empty {
-        <div class="text-sm text-slate-400">РЎРѕР±С‹С‚РёР№ РїРѕРєР° РЅРµС‚.</div>
+        <div class="text-sm text-slate-400">Событий пока нет.</div>
       }
     </div>
   </sf-card>

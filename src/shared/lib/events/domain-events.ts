@@ -40,6 +40,17 @@ export type ScenarioCompletedEvent = DomainEventBase<
   }
 >;
 
+export type PurchaseMadeEvent = DomainEventBase<
+  'PurchaseMade',
+  {
+    itemId: string;
+    itemName?: string;
+    price: number;
+    coinsBefore?: number;
+    coinsAfter?: number;
+  }
+>;
+
 export type StagePromotedEvent = DomainEventBase<
   'StagePromoted',
   {
@@ -52,6 +63,7 @@ export type DomainEvent =
   | ProfileCreatedEvent
   | SkillUpgradedEvent
   | ScenarioCompletedEvent
+  | PurchaseMadeEvent
   | StagePromotedEvent;
 export type DomainEventType = DomainEvent['type'];
 
@@ -91,6 +103,16 @@ export const createScenarioCompletedEvent = (
     coinsDelta?: number;
   } = {},
 ): ScenarioCompletedEvent => createEvent('ScenarioCompleted', { scenarioId, decisionId, ...meta });
+
+export const createPurchaseMadeEvent = (
+  itemId: string,
+  price: number,
+  meta: {
+    itemName?: string;
+    coinsBefore?: number;
+    coinsAfter?: number;
+  } = {},
+): PurchaseMadeEvent => createEvent('PurchaseMade', { itemId, price, ...meta });
 
 export const createStagePromotedEvent = (
   fromStage: SkillStageId,

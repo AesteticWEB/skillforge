@@ -1,12 +1,25 @@
-﻿import type { Progress } from '@/entities/progress';
+import type { Company } from '@/entities/company';
+import type { Inventory } from '@/entities/inventory';
+import { normalizeOwnedItemIds } from '@/entities/inventory';
+import type { Progress } from '@/entities/progress';
 import type { User } from '@/entities/user';
 import type { FeatureFlags } from '@/shared/config';
 
-export const PERSIST_SCHEMA_VERSION = 3;
-export const PERSIST_STORAGE_KEY = 'skillforge.state.v3';
-export const PERSIST_BACKUP_KEY = 'skillforge.backup.v3';
-export const PERSIST_LEGACY_KEYS = ['skillforge.state.v2', 'skillforge.state.v1'] as const;
-export const PERSIST_LEGACY_BACKUP_KEYS = ['skillforge.backup.v2', 'skillforge.backup.v1'] as const;
+export const PERSIST_SCHEMA_VERSION = 5;
+export const PERSIST_STORAGE_KEY = 'skillforge.state.v5';
+export const PERSIST_BACKUP_KEY = 'skillforge.backup.v5';
+export const PERSIST_LEGACY_KEYS = [
+  'skillforge.state.v4',
+  'skillforge.state.v3',
+  'skillforge.state.v2',
+  'skillforge.state.v1',
+] as const;
+export const PERSIST_LEGACY_BACKUP_KEYS = [
+  'skillforge.backup.v4',
+  'skillforge.backup.v3',
+  'skillforge.backup.v2',
+  'skillforge.backup.v1',
+] as const;
 
 export type PersistedAuth = {
   login: string;
@@ -32,8 +45,8 @@ export type PersistedStateV2 = {
   xp?: number;
 };
 
-export type PersistedStateLatest = {
-  version: typeof PERSIST_SCHEMA_VERSION;
+export type PersistedStateV3 = {
+  version: 3;
   user: Partial<User>;
   progress: Partial<Progress>;
   featureFlags?: Partial<FeatureFlags>;
@@ -41,7 +54,33 @@ export type PersistedStateLatest = {
   xp?: number;
 };
 
-export type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateLatest;
+export type PersistedStateV4 = {
+  version: 4;
+  user: Partial<User>;
+  progress: Partial<Progress>;
+  company: Partial<Company>;
+  featureFlags?: Partial<FeatureFlags>;
+  auth?: Partial<PersistedAuth>;
+  xp?: number;
+};
+
+export type PersistedStateLatest = {
+  version: typeof PERSIST_SCHEMA_VERSION;
+  user: Partial<User>;
+  progress: Partial<Progress>;
+  company: Partial<Company>;
+  inventory: Partial<Inventory>;
+  featureFlags?: Partial<FeatureFlags>;
+  auth?: Partial<PersistedAuth>;
+  xp?: number;
+};
+
+export type PersistedState =
+  | PersistedStateV1
+  | PersistedStateV2
+  | PersistedStateV3
+  | PersistedStateV4
+  | PersistedStateLatest;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -59,6 +98,27 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
   };
 };
 
+const normalizeCompany = (company: Partial<Company> | undefined): Partial<Company> => {
+  const base = company ?? {};
+  const cash =
+    typeof base.cash === 'number' && Number.isFinite(base.cash)
+      ? Math.max(0, Math.floor(base.cash))
+      : 0;
+
+  return {
+    ...base,
+    cash,
+  };
+};
+
+const normalizeInventory = (inventory: Partial<Inventory> | undefined): Partial<Inventory> => {
+  const base = inventory ?? {};
+  return {
+    ...base,
+    ownedItemIds: normalizeOwnedItemIds(base.ownedItemIds),
+  };
+};
+
 export const migratePersistedState = (raw: unknown): PersistedStateLatest | null => {
   if (!isRecord(raw)) {
     return null;
@@ -70,6 +130,34 @@ export const migratePersistedState = (raw: unknown): PersistedStateLatest | null
     return {
       ...current,
       progress: normalizeProgress(current.progress),
+      company: normalizeCompany(current.company),
+      inventory: normalizeInventory(current.inventory),
+    };
+  }
+
+  if (version === 4) {
+    return {
+      version: PERSIST_SCHEMA_VERSION,
+      user: (raw['user'] as PersistedStateV4['user']) ?? {},
+      progress: normalizeProgress(raw['progress'] as PersistedStateV4['progress']),
+      company: normalizeCompany(raw['company'] as PersistedStateV4['company']),
+      inventory: normalizeInventory(raw['inventory'] as PersistedStateLatest['inventory']),
+      featureFlags: raw['featureFlags'] as PersistedStateV4['featureFlags'],
+      auth: raw['auth'] as PersistedStateV4['auth'],
+      xp: raw['xp'] as PersistedStateV4['xp'],
+    };
+  }
+
+  if (version === 3) {
+    return {
+      version: PERSIST_SCHEMA_VERSION,
+      user: (raw['user'] as PersistedStateV3['user']) ?? {},
+      progress: normalizeProgress(raw['progress'] as PersistedStateV3['progress']),
+      company: normalizeCompany(raw['company'] as PersistedStateLatest['company']),
+      inventory: normalizeInventory(raw['inventory'] as PersistedStateLatest['inventory']),
+      featureFlags: raw['featureFlags'] as PersistedStateV3['featureFlags'],
+      auth: raw['auth'] as PersistedStateV3['auth'],
+      xp: raw['xp'] as PersistedStateV3['xp'],
     };
   }
 
@@ -78,6 +166,8 @@ export const migratePersistedState = (raw: unknown): PersistedStateLatest | null
       version: PERSIST_SCHEMA_VERSION,
       user: (raw['user'] as PersistedStateV1['user']) ?? {},
       progress: normalizeProgress(raw['progress'] as PersistedStateV1['progress']),
+      company: normalizeCompany(raw['company'] as PersistedStateLatest['company']),
+      inventory: normalizeInventory(raw['inventory'] as PersistedStateLatest['inventory']),
       featureFlags: raw['featureFlags'] as PersistedStateV1['featureFlags'],
       auth: raw['auth'] as PersistedStateV1['auth'],
       xp: raw['xp'] as PersistedStateV1['xp'],

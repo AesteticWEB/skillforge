@@ -21,6 +21,9 @@ import {
   getSkillUpgradeMeta as resolveSkillUpgradeMeta,
   Skill,
 } from '@/entities/skill';
+import { Company } from '@/entities/company';
+import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
+import { calcScenarioReward } from '@/entities/rewards';
 import { User } from '@/entities/user';
 import {
   BALANCE,
@@ -32,6 +35,8 @@ import {
   PROFESSION_STAGE_SCENARIOS,
   SKILL_STAGE_LABELS,
   SKILL_STAGE_ORDER,
+  SHOP_ITEMS,
+  ShopItemId,
   SkillStageId,
 } from '@/shared/config';
 import { NotificationsStore } from '@/features/notifications';
@@ -39,6 +44,7 @@ import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { ErrorLogStore } from '@/shared/lib/errors';
 import {
+  createPurchaseMadeEvent,
   createProfileCreatedEvent,
   createScenarioCompletedEvent,
   createStagePromotedEvent,
@@ -77,6 +83,8 @@ type AppStateExport = {
   exportedAt: string;
   user: User;
   progress: Progress;
+  company: Company;
+  inventory: Inventory;
   featureFlags: FeatureFlags;
   auth: AuthState;
   xp: number;
@@ -98,6 +106,14 @@ const createEmptyUser = (): User => ({
   goals: [],
   startDate: new Date().toISOString().slice(0, 10),
   isProfileComplete: false,
+});
+
+const createEmptyCompany = (): Company => ({
+  cash: 0,
+});
+
+const createEmptyInventory = (): Inventory => ({
+  ownedItemIds: [],
 });
 
 const createEmptyProgress = (): Progress => ({
@@ -137,6 +153,8 @@ export class AppStore {
   private readonly _auth = signal<AuthState>(createEmptyAuth());
   private readonly _xp = signal(0);
   private readonly _progress = signal<Progress>(createEmptyProgress());
+  private readonly _company = signal<Company>(createEmptyCompany());
+  private readonly _inventory = signal<Inventory>(createEmptyInventory());
   private readonly _backupAvailable = signal(false);
 
   readonly user = this._user.asReadonly();
@@ -145,6 +163,8 @@ export class AppStore {
   readonly skillsLoading = this._skillsLoading.asReadonly();
   readonly scenariosLoading = this._scenariosLoading.asReadonly();
   readonly progress = this._progress.asReadonly();
+  readonly company = this._company.asReadonly();
+  readonly inventory = this._inventory.asReadonly();
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
   readonly xp = this._xp.asReadonly();
@@ -220,7 +240,7 @@ export class AppStore {
     }
     const reasons: string[] = [];
     if (status.skills.completed < status.skills.total) {
-      reasons.push('РџСЂРѕРєР°С‡Р°Р№ РІСЃРµ 4 РЅР°РІС‹РєР° СЌС‚Р°РїР° РґРѕ РјР°РєСЃРёРјСѓРјР°');
+      reasons.push('Прокачай все 4 навыка этапа до максимума');
     }
     return reasons;
   });
@@ -236,6 +256,7 @@ export class AppStore {
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
+  readonly companyCash = computed(() => this._company().cash);
   readonly canUndoDecision = computed(() => {
     const history = this._progress().decisionHistory;
     const lastEntry = history[history.length - 1];
@@ -403,6 +424,8 @@ export class AppStore {
     });
     this._user.set(profile);
     this._progress.set(createEmptyProgress());
+    this._company.set(createEmptyCompany());
+    this._inventory.set(createEmptyInventory());
     this._xp.set(0);
     this.setFeatureFlag('demoMode', false);
     this.load();
@@ -469,6 +492,8 @@ export class AppStore {
       spentXpOnSkills: 0,
       careerStage: 'internship',
     });
+    this._company.set(createEmptyCompany());
+    this._inventory.set(createEmptyInventory());
     this._xp.set(0);
 
     this.setFeatureFlag('demoMode', false);
@@ -490,6 +515,8 @@ export class AppStore {
       exportedAt: new Date().toISOString(),
       user: this._user(),
       progress: this._progress(),
+      company: this._company(),
+      inventory: this._inventory(),
       featureFlags: this._featureFlags(),
       auth: this._auth(),
       xp: this._xp(),
@@ -567,6 +594,14 @@ export class AppStore {
     if (!progress) {
       return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕРіСЂРµСЃСЃР°.' };
     }
+    const company = this.parseCompany(migrated.company);
+    if (!company) {
+      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РєРѕРјРїР°РЅРёРё.' };
+    }
+    const inventory = this.parseInventory(migrated.inventory);
+    if (!inventory) {
+      return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РёРЅРІРµРЅС‚Р°СЂСЏ.' };
+    }
 
     const featureFlags = this.parseFeatureFlags(migrated.featureFlags);
     const auth = this.parseAuth(migrated.auth);
@@ -574,6 +609,8 @@ export class AppStore {
 
     this._user.set(user);
     this._progress.set(progress);
+    this._company.set(company);
+    this._inventory.set(inventory);
     this._featureFlags.set(featureFlags);
     if (auth) {
       this._auth.set(auth);
@@ -629,7 +666,7 @@ export class AppStore {
 
     const reputationDelta = decision.effects['reputation'] ?? 0;
     const techDebtDelta = decision.effects['techDebt'] ?? 0;
-    const coinsDelta = decision.effects['coins'] ?? 0;
+    const coinsEffectDelta = decision.effects['coins'] ?? 0;
     const rewardXp = BALANCE.rewards.scenarioXp;
     const snapshot = createProgressSnapshot(this._progress());
     const beforeSkills = this._skills();
@@ -639,10 +676,19 @@ export class AppStore {
       result.progress,
       scenario.availabilityEffects ?? [],
     );
+    const rewardCoins = calcScenarioReward({
+      reputation: progressWithAvailability.reputation,
+      techDebt: progressWithAvailability.techDebt,
+    });
+    const progressWithRewards = {
+      ...progressWithAvailability,
+      coins: this.normalizeCoins(progressWithAvailability.coins + rewardCoins),
+    };
     this._skills.set(result.skills);
-    this._progress.set(progressWithAvailability);
+    this._progress.set(progressWithRewards);
     this.addXp(rewardXp);
 
+    const coinsDelta = coinsEffectDelta + rewardCoins;
     this.emitSkillUpgrades(beforeSkills, result.skills);
     this.eventBus.publish(
       createScenarioCompletedEvent(scenarioId, decisionId, {
@@ -683,6 +729,42 @@ export class AppStore {
       ...current,
       [flag]: value,
     }));
+  }
+
+  buyItem(itemId: string): boolean {
+    const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
+    if (!item) {
+      this.notificationsStore.error('Unknown item.');
+      return false;
+    }
+
+    const inventory = this._inventory();
+    if (ownsItem(inventory, item.id as ShopItemId)) {
+      this.notificationsStore.error('Item already owned.');
+      return false;
+    }
+
+    const currentCoins = this._progress().coins;
+    if (currentCoins < item.price) {
+      this.notificationsStore.error('Not enough coins.');
+      return false;
+    }
+
+    const coinsAfter = this.normalizeCoins(currentCoins - item.price);
+    this._progress.update((progress) => ({
+      ...progress,
+      coins: coinsAfter,
+    }));
+    this._inventory.update((current) => addItem(current, item.id as ShopItemId));
+    this.notificationsStore.success(`Purchased ${item.name}.`);
+    this.eventBus.publish(
+      createPurchaseMadeEvent(item.id, item.price, {
+        itemName: item.name,
+        coinsBefore: currentCoins,
+        coinsAfter,
+      }),
+    );
+    return true;
   }
 
   incrementSkillLevel(skillId: string, delta = 1): void {
@@ -877,6 +959,12 @@ export class AppStore {
     if (stored.progress) {
       this._progress.set(this.mergeProgressDefaults(stored.progress));
     }
+    if (stored.company) {
+      this._company.set(this.mergeCompanyDefaults(stored.company));
+    }
+    if (stored.inventory) {
+      this._inventory.set(this.mergeInventoryDefaults(stored.inventory));
+    }
     if (stored.featureFlags) {
       this._featureFlags.set({
         ...DEFAULT_FEATURE_FLAGS,
@@ -905,6 +993,8 @@ export class AppStore {
     this._user.set(createEmptyUser());
     this._auth.set(createEmptyAuth());
     this._progress.set(createEmptyProgress());
+    this._company.set(createEmptyCompany());
+    this._inventory.set(createEmptyInventory());
     this._xp.set(0);
     this._featureFlags.set(DEFAULT_FEATURE_FLAGS);
     this._skills.set([]);
@@ -940,6 +1030,8 @@ export class AppStore {
       version: AppStore.STORAGE_VERSION,
       user: this._user(),
       progress: this._progress(),
+      company: this._company(),
+      inventory: this._inventory(),
       featureFlags: this._featureFlags(),
       auth: this._auth(),
       xp: this._xp(),
@@ -1071,6 +1163,18 @@ export class AppStore {
     };
   }
 
+  private mergeCompanyDefaults(company: Partial<Company>): Company {
+    return {
+      cash: this.normalizeCash(company.cash ?? 0),
+    };
+  }
+
+  private mergeInventoryDefaults(inventory: Partial<Inventory>): Inventory {
+    return {
+      ownedItemIds: normalizeOwnedItemIds(inventory.ownedItemIds),
+    };
+  }
+
   private isStorageAvailable(): boolean {
     return typeof localStorage !== 'undefined';
   }
@@ -1144,6 +1248,32 @@ export class AppStore {
       careerStage: this.normalizeCareerStage(
         typeof careerStage === 'string' ? careerStage : legacySkillStage,
       ),
+    };
+  }
+
+  private parseCompany(value: unknown): Company | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const cash = value['cash'];
+    if (cash !== undefined && typeof cash !== 'number') {
+      return null;
+    }
+    return {
+      cash: this.normalizeCash(typeof cash === 'number' ? cash : 0),
+    };
+  }
+
+  private parseInventory(value: unknown): Inventory | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const ownedItemIds = value['ownedItemIds'];
+    if (ownedItemIds !== undefined && !Array.isArray(ownedItemIds)) {
+      return null;
+    }
+    return {
+      ownedItemIds: normalizeOwnedItemIds(ownedItemIds),
     };
   }
 
@@ -1297,6 +1427,13 @@ export class AppStore {
   }
 
   private normalizeCoins(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeCash(value: number): number {
     if (!Number.isFinite(value)) {
       return 0;
     }

@@ -20,6 +20,7 @@ export class AnalyticsEventsStore {
     this.eventBus.subscribe('ProfileCreated', (event) => this.push(event));
     this.eventBus.subscribe('SkillUpgraded', (event) => this.push(event));
     this.eventBus.subscribe('ScenarioCompleted', (event) => this.push(event));
+    this.eventBus.subscribe('PurchaseMade', (event) => this.push(event));
   }
 
   clear(): void {

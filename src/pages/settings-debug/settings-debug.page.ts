@@ -29,6 +29,7 @@ export class SettingsDebugPage {
   protected readonly notifications = this.notificationsStore.notifications;
   protected readonly hasProfile = this.appStore.hasProfile;
   protected readonly backupAvailable = this.appStore.backupAvailable;
+  protected readonly companyCash = this.appStore.companyCash;
   protected readonly sandboxSteps = BALANCE.sandbox.steps;
   private readonly _sandboxRows = signal<BalanceSandboxRow[]>([]);
   protected readonly sandboxRows = this._sandboxRows.asReadonly();
@@ -136,6 +137,9 @@ export class SettingsDebugPage {
     }
     if (event.type === 'ScenarioCompleted') {
       return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
+    }
+    if (event.type === 'PurchaseMade') {
+      return `purchase=${event.payload.itemId}, price=${event.payload.price}`;
     }
     return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
   }

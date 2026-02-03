@@ -1,0 +1,30 @@
+@if (open) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+    <div
+      class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+      (click)="onBackdropClick()"
+    ></div>
+    <div
+      class="relative w-full max-w-lg rounded-2xl border border-slate-800/80 bg-slate-900/95 p-6 shadow-xl shadow-black/40"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-100">{{ title }}</h3>
+          @if (subtitle) {
+            <p class="mt-1 text-sm text-slate-400">{{ subtitle }}</p>
+          }
+        </div>
+        <button
+          type="button"
+          class="rounded-lg border border-slate-700 bg-slate-950/60 px-2 py-1 text-xs font-semibold text-slate-200 transition hover:bg-slate-900"
+          (click)="closed.emit()"
+        >
+          Закрыть
+        </button>
+      </div>
+      <div class="mt-5">
+        <ng-content></ng-content>
+      </div>
+    </div>
+  </div>
+}

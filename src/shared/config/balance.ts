@@ -1,6 +1,22 @@
-﻿export const BALANCE = {
+export const BALANCE = {
   rewards: {
     scenarioXp: 5,
+    scenarioCoins: 6,
+    examCoins: 12,
+    minCoins: 1,
+    reputation: {
+      perPoint: 0.02,
+      minMultiplier: 0.7,
+      maxMultiplier: 1.5,
+    },
+    techDebt: {
+      perPoint: 0.03,
+      maxPenalty: 0.6,
+    },
+    exam: {
+      minScoreMultiplier: 0.6,
+      maxScoreMultiplier: 1.4,
+    },
   },
   skills: {
     upgradeCostPerLevel: 1,
