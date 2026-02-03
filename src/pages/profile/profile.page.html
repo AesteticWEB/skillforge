@@ -42,13 +42,13 @@
         <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">Прогресс</div>
         <h2 class="mt-2 text-2xl font-semibold text-slate-100">Статус и XP</h2>
         <p class="mt-2 text-sm text-slate-400">
-          Ранг рассчитывается автоматически по накопленному опыту.
+          Статус зависит от прокачки 4 ключевых навыков текущего этапа.
         </p>
       </div>
       <div class="rounded-2xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
         <div class="text-xs uppercase tracking-wide text-slate-400">Статус</div>
         <div class="mt-1 text-lg font-semibold text-slate-100">
-          {{ rankProgress().stageTitle }}
+          {{ careerProgress().stageLabel }}
         </div>
         <div class="mt-1 text-xs text-slate-400">XP: {{ xp() }}</div>
       </div>
@@ -56,22 +56,45 @@
 
     <div class="mt-5">
       <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
-        @for (stage of rankStages; track stage.id) {
+        @for (segment of careerProgress().segments; track segment.id) {
           <span
-            [class.text-emerald-300]="stage.id === rankProgress().stageId"
-            [class.text-slate-400]="stage.id !== rankProgress().stageId"
+            [class.text-emerald-300]="segment.isCurrent"
+            [class.text-slate-400]="!segment.isCurrent"
           >
-            {{ stage.title }}
+            {{ segment.title }}
           </span>
         }
       </div>
-      <div class="mt-3 h-2 w-full rounded-full bg-slate-800">
-        <div
-          class="h-2 rounded-full bg-emerald-400 transition"
-          [style.width]="rankProgress().progressWidth"
-        ></div>
+      <div class="mt-3 flex gap-2">
+        @for (segment of careerProgress().segments; track segment.id) {
+          <div
+            class="h-2 flex-1 rounded-full transition"
+            [ngClass]="
+              segment.achieved
+                ? segment.isCurrent
+                  ? 'bg-emerald-400 ring-2 ring-emerald-400/40'
+                  : 'bg-emerald-400'
+                : 'bg-slate-800'
+            "
+            [attr.title]="segment.title"
+          ></div>
+        }
       </div>
-      <div class="mt-2 text-xs text-slate-400">{{ rankProgress().nextLevelText }}</div>
+      <div class="mt-2 text-xs text-slate-400">{{ careerProgress().hintText }}</div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        @if (nextStageLabel(); as nextLabel) {
+          <sf-button type="button" [disabled]="!canAdvanceStage()" (click)="advanceStage()">
+            Повыситься до {{ nextLabel }}
+          </sf-button>
+          @if (!canAdvanceStage() && stagePromotionReasons().length > 0) {
+            <div class="text-xs text-amber-200">{{ stagePromotionReasons()[0] }}</div>
+          }
+        } @else {
+          <div class="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+            Максимальный уровень достигнут
+          </div>
+        }
+      </div>
     </div>
   </sf-card>
 

@@ -17,9 +17,21 @@ const TYPE_CLASSES: Record<NotificationType, string> = {
 })
 export class ToastHostWidget {
   private readonly notifications = inject(NotificationsStore);
+  private readonly dateFormatter = new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 
   protected readonly toasts = computed(() => this.notifications.notifications().slice(0, 4));
   protected readonly typeClasses = TYPE_CLASSES;
+
+  protected formatDate(value: string): string {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return this.dateFormatter.format(parsed);
+  }
 
   protected dismissToast(id: string): void {
     this.notifications.dismiss(id);

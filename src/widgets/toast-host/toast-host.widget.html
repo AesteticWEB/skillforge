@@ -9,7 +9,7 @@
       [ngClass]="typeClasses[toast.type]"
     >
       <div class="flex-1">
-        <div class="text-xs text-slate-400">{{ toast.createdAt }}</div>
+        <div class="text-xs text-slate-400">{{ formatDate(toast.createdAt) }}</div>
         <div class="mt-1 font-semibold">{{ toast.message }}</div>
       </div>
       <button

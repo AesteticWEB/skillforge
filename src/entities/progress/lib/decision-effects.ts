@@ -1,5 +1,5 @@
 import { DecisionEffects } from '@/entities/decision';
-import { applySkillDelta, Skill } from '@/entities/skill';
+import { Skill } from '@/entities/skill';
 import { MetricKey, Progress } from '../model/progress.model';
 
 const DEFAULT_METRICS: readonly MetricKey[] = ['reputation', 'techDebt'];
@@ -10,7 +10,7 @@ export const applyDecisionEffects = (
   effects: DecisionEffects,
   metricKeys: readonly MetricKey[] = DEFAULT_METRICS,
 ): { skills: Skill[]; progress: Progress } => {
-  let nextSkills = skills;
+  const nextSkills = skills;
   const nextSkillLevels = { ...progress.skillLevels };
   let reputation = progress.reputation;
   let techDebt = progress.techDebt;
@@ -25,11 +25,7 @@ export const applyDecisionEffects = (
       continue;
     }
 
-    const updated = applySkillDelta(nextSkills, key, delta);
-    if (updated.nextLevel !== null) {
-      nextSkills = updated.skills;
-      nextSkillLevels[key] = updated.nextLevel;
-    }
+    // Skill effects from scenarios are ignored; skill progression is manual only.
   }
 
   return {

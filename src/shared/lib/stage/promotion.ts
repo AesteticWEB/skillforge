@@ -1,12 +1,7 @@
 import { Progress } from '@/entities/progress';
 import { Skill } from '@/entities/skill';
-import {
-  PROFESSION_STAGE_SKILLS,
-  SKILL_STAGE_ORDER,
-  STAGE_SCENARIOS,
-  type ProfessionId,
-  type SkillStageId,
-} from '@/shared/config';
+import { SKILL_STAGE_ORDER, type ProfessionId, type SkillStageId } from '@/shared/config';
+import { selectCoreSkillsForStage } from './core-skills';
 
 export type StageProgress = {
   total: number;
@@ -40,11 +35,11 @@ export const getStagePromotionStatus = (
   progress: Progress,
   skills: Skill[],
   profession: ProfessionId | string,
+  stageScenarioIds?: readonly string[],
 ): StagePromotionStatus => {
-  const stage = progress.skillStage ?? 'internship';
-  const mapping = PROFESSION_STAGE_SKILLS[profession as ProfessionId];
-  const stageSkillIds = mapping?.[stage] ?? [];
-  const stageScenarioIds = STAGE_SCENARIOS[stage] ?? [];
+  const stage = progress.careerStage ?? 'internship';
+  const stageSkillIds = selectCoreSkillsForStage(profession, stage);
+  const resolvedScenarioIds = stageScenarioIds ?? [];
 
   const skillsById = new Map(skills.map((skill) => [skill.id, skill]));
   let skillsMaxed = 0;
@@ -58,12 +53,12 @@ export const getStagePromotionStatus = (
 
   const completedScenarios = new Set(progress.decisionHistory.map((entry) => entry.scenarioId));
   let scenariosCompleted = 0;
-  for (const id of stageScenarioIds) {
+  for (const id of resolvedScenarioIds) {
     if (completedScenarios.has(id)) {
       scenariosCompleted += 1;
     }
   }
-  const scenariosProgress = resolveProgress(stageScenarioIds.length, scenariosCompleted);
+  const scenariosProgress = resolveProgress(resolvedScenarioIds.length, scenariosCompleted);
   const nextStage = getNextStageId(stage);
 
   return {
@@ -71,7 +66,7 @@ export const getStagePromotionStatus = (
     nextStage,
     skills: skillsProgress,
     scenarios: scenariosProgress,
-    canPromote: Boolean(nextStage) && skillsProgress.isComplete && scenariosProgress.isComplete,
+    canPromote: Boolean(nextStage) && skillsProgress.isComplete,
   };
 };
 

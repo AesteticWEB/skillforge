@@ -5,4 +5,5 @@ export interface Skill {
   level: number;
   maxLevel: number;
   deps: string[];
+  costPerLevel?: number;
 }

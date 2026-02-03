@@ -8,11 +8,18 @@ export type RankStage = {
   nextXp: number | null;
 };
 
+export type RankStageSegment = {
+  id: RankStageId;
+  title: string;
+  achieved: boolean;
+};
+
 export type RankProgress = {
   stageId: RankStageId;
   stageTitle: string;
   stageIndex: number;
   stages: RankStage[];
+  segments: RankStageSegment[];
   xp: number;
   progressPercent: number;
   progressWidth: string;
@@ -22,14 +29,17 @@ export type RankProgress = {
 };
 
 export const RANK_STAGES: RankStage[] = [
-  { id: 'internship', title: 'Стажировка', minXp: 0, maxXp: 99, nextXp: 100 },
-  { id: 'junior', title: 'Junior', minXp: 100, maxXp: 249, nextXp: 250 },
-  { id: 'middle', title: 'Middle', minXp: 250, maxXp: 449, nextXp: 450 },
-  { id: 'senior', title: 'Senior', minXp: 450, maxXp: null, nextXp: null },
+  { id: 'internship', title: 'Стажировка', minXp: 0, maxXp: 19, nextXp: 20 },
+  { id: 'junior', title: 'Junior', minXp: 20, maxXp: 39, nextXp: 40 },
+  { id: 'middle', title: 'Middle', minXp: 40, maxXp: 59, nextXp: 60 },
+  { id: 'senior', title: 'Senior', minXp: 60, maxXp: null, nextXp: null },
 ];
 
-export const getRankProgress = (rawXp: number): RankProgress => {
-  const normalizedXp = Number.isFinite(rawXp) ? Math.max(0, Math.floor(rawXp)) : 0;
+const normalizeXp = (rawXp: number): number =>
+  Number.isFinite(rawXp) ? Math.max(0, Math.floor(rawXp)) : 0;
+
+export const selectRank = (rawXp: number): RankStage => {
+  const normalizedXp = normalizeXp(rawXp);
   const resolvedIndex = RANK_STAGES.findIndex((stage) => {
     if (stage.nextXp === null) {
       return normalizedXp >= stage.minXp;
@@ -37,9 +47,29 @@ export const getRankProgress = (rawXp: number): RankProgress => {
     return normalizedXp >= stage.minXp && normalizedXp < stage.nextXp;
   });
   const stageIndex = resolvedIndex === -1 ? 0 : resolvedIndex;
-  const stage = RANK_STAGES[stageIndex] ?? RANK_STAGES[0];
+  return RANK_STAGES[stageIndex] ?? RANK_STAGES[0];
+};
+
+export const selectNextThreshold = (rawXp: number): number | null => {
+  const stage = selectRank(rawXp);
+  return stage.nextXp ?? null;
+};
+
+export const selectStageSegments = (rawXp: number): RankStageSegment[] => {
+  const normalizedXp = normalizeXp(rawXp);
+  return RANK_STAGES.map((stage) => ({
+    id: stage.id,
+    title: stage.title,
+    achieved: normalizedXp >= stage.minXp,
+  }));
+};
+
+export const getRankProgress = (rawXp: number): RankProgress => {
+  const normalizedXp = Number.isFinite(rawXp) ? Math.max(0, Math.floor(rawXp)) : 0;
+  const stage = selectRank(normalizedXp);
+  const stageIndex = RANK_STAGES.findIndex((item) => item.id === stage.id);
   const isMax = stage.nextXp === null;
-  const nextXp = stage.nextXp ?? stage.minXp;
+  const nextXp = selectNextThreshold(normalizedXp) ?? stage.minXp;
   const progressPercent = isMax
     ? 100
     : Math.min(100, Math.max(0, ((normalizedXp - stage.minXp) / (nextXp - stage.minXp)) * 100));
@@ -53,6 +83,7 @@ export const getRankProgress = (rawXp: number): RankProgress => {
     stageTitle: stage.title,
     stageIndex,
     stages: RANK_STAGES,
+    segments: selectStageSegments(normalizedXp),
     xp: normalizedXp,
     progressPercent,
     progressWidth: `${progressPercent.toFixed(0)}%`,

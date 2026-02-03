@@ -1,15 +1,15 @@
+import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { InputComponent } from '@/shared/ui/input';
-import { PROFESSION_OPTIONS } from '@/shared/config';
-import { RANK_STAGES } from '@/shared/lib/rank';
+import { PROFESSION_OPTIONS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
 
 @Component({
   selector: 'app-home-page',
-  imports: [CardComponent, ButtonComponent, InputComponent, RouterLink],
+  imports: [CardComponent, ButtonComponent, InputComponent, RouterLink, NgClass],
   templateUrl: './home.page.html',
   styleUrl: './home.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -23,12 +23,22 @@ export class HomePage {
   protected readonly password = signal('');
   protected readonly profession = signal('');
   protected readonly professionOptions = PROFESSION_OPTIONS;
-  protected readonly rankStages = RANK_STAGES;
   protected readonly hasProfile = this.store.hasProfile;
   protected readonly isRegistered = this.store.isRegistered;
   protected readonly auth = this.store.auth;
   protected readonly xp = this.store.xp;
-  protected readonly rankProgress = this.store.rankProgress;
+  protected readonly careerProgress = this.store.careerProgress;
+  protected readonly stageLabel = this.store.stageLabel;
+  protected readonly careerStages = computed(() => {
+    const currentStage = this.store.careerStage();
+    const currentIndex = SKILL_STAGE_ORDER.indexOf(currentStage);
+    return SKILL_STAGE_ORDER.map((stageId, index) => ({
+      id: stageId,
+      label: SKILL_STAGE_LABELS[stageId],
+      isCurrent: index === currentIndex,
+      isCompleted: index < currentIndex,
+    }));
+  });
   protected readonly loginBlockReason = computed(() => {
     if (this.login().trim().length === 0) {
       return 'Введите логин';

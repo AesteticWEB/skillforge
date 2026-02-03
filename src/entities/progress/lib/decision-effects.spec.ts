@@ -3,7 +3,7 @@ import { applyDecisionEffects, Progress } from '@/entities/progress';
 import { Skill } from '@/entities/skill';
 
 describe('decision effects', () => {
-  it('applies metrics and skill deltas', () => {
+  it('applies metrics without auto-upgrading skills', () => {
     const skills: Skill[] = [
       { id: 'core', name: 'Core', category: 'Engineering', level: 0, maxLevel: 3, deps: [] },
     ];
@@ -14,7 +14,7 @@ describe('decision effects', () => {
       techDebt: 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
-      skillStage: 'internship',
+      careerStage: 'internship',
     };
     const effects: DecisionEffects = {
       reputation: 2,
@@ -26,7 +26,7 @@ describe('decision effects', () => {
 
     expect(result.progress.reputation).toBe(2);
     expect(result.progress.techDebt).toBe(-1);
-    expect(result.skills[0]?.level).toBe(1);
-    expect(result.progress.skillLevels.core).toBe(1);
+    expect(result.skills[0]?.level).toBe(0);
+    expect(result.progress.skillLevels.core).toBe(0);
   });
 });

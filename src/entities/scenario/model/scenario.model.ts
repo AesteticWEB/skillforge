@@ -1,5 +1,8 @@
 import { Decision } from '@/entities/decision';
 import { MetricKey } from '@/entities/progress';
+import type { ProfessionId, SkillStageId } from '@/shared/config';
+
+export type ScenarioStatus = 'active' | 'completed';
 
 export type ScenarioRequirement =
   | {
@@ -27,6 +30,10 @@ export interface Scenario {
   id: string;
   title: string;
   description: string;
+  stage: SkillStageId;
+  profession: ProfessionId | 'all';
+  rewardXp: number;
+  correctOptionIds: string[];
   decisions: Decision[];
   requirements?: ScenarioRequirement[];
   availabilityEffects?: ScenarioAvailabilityEffect[];

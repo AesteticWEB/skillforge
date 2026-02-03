@@ -13,6 +13,27 @@
     <p class="mt-3 text-base text-slate-300 sm:text-lg">
       Проходи сценарии, решения меняют навыки и метрики.
     </p>
+    <div class="mt-4 flex flex-wrap gap-3 text-sm text-slate-300">
+      <div class="rounded-full border border-slate-800/80 bg-slate-950/40 px-3 py-1">
+        Баланс XP: <span class="font-semibold text-emerald-200">{{ totalXp() }}</span>
+      </div>
+      <div class="rounded-full border border-slate-800/80 bg-slate-950/40 px-3 py-1">
+        Доступно для прокачки:
+        <span class="font-semibold text-emerald-200">{{ availableXp() }}</span>
+      </div>
+    </div>
+    <div
+      class="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-300"
+    >
+      <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Этап</div>
+      <div class="font-semibold text-slate-100">{{ stageLabel() }}</div>
+      <div class="text-xs text-slate-400">
+        Прогресс сценариев: {{ stageScenarioProgress().completed }}/{{
+          stageScenarioProgress().total
+        }}
+      </div>
+      <div class="text-xs text-slate-400">Осталось: {{ stageScenarioRemaining() }}</div>
+    </div>
 
     <div class="mt-6 grid gap-3 text-left">
       <label
@@ -85,9 +106,7 @@
         <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Что делать дальше
         </div>
-        <div class="mt-2 text-sm text-slate-300">
-          Проходи сценарии, решения меняют навыки и метрики.
-        </div>
+        <div class="mt-2 text-sm text-slate-300">Сценарии → XP → Навыки → Повышение</div>
       </div>
     }
   </sf-card>

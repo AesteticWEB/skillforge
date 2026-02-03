@@ -25,5 +25,5 @@ export interface Progress {
   techDebt: number;
   scenarioOverrides: Record<string, boolean>;
   spentXpOnSkills: number;
-  skillStage: SkillStageId;
+  careerStage: SkillStageId;
 }

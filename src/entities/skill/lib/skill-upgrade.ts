@@ -37,7 +37,7 @@ export const getSkillUpgradeMeta = (
   }
 
   const nextLevel = skill.level + 1;
-  const cost = getSkillUpgradeCost(nextLevel);
+  const cost = getSkillUpgradeCost(nextLevel, skill.costPerLevel);
   const baseReason = getIncreaseBlockReason(skills, skillId);
   if (baseReason) {
     return {

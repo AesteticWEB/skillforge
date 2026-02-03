@@ -33,6 +33,9 @@ export type ScenarioCompletedEvent = DomainEventBase<
   {
     scenarioId: string;
     decisionId: string;
+    rewardXp?: number;
+    reputationDelta?: number;
+    techDebtDelta?: number;
   }
 >;
 
@@ -80,7 +83,12 @@ export const createSkillUpgradedEvent = (
 export const createScenarioCompletedEvent = (
   scenarioId: string,
   decisionId: string,
-): ScenarioCompletedEvent => createEvent('ScenarioCompleted', { scenarioId, decisionId });
+  meta: {
+    rewardXp?: number;
+    reputationDelta?: number;
+    techDebtDelta?: number;
+  } = {},
+): ScenarioCompletedEvent => createEvent('ScenarioCompleted', { scenarioId, decisionId, ...meta });
 
 export const createStagePromotedEvent = (
   fromStage: SkillStageId,

@@ -65,7 +65,7 @@ describe('AppStore', () => {
     expect(store.skills().find((skill) => skill.id === 'advanced')?.level).toBe(1);
   });
 
-  it('applies decision effects to metrics and skills', () => {
+  it('applies decision effects to metrics without auto-upgrading skills', () => {
     const skills: Skill[] = [
       { id: 'core', name: 'Core', category: 'Engineering', level: 0, maxLevel: 3, deps: [] },
     ];
@@ -74,6 +74,10 @@ describe('AppStore', () => {
         id: 'scenario-1',
         title: 'Scenario 1',
         description: 'Test scenario',
+        stage: 'internship',
+        profession: 'all',
+        rewardXp: 10,
+        correctOptionIds: ['decision-1'],
         decisions: [
           {
             id: 'decision-1',
@@ -93,7 +97,7 @@ describe('AppStore', () => {
 
     expect(store.reputation()).toBe(2);
     expect(store.techDebt()).toBe(-1);
-    expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(1);
+    expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(0);
     expect(store.progress().decisionHistory).toHaveLength(1);
     expect(store.progress().decisionHistory[0]?.scenarioId).toBe('scenario-1');
   });

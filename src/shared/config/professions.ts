@@ -23,11 +23,59 @@ export const SKILL_STAGE_LABELS: Record<SkillStageId, string> = {
   senior: 'Senior',
 };
 
-export const STAGE_SCENARIOS: Record<SkillStageId, readonly string[]> = {
-  internship: ['scenario-1', 'scenario-2', 'scenario-3', 'scenario-4'],
-  junior: ['scenario-5', 'scenario-6', 'scenario-7', 'scenario-8'],
-  middle: ['scenario-9', 'scenario-10', 'scenario-11', 'scenario-12'],
-  senior: ['scenario-13', 'scenario-14', 'scenario-15', 'scenario-16'],
+const STAGE_SCENARIO_INDEXES = [1, 2, 3, 4] as const;
+
+const buildStageScenarioIds = (prefix: string, stage: SkillStageId): readonly string[] =>
+  STAGE_SCENARIO_INDEXES.map((index) => `scenario-${prefix}-${stage}-${index}`);
+
+const buildProfessionScenarioIds = (prefix: string): Record<SkillStageId, readonly string[]> => ({
+  internship: buildStageScenarioIds(prefix, 'internship'),
+  junior: buildStageScenarioIds(prefix, 'junior'),
+  middle: buildStageScenarioIds(prefix, 'middle'),
+  senior: buildStageScenarioIds(prefix, 'senior'),
+});
+
+const PROFESSION_SCENARIO_PREFIX: Record<ProfessionId, string> = {
+  'Frontend-разработчик': 'frontend',
+  'Backend-разработчик': 'backend',
+  'Fullstack-разработчик': 'fullstack',
+  'Mobile-разработчик (iOS/Android)': 'mobile',
+  'QA Automation (автотесты)': 'qa',
+  'DevOps / SRE': 'devops',
+  'Data Engineer': 'data-eng',
+  'Data Scientist / ML Engineer': 'data-ml',
+  'Security Engineer (AppSec)': 'security',
+  'Game Developer': 'game',
+};
+
+export const PROFESSION_STAGE_SCENARIOS: Record<
+  ProfessionId,
+  Record<SkillStageId, readonly string[]>
+> = {
+  'Frontend-разработчик': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Frontend-разработчик'],
+  ),
+  'Backend-разработчик': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Backend-разработчик'],
+  ),
+  'Fullstack-разработчик': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Fullstack-разработчик'],
+  ),
+  'Mobile-разработчик (iOS/Android)': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Mobile-разработчик (iOS/Android)'],
+  ),
+  'QA Automation (автотесты)': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['QA Automation (автотесты)'],
+  ),
+  'DevOps / SRE': buildProfessionScenarioIds(PROFESSION_SCENARIO_PREFIX['DevOps / SRE']),
+  'Data Engineer': buildProfessionScenarioIds(PROFESSION_SCENARIO_PREFIX['Data Engineer']),
+  'Data Scientist / ML Engineer': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Data Scientist / ML Engineer'],
+  ),
+  'Security Engineer (AppSec)': buildProfessionScenarioIds(
+    PROFESSION_SCENARIO_PREFIX['Security Engineer (AppSec)'],
+  ),
+  'Game Developer': buildProfessionScenarioIds(PROFESSION_SCENARIO_PREFIX['Game Developer']),
 };
 
 export const PROFESSION_STAGE_SKILLS: Record<

@@ -20,6 +20,14 @@ export class SimulatorPage {
   protected readonly search = signal('');
   protected readonly hasSearch = computed(() => this.search().trim().length > 0);
   protected readonly simulatorV2 = computed(() => this.store.featureFlags().simulatorV2);
+  protected readonly totalXp = this.store.xp;
+  protected readonly availableXp = this.store.availableXpForSkills;
+  protected readonly stageLabel = this.store.stageLabel;
+  protected readonly stageScenarioProgress = this.store.stageScenarioProgress;
+  protected readonly stageScenarioRemaining = computed(() => {
+    const progress = this.stageScenarioProgress();
+    return Math.max(0, progress.total - progress.completed);
+  });
 
   protected readonly filteredScenarios = computed(() => {
     const term = this.search().trim().toLowerCase();

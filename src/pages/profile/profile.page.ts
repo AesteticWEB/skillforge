@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
@@ -5,7 +6,6 @@ import { AnalyticsEventsStore } from '@/features/analytics';
 import { AchievementsStore, SkillMasteryAchievement } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
 import { PROFESSION_STAGE_SKILLS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
-import { RANK_STAGES } from '@/shared/lib/rank';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -21,7 +21,7 @@ type StageMasteryCard = {
 
 @Component({
   selector: 'app-profile-page',
-  imports: [CardComponent, ButtonComponent, InputComponent, EmptyStateComponent],
+  imports: [CardComponent, ButtonComponent, InputComponent, EmptyStateComponent, NgClass],
   templateUrl: './profile.page.html',
   styleUrl: './profile.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -36,8 +36,10 @@ export class ProfilePage {
   protected readonly auth = this.store.auth;
   protected readonly user = this.store.user;
   protected readonly xp = this.store.xp;
-  protected readonly rankStages = RANK_STAGES;
-  protected readonly rankProgress = this.store.rankProgress;
+  protected readonly careerProgress = this.store.careerProgress;
+  protected readonly nextStageLabel = this.store.nextStageLabel;
+  protected readonly canAdvanceStage = this.store.canAdvanceSkillStage;
+  protected readonly stagePromotionReasons = this.store.stagePromotionReasons;
   protected readonly createdAt = computed(() => {
     const value = this.user().startDate?.trim() ?? '';
     return value.length > 0 ? value : null;
@@ -91,6 +93,10 @@ export class ProfilePage {
     this.newPassword.set('');
     this.repeatPassword.set('');
     this.notifications.success('Пароль обновлён.');
+  }
+
+  protected advanceStage(): void {
+    this.store.advanceSkillStage();
   }
 
   protected logout(): void {

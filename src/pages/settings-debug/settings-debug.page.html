@@ -9,84 +9,6 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-slate-100">Фичи и эксперименты</h2>
-        <p class="mt-1 text-sm text-slate-400">Включай бета-флаги и проверяй гипотезы.</p>
-      </div>
-    </div>
-    <div class="mt-4 grid gap-3">
-      @for (entry of flagEntries(); track entry[0]) {
-        <label
-          class="flex items-start justify-between gap-4 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3"
-        >
-          <div>
-            <div class="text-sm font-semibold text-slate-100">
-              {{ flagLabels[entry[0]].title }}
-            </div>
-            <div class="mt-1 text-xs text-slate-400">
-              {{ flagLabels[entry[0]].description }}
-            </div>
-          </div>
-          <input
-            type="checkbox"
-            class="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-950 text-emerald-400 focus:ring-emerald-400/40"
-            [checked]="entry[1]"
-            (change)="toggleFlag(entry[0])"
-          />
-        </label>
-      }
-    </div>
-  </sf-card>
-
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Экспорт / импорт состояния</h2>
-        <p class="mt-1 text-sm text-slate-400">Перенос прогресса между браузерами.</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <sf-button variant="ghost" type="button" (click)="exportState()">Сгенерировать</sf-button>
-        <sf-button variant="ghost" type="button" (click)="copyState()">Скопировать</sf-button>
-        <sf-button variant="ghost" type="button" (click)="downloadState()">Скачать</sf-button>
-      </div>
-    </div>
-    <div class="mt-4 grid gap-3">
-      <textarea
-        class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-        placeholder="Здесь появится JSON для экспорта"
-        [value]="exportText()"
-        (input)="exportText.set(($any($event.target).value ?? '').trim())"
-      ></textarea>
-      <textarea
-        class="min-h-[140px] w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-        placeholder="Вставь JSON для импорта"
-        [value]="importText()"
-        (input)="importText.set($any($event.target).value ?? '')"
-      ></textarea>
-      <div class="flex flex-wrap items-center gap-2">
-        <sf-button type="button" (click)="importState()">Импортировать</sf-button>
-        @if (importStatus(); as message) {
-          <div class="text-xs text-slate-400">{{ message }}</div>
-        }
-      </div>
-    </div>
-  </sf-card>
-
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Снимок состояния</h2>
-        <p class="mt-1 text-sm text-slate-400">Живой вид на store.</p>
-      </div>
-    </div>
-    <pre
-      class="mt-4 max-h-96 overflow-auto rounded-xl border border-slate-800/80 bg-slate-950/60 p-4 text-xs text-slate-200"
-      >{{ stateSnapshotText() }}</pre
-    >
-  </sf-card>
-
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
         <h2 class="text-lg font-semibold text-slate-100">Уведомления</h2>
         <p class="mt-1 text-sm text-slate-400">Последние доменные события.</p>
       </div>
@@ -96,7 +18,7 @@
       @for (note of notifications(); track note.id) {
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
           <div class="text-sm text-slate-200">{{ note.message }}</div>
-          <div class="mt-1 text-xs text-slate-500">{{ note.createdAt }}</div>
+          <div class="mt-1 text-xs text-slate-500">{{ formatDate(note.createdAt) }}</div>
         </div>
       } @empty {
         <div class="text-sm text-slate-400">Уведомлений пока нет.</div>
@@ -122,7 +44,7 @@
     <div class="mt-4 grid gap-3">
       @for (entry of errorLog(); track entry.id) {
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="text-xs text-slate-500">{{ entry.occurredAt }}</div>
+          <div class="text-xs text-slate-500">{{ formatDate(entry.occurredAt) }}</div>
           <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
           @if (entry.context) {
             <div class="mt-1 text-xs text-slate-400">Контекст: {{ entry.context }}</div>

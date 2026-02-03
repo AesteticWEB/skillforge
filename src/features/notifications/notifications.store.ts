@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { SKILL_STAGE_LABELS } from '@/shared/config';
+import { SCENARIO_REWARD_XP, SKILL_STAGE_LABELS } from '@/shared/config';
 import { DomainEventBus, DomainEvent } from '@/shared/lib/events';
 
 export type NotificationType = 'success' | 'error' | 'info';
@@ -98,7 +98,23 @@ export class NotificationsStore {
     if (event.type !== 'ScenarioCompleted') {
       return '';
     }
-    return 'Сценарий пройден.';
+    const reward =
+      typeof event.payload.rewardXp === 'number' ? event.payload.rewardXp : SCENARIO_REWARD_XP;
+    const reputationDelta = event.payload.reputationDelta ?? 0;
+    const techDebtDelta = event.payload.techDebtDelta ?? 0;
+    const metricParts: string[] = [];
+
+    const formatDelta = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
+
+    if (reputationDelta !== 0) {
+      metricParts.push(`Репутация ${formatDelta(reputationDelta)}`);
+    }
+    if (techDebtDelta !== 0) {
+      metricParts.push(`Техдолг ${formatDelta(techDebtDelta)}`);
+    }
+
+    const metrics = metricParts.length > 0 ? ` (${metricParts.join(', ')})` : '';
+    return `Решение принято. +${reward} XP.${metrics}`;
   }
 
   private formatStagePromoted(event: DomainEvent): string {

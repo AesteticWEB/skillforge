@@ -1,373 +1,343 @@
-import { Scenario } from '@/entities/scenario';
+﻿import type { DecisionEffects } from '@/entities/decision';
+import type { Scenario } from '@/entities/scenario';
+import {
+  PROFESSION_OPTIONS,
+  PROFESSION_STAGE_SCENARIOS,
+  PROFESSION_STAGE_SKILLS,
+  SCENARIO_REWARD_XP,
+  type ProfessionId,
+  type SkillStageId,
+} from '@/shared/config';
 
-export const SCENARIOS_MOCK: Scenario[] = [
-  {
-    id: 'scenario-1',
-    title: 'Онбординг и окружение',
-    description: 'Нужно быстро настроить рабочее окружение и стандарты команды.',
-    decisions: [
-      {
-        id: 'decision-1a',
-        text: 'Настроить линтеры и форматирование перед началом работы.',
-        effects: {
-          'skill-frontend-foundations': 1,
-          reputation: 1,
-          techDebt: -1,
-        },
-      },
-      {
-        id: 'decision-1b',
-        text: 'Пропустить настройку и сразу начать кодить.',
-        effects: {
-          'skill-git-basics': 1,
-          reputation: -1,
-          techDebt: 1,
-        },
-      },
-    ],
+const STAGES: SkillStageId[] = ['internship', 'junior', 'middle', 'senior'];
+
+type ScenarioSeed = {
+  title: string;
+  description: string;
+  focus: string;
+};
+
+type OptionTemplate = {
+  goodA: string;
+  goodB: string;
+  badA: string;
+  badB: string;
+};
+
+type ScenarioOption = {
+  text: string;
+  effects: DecisionEffects;
+  correct: boolean;
+};
+
+type SeedTemplate = {
+  title: string;
+  description: string;
+  focus: string;
+};
+
+const OPTION_TEMPLATES: Record<SkillStageId, OptionTemplate> = {
+  internship: {
+    goodA: 'Проработать {focus} по чек-листу и показать наставнику.',
+    goodB: 'Сделать {focus} аккуратно и проверить на разных устройствах.',
+    badA: 'Сделать {focus} наспех без проверки.',
+    badB: 'Отложить {focus} и закрыть задачу формально.',
   },
-  {
-    id: 'scenario-2',
-    title: 'Верстка формы входа',
-    description: 'Нужно сверстать форму логина с валидацией и подсказками.',
-    decisions: [
-      {
-        id: 'decision-2a',
-        text: 'Сделать семантичную разметку с доступностью.',
-        effects: {
-          'skill-html-semantic': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-2b',
-        text: 'Сфокусироваться на быстром визуальном результате.',
-        effects: {
-          'skill-css-layout': 1,
-          techDebt: 1,
-        },
-      },
-    ],
+  junior: {
+    goodA: 'Спроектировать {focus} и добавить тесты.',
+    goodB: 'Внедрить {focus} поэтапно с метриками.',
+    badA: 'Закатить {focus} без ревью и тестов.',
+    badB: 'Сделать {focus} временным хотфиксом.',
   },
-  {
-    id: 'scenario-3',
-    title: 'Работа с Git',
-    description: 'Нужно подготовить чистый PR и провести самопроверку.',
-    decisions: [
-      {
-        id: 'decision-3a',
-        text: 'Разбить изменения на логичные коммиты.',
-        effects: {
-          'skill-git-basics': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-3b',
-        text: 'Отправить один большой коммит без описания.',
-        effects: {
-          'skill-git-basics': 1,
-          reputation: -1,
-          techDebt: 1,
-        },
-      },
-    ],
+  middle: {
+    goodA: 'Провести анализ и улучшить {focus} с командой.',
+    goodB: 'Согласовать {focus} и заложить план оптимизации.',
+    badA: 'Закрыть {focus} точечно, игнорируя причины.',
+    badB: 'Оставить {focus} как есть до следующего квартала.',
   },
-  {
-    id: 'scenario-4',
-    title: 'Мини-рефакторинг',
-    description: 'Старый компонент нужно привести к новым стандартам.',
-    decisions: [
-      {
-        id: 'decision-4a',
-        text: 'Провести рефакторинг и убрать дубли.',
-        effects: {
-          'skill-frontend-foundations': 1,
-          techDebt: -1,
-        },
-      },
-      {
-        id: 'decision-4b',
-        text: 'Оставить как есть, чтобы не рисковать сроками.',
-        effects: {
-          reputation: -1,
-          techDebt: 1,
-        },
-      },
-    ],
+  senior: {
+    goodA: 'Выстроить стратегию и правила под {focus}.',
+    goodB: 'Сделать {focus} с архитектурным решением и SLA.',
+    badA: 'Сделать {focus} хаками без контроля.',
+    badB: 'Отложить {focus} на неопределённый срок.',
   },
-  {
-    id: 'scenario-5',
-    title: 'Синхронизация состояния',
-    description: 'Форма сложная, данные приходят частями, нужен единый стор.',
-    decisions: [
-      {
-        id: 'decision-5a',
-        text: 'Выделить стор и единый источник правды.',
-        effects: {
-          'skill-state-management': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-5b',
-        text: 'Хранить всё локально в компонентах.',
-        effects: {
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-6',
-    title: 'Навигация по продукту',
-    description: 'Добавляется новый раздел и переходы между шагами.',
-    decisions: [
-      {
-        id: 'decision-6a',
-        text: 'Сформировать чистую структуру роутов.',
-        effects: {
-          'skill-routing': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-6b',
-        text: 'Добавить редиректы прямо в компоненте.',
-        effects: {
-          'skill-routing': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-7',
-    title: 'Дизайн компонентов',
-    description: 'Нужно унифицировать карточки и кнопки.',
-    decisions: [
-      {
-        id: 'decision-7a',
-        text: 'Собрать библиотеку компонентов.',
-        effects: {
-          'skill-component-design': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-7b',
-        text: 'Сделать быстро, без общей системы.',
-        effects: {
-          'skill-component-design': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-8',
-    title: 'Покрытие UI тестами',
-    description: 'Критическая форма требует автотестов.',
-    decisions: [
-      {
-        id: 'decision-8a',
-        text: 'Покрыть ключевые сценарии.',
-        effects: {
-          'skill-testing-ui': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-8b',
-        text: 'Отложить тесты до следующего спринта.',
-        effects: {
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-9',
-    title: 'Оптимизация производительности',
-    description: 'Страницы стали медленнее после релиза.',
-    decisions: [
-      {
-        id: 'decision-9a',
-        text: 'Провести профилирование и устранить узкие места.',
-        effects: {
-          'skill-performance': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-9b',
-        text: 'Добавить кэш без анализа причин.',
-        effects: {
-          'skill-performance': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-10',
-    title: 'Архитектурный выбор',
-    description: 'Команда обсуждает новый подход к модульности.',
-    decisions: [
-      {
-        id: 'decision-10a',
-        text: 'Подготовить ADR и согласовать с командой.',
-        effects: {
-          'skill-architecture': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-10b',
-        text: 'Просто внедрить решение без документации.',
-        effects: {
-          'skill-architecture': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-11',
-    title: 'Наблюдаемость',
-    description: 'Нужно улучшить мониторинг и алерты.',
-    decisions: [
-      {
-        id: 'decision-11a',
-        text: 'Настроить метрики и алерты для ключевых потоков.',
-        effects: {
-          'skill-observability': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-11b',
-        text: 'Положиться на ручную проверку после релиза.',
-        effects: {
-          'skill-observability': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-12',
-    title: 'Системное решение',
-    description: 'Нужно согласовать стратегию работы нескольких сервисов.',
-    decisions: [
-      {
-        id: 'decision-12a',
-        text: 'Спроектировать контракты и синхронизацию.',
-        effects: {
-          'skill-system-design': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-12b',
-        text: 'Действовать точечно без общей схемы.',
-        effects: {
-          'skill-system-design': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-13',
-    title: 'Распределенная архитектура',
-    description: 'Проект масштабируется и требует распределенных компонентов.',
-    decisions: [
-      {
-        id: 'decision-13a',
-        text: 'Внедрить слои и коммуникацию через события.',
-        effects: {
-          'skill-distributed-systems': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-13b',
-        text: 'Увеличить монолит без дополнительных слоев.',
-        effects: {
-          'skill-distributed-systems': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-14',
-    title: 'Инцидент в проде',
-    description: 'Нужно быстро восстановить сервис и провести разбор.',
-    decisions: [
-      {
-        id: 'decision-14a',
-        text: 'Организовать постмортем и улучшить процессы.',
-        effects: {
-          'skill-reliability': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-14b',
-        text: 'Сфокусироваться только на срочном исправлении.',
-        effects: {
-          'skill-reliability': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-15',
-    title: 'Security review',
-    description: 'Обнаружены потенциальные уязвимости в API.',
-    decisions: [
-      {
-        id: 'decision-15a',
-        text: 'Провести аудит и закрыть уязвимости.',
-        effects: {
-          'skill-security-backend': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-15b',
-        text: 'Отложить исправления до следующего релиза.',
-        effects: {
-          'skill-security-backend': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-  {
-    id: 'scenario-16',
-    title: 'Планирование емкости',
-    description: 'Сервису нужен план роста на квартал вперёд.',
-    decisions: [
-      {
-        id: 'decision-16a',
-        text: 'Сделать прогноз и согласовать бюджет.',
-        effects: {
-          'skill-capacity-planning': 1,
-          reputation: 1,
-        },
-      },
-      {
-        id: 'decision-16b',
-        text: 'Действовать реактивно по мере роста.',
-        effects: {
-          'skill-scalability': 1,
-          techDebt: 1,
-        },
-      },
-    ],
-  },
-];
+};
+
+const STAGE_SEED_TEMPLATES: Record<SkillStageId, SeedTemplate[]> = {
+  internship: [
+    {
+      title: 'Быстрый старт: {topic}',
+      description: 'Нужно быстро привести в порядок {topic} и показать результат наставнику.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Чек-лист качества',
+      description: 'Есть базовый чек-лист. Проверь {topic} и исправь очевидные проблемы.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Мини-фиксы',
+      description: 'Перед релизом всплыли мелкие ошибки в {topic}. Нужно быстро их закрыть.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Подготовка к демо',
+      description: 'Команда готовит демо. Нужно аккуратно довести {topic} до стабильного вида.',
+      focus: '{topic}',
+    },
+  ],
+  junior: [
+    {
+      title: 'Стабильность: {topic}',
+      description: 'Нужно сделать {topic} устойчивой и покрыть тестами.',
+      focus: '{topic}',
+    },
+    {
+      title: 'План внедрения',
+      description: 'Команда просит внедрить {topic} поэтапно с измерением эффекта.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Архитектурное решение',
+      description: 'Нужно спроектировать {topic} с учётом масштабирования и поддержки.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Инцидент после релиза',
+      description: 'После релиза появилась проблема в {topic}. Нужно разобраться и исправить.',
+      focus: '{topic}',
+    },
+  ],
+  middle: [
+    {
+      title: 'Оптимизация: {topic}',
+      description:
+        'Метрики деградировали. Требуется оптимизировать {topic} и согласовать изменения.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Системный анализ',
+      description: 'Нужно провести анализ и выбрать стратегию развития {topic}.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Кросс-командная зависимость',
+      description: 'Несколько команд зависят от {topic}. Требуется договориться о правилах.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Технический долг',
+      description: 'Накопился долг в {topic}. Составь план улучшений и согласуй приоритеты.',
+      focus: '{topic}',
+    },
+  ],
+  senior: [
+    {
+      title: 'Стратегия и SLA',
+      description: 'Нужно выстроить стратегию для {topic} с метриками и SLA.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Организация практик',
+      description: 'Нужно внедрить стандарты и практики вокруг {topic} во всей команде.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Архитектурный масштаб',
+      description: 'Продукт растёт, требуется архитектурное решение для {topic}.',
+      focus: '{topic}',
+    },
+    {
+      title: 'Риск-менеджмент',
+      description: 'Есть риски в {topic}. Нужен план минимизации и контроль.',
+      focus: '{topic}',
+    },
+  ],
+};
+
+const PROFESSION_TOPICS: Record<ProfessionId, [string, string, string, string]> = {
+  'Frontend-разработчик': [
+    'адаптивность интерфейса',
+    'состояние и формы',
+    'производительность рендера',
+    'доступность и UX',
+  ],
+  'Backend-разработчик': [
+    'API и контракты',
+    'транзакции БД',
+    'авторизацию и безопасность',
+    'логирование и мониторинг',
+  ],
+  'Fullstack-разработчик': [
+    'сквозные фичи',
+    'интеграцию фронт/бэк',
+    'структуру данных',
+    'наблюдаемость продукта',
+  ],
+  'Mobile-разработчик (iOS/Android)': [
+    'навигацию и жизненный цикл',
+    'оптимизацию памяти',
+    'офлайн-режим',
+    'дистрибуцию и апдейты',
+  ],
+  'QA Automation (автотесты)': [
+    'флейки тестов',
+    'покрытие регрессии',
+    'стабильность CI',
+    'генерацию тестовых данных',
+  ],
+  'DevOps / SRE': [
+    'пайплайн CI/CD',
+    'алерты и мониторинг',
+    'инфраструктуру как код',
+    'инциденты и постмортемы',
+  ],
+  'Data Engineer': ['ETL пайплайны', 'качество данных', 'стриминг и очереди', 'хранилище и схемы'],
+  'Data Scientist / ML Engineer': [
+    'подготовку датасета',
+    'метрики модели',
+    'воспроизводимость экспериментов',
+    'деплой модели',
+  ],
+  'Security Engineer (AppSec)': [
+    'угрозы и риск-анализ',
+    'защиту API',
+    'секьюрный SDLC',
+    'пентест и уязвимости',
+  ],
+  'Game Developer': [
+    'геймплей и баланс',
+    'графику и оптимизацию',
+    'сетевой мультиплеер',
+    'производственный пайплайн',
+  ],
+};
+
+const fillTemplate = (template: string, focus: string): string =>
+  template.replace('{focus}', focus);
+
+const applySeedTemplate = (template: string, topic: string, profession: ProfessionId): string =>
+  template.replace(/\{topic\}/g, topic).replace(/\{profession\}/g, profession);
+
+const buildOptions = (
+  stage: SkillStageId,
+  focus: string,
+  skillA: string,
+  skillB: string,
+): ScenarioOption[] => {
+  const template = OPTION_TEMPLATES[stage];
+  const options: ScenarioOption[] = [
+    {
+      text: fillTemplate(template.goodA, focus),
+      effects: { [skillA]: 1, reputation: 1 } as DecisionEffects,
+      correct: true,
+    },
+    {
+      text: fillTemplate(template.goodB, focus),
+      effects: { [skillB]: 1, reputation: 1 } as DecisionEffects,
+      correct: true,
+    },
+    {
+      text: fillTemplate(template.badA, focus),
+      effects: { techDebt: 1 } as DecisionEffects,
+      correct: false,
+    },
+    {
+      text: fillTemplate(template.badB, focus),
+      effects: { reputation: -1, techDebt: 1 } as DecisionEffects,
+      correct: false,
+    },
+  ];
+
+  return options;
+};
+
+const buildSeedsForProfession = (
+  profession: ProfessionId,
+): Record<SkillStageId, ScenarioSeed[]> => {
+  const topics = PROFESSION_TOPICS[profession];
+
+  return STAGES.reduce(
+    (acc, stage) => {
+      const templates = STAGE_SEED_TEMPLATES[stage];
+      acc[stage] = templates.map((template, index) => {
+        const topic = topics[index % topics.length];
+        return {
+          title: applySeedTemplate(template.title, topic, profession),
+          description: applySeedTemplate(template.description, topic, profession),
+          focus: applySeedTemplate(template.focus, topic, profession),
+        };
+      });
+      return acc;
+    },
+    {} as Record<SkillStageId, ScenarioSeed[]>,
+  );
+};
+
+const SCENARIO_LIBRARY: Record<
+  ProfessionId,
+  Record<SkillStageId, ScenarioSeed[]>
+> = PROFESSION_OPTIONS.reduce(
+  (acc, profession) => ({
+    ...acc,
+    [profession]: buildSeedsForProfession(profession),
+  }),
+  {} as Record<ProfessionId, Record<SkillStageId, ScenarioSeed[]>>,
+);
+
+const buildScenario = (
+  profession: ProfessionId,
+  stage: SkillStageId,
+  id: string,
+  seed: ScenarioSeed,
+  skillA: string,
+  skillB: string,
+): Scenario => {
+  const options = buildOptions(stage, seed.focus, skillA, skillB);
+  const decisions = options.map((option, index) => {
+    const suffix = String.fromCharCode(97 + index);
+    return {
+      id: `decision-${id}-${suffix}`,
+      text: option.text,
+      effects: option.effects,
+    };
+  });
+  const correctOptionIds = options
+    .map((option, index) =>
+      option.correct ? `decision-${id}-${String.fromCharCode(97 + index)}` : null,
+    )
+    .filter((value): value is string => Boolean(value));
+
+  return {
+    id,
+    title: seed.title,
+    description: seed.description,
+    stage,
+    profession,
+    rewardXp: SCENARIO_REWARD_XP,
+    correctOptionIds,
+    decisions,
+  };
+};
+
+const buildScenariosForProfession = (profession: ProfessionId): Scenario[] => {
+  const seedsByStage = SCENARIO_LIBRARY[profession];
+  const idsByStage = PROFESSION_STAGE_SCENARIOS[profession];
+  const skillsByStage = PROFESSION_STAGE_SKILLS[profession];
+
+  return STAGES.flatMap((stage) => {
+    const seeds = seedsByStage[stage];
+    const ids = idsByStage[stage];
+    const skills = skillsByStage[stage];
+
+    return seeds.map((seed, index) => {
+      const skillA = skills[index % skills.length];
+      const skillB = skills[(index + 1) % skills.length];
+      return buildScenario(profession, stage, ids[index], seed, skillA, skillB);
+    });
+  });
+};
+
+export const SCENARIOS_MOCK: Scenario[] = PROFESSION_OPTIONS.flatMap((profession) =>
+  buildScenariosForProfession(profession),
+);

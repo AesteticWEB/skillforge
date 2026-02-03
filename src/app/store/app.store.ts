@@ -28,9 +28,10 @@ import {
   FeatureFlagKey,
   FeatureFlags,
   PROFESSION_STAGE_SKILLS,
+  PROFESSION_STAGE_SCENARIOS,
+  SCENARIO_REWARD_XP,
   SKILL_STAGE_LABELS,
   SKILL_STAGE_ORDER,
-  STAGE_SCENARIOS,
   SkillStageId,
 } from '@/shared/config';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
@@ -42,14 +43,17 @@ import {
   createSkillUpgradedEvent,
   DomainEventBus,
 } from '@/shared/lib/events';
-import { getRankProgress } from '@/shared/lib/rank';
-import type { RankProgress } from '@/shared/lib/rank';
-import { getStagePromotionStatus } from '@/shared/lib/stage';
+import {
+  getCareerStageProgress,
+  getStagePromotionStatus,
+  selectCoreSkillsForStage,
+} from '@/shared/lib/stage';
 
 type ScenarioAccess = {
   scenario: Scenario;
   available: boolean;
   reasons: string[];
+  status: 'active' | 'completed';
 };
 
 type AuthState = {
@@ -93,7 +97,7 @@ const createEmptyProgress = (): Progress => ({
   techDebt: 0,
   scenarioOverrides: {},
   spentXpOnSkills: 0,
-  skillStage: 'internship',
+  careerStage: 'internship',
 });
 
 @Injectable({ providedIn: 'root' })
@@ -132,27 +136,56 @@ export class AppStore {
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
   );
   readonly professionId = computed(() => this._auth().profession || this._user().role);
-  readonly skillStage = computed(() => this._progress().skillStage);
-  readonly stageLabel = computed(() => SKILL_STAGE_LABELS[this.skillStage()]);
+  readonly careerStage = computed(() => this._progress().careerStage);
+  readonly stageLabel = computed(() => SKILL_STAGE_LABELS[this.careerStage()]);
   readonly stageSkillIds = computed(() => {
     const profession = this.professionId();
-    const stage = this.skillStage();
-    const mapping = PROFESSION_STAGE_SKILLS[profession as keyof typeof PROFESSION_STAGE_SKILLS];
-    return mapping?.[stage] ?? [];
+    const stage = this.careerStage();
+    return selectCoreSkillsForStage(profession, stage);
   });
   readonly stageSkills = computed(() => {
     const ids = this.stageSkillIds();
     const byId = new Map(this._skills().map((skill) => [skill.id, skill]));
     return ids.map((id) => byId.get(id)).filter((skill): skill is Skill => Boolean(skill));
   });
-  readonly stageScenarioIds = computed(() => STAGE_SCENARIOS[this.skillStage()] ?? []);
-  readonly stageScenarioIdSet = computed(() => new Set(this.stageScenarioIds()));
-  readonly stageScenarios = computed(() => {
-    const ids = this.stageScenarioIdSet();
-    return this._scenarios().filter((scenario) => ids.has(scenario.id));
+  readonly stageScenarioIds = computed(() => {
+    const profession = this.professionId();
+    const stage = this.careerStage();
+    const mapping =
+      PROFESSION_STAGE_SCENARIOS[profession as keyof typeof PROFESSION_STAGE_SCENARIOS];
+    return mapping?.[stage] ?? [];
   });
+  readonly stageScenarioIdSet = computed(() => new Set(this.stageScenarioIds()));
+  readonly completedScenarioIds = computed(
+    () => new Set(this._progress().decisionHistory.map((entry) => entry.scenarioId)),
+  );
+  readonly stageScenarioPool = computed(() => {
+    const ids = this.stageScenarioIdSet();
+    const stage = this.careerStage();
+    const profession = this.professionId();
+    return this._scenarios().filter(
+      (scenario) =>
+        ids.has(scenario.id) &&
+        scenario.stage === stage &&
+        this.matchesScenarioProfession(scenario, profession),
+    );
+  });
+  readonly activeStageScenarios = computed(() => {
+    const completed = this.completedScenarioIds();
+    return this.stageScenarioPool().filter((scenario) => !completed.has(scenario.id));
+  });
+  readonly stageScenarioIdsForProgress = computed(() =>
+    this.stageScenarioPool().length > 0
+      ? this.stageScenarioPool().map((scenario) => scenario.id)
+      : this.stageScenarioIds(),
+  );
   readonly stagePromotion = computed(() =>
-    getStagePromotionStatus(this._progress(), this._skills(), this.professionId()),
+    getStagePromotionStatus(
+      this._progress(),
+      this._skills(),
+      this.professionId(),
+      this.stageScenarioIdsForProgress(),
+    ),
   );
   readonly stageSkillProgress = computed(() => this.stagePromotion().skills);
   readonly stageScenarioProgress = computed(() => this.stagePromotion().scenarios);
@@ -169,12 +202,7 @@ export class AppStore {
     }
     const reasons: string[] = [];
     if (status.skills.completed < status.skills.total) {
-      const remaining = status.skills.total - status.skills.completed;
-      reasons.push(`Осталось прокачать навыки: ${remaining}/${status.skills.total}`);
-    }
-    if (status.scenarios.completed < status.scenarios.total) {
-      const remaining = status.scenarios.total - status.scenarios.completed;
-      reasons.push(`Осталось пройти сценарии: ${remaining}/${status.scenarios.total}`);
+      reasons.push('Прокачай все 4 навыка этапа до максимума');
     }
     return reasons;
   });
@@ -182,7 +210,7 @@ export class AppStore {
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
   readonly isRegistered = computed(() => this._auth().isRegistered);
-  readonly rankProgress = computed<RankProgress>(() => getRankProgress(this._xp()));
+  readonly careerProgress = computed(() => getCareerStageProgress(this.careerStage()));
 
   readonly skillsCount = computed(() => this._skills().length);
   readonly scenariosCount = computed(() => this._scenarios().length);
@@ -195,8 +223,7 @@ export class AppStore {
     return Boolean(lastEntry?.snapshot);
   });
   readonly completedScenarioCount = computed(() => {
-    const unique = new Set(this._progress().decisionHistory.map((entry) => entry.scenarioId));
-    return unique.size;
+    return this.completedScenarioIds().size;
   });
   readonly topSkillsByLevel = computed(() => {
     return [...this._skills()]
@@ -254,12 +281,13 @@ export class AppStore {
     const skills = this._skills();
     const progress = this._progress();
     const context = createScenarioGateContext(skills, progress);
-    return this.stageScenarios().map((scenario) => {
+    return this.activeStageScenarios().map((scenario) => {
       const gate = getScenarioGateResultWithContext(scenario, context);
       return {
         scenario,
         available: gate.available,
         reasons: gate.reasons,
+        status: 'active',
       };
     });
   });
@@ -418,7 +446,7 @@ export class AppStore {
       techDebt: 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
-      skillStage: 'internship',
+      careerStage: 'internship',
     });
     this._xp.set(0);
 
@@ -522,6 +550,9 @@ export class AppStore {
     if (!scenario) {
       return;
     }
+    if (this.completedScenarioIds().has(scenarioId)) {
+      return;
+    }
     const gate = getScenarioGateResult(scenario, this._skills(), this._progress());
     if (!gate.available) {
       return;
@@ -531,6 +562,8 @@ export class AppStore {
       return;
     }
 
+    const reputationDelta = decision.effects['reputation'] ?? 0;
+    const techDebtDelta = decision.effects['techDebt'] ?? 0;
     const snapshot = createProgressSnapshot(this._progress());
     const beforeSkills = this._skills();
     this.recordDecision(scenarioId, decisionId, snapshot);
@@ -541,9 +574,16 @@ export class AppStore {
     );
     this._skills.set(result.skills);
     this._progress.set(progressWithAvailability);
+    this.addXp(SCENARIO_REWARD_XP);
 
     this.emitSkillUpgrades(beforeSkills, result.skills);
-    this.eventBus.publish(createScenarioCompletedEvent(scenarioId, decisionId));
+    this.eventBus.publish(
+      createScenarioCompletedEvent(scenarioId, decisionId, {
+        rewardXp: SCENARIO_REWARD_XP,
+        reputationDelta,
+        techDebtDelta,
+      }),
+    );
   }
 
   clearDecisionHistory(): void {
@@ -671,11 +711,31 @@ export class AppStore {
     if (!scenario) {
       return null;
     }
+    if (this.completedScenarioIds().has(scenarioId)) {
+      return {
+        scenario,
+        available: false,
+        reasons: ['Сценарий уже пройден.'],
+        status: 'completed',
+      };
+    }
     if (!this.stageScenarioIdSet().has(scenarioId)) {
       return {
         scenario,
         available: false,
         reasons: ['Сценарий доступен на другом этапе.'],
+        status: 'active',
+      };
+    }
+    if (
+      scenario.stage !== this.careerStage() ||
+      !this.matchesScenarioProfession(scenario, this.professionId())
+    ) {
+      return {
+        scenario,
+        available: false,
+        reasons: ['Сценарий доступен на другом этапе.'],
+        status: 'active',
       };
     }
     return (
@@ -683,6 +743,7 @@ export class AppStore {
         scenario,
         available: false,
         reasons: ['Сценарий недоступен.'],
+        status: 'active',
       }
     );
   }
@@ -693,9 +754,20 @@ export class AppStore {
     if (!nextStage || !status.canPromote) {
       return false;
     }
+    const resetSkills = this._skills().map((skill) => ({
+      ...skill,
+      level: 0,
+    }));
+    const resetLevels = resetSkills.reduce<Record<string, number>>((acc, skill) => {
+      acc[skill.id] = 0;
+      return acc;
+    }, {});
+
+    this._skills.set(resetSkills);
     this._progress.update((progress) => ({
       ...progress,
-      skillStage: nextStage,
+      careerStage: nextStage,
+      skillLevels: resetLevels,
     }));
     this.eventBus.publish(createStagePromotedEvent(status.stage, nextStage));
     return true;
@@ -860,7 +932,9 @@ export class AppStore {
       techDebt: progress.techDebt ?? 0,
       scenarioOverrides: progress.scenarioOverrides ?? {},
       spentXpOnSkills: progress.spentXpOnSkills ?? 0,
-      skillStage: this.normalizeSkillStage(progress.skillStage),
+      careerStage: this.normalizeCareerStage(
+        progress.careerStage ?? (progress as Progress & { skillStage?: unknown }).skillStage,
+      ),
     };
   }
 
@@ -909,7 +983,8 @@ export class AppStore {
     const techDebt = value['techDebt'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
     const spentXpOnSkills = value['spentXpOnSkills'];
-    const skillStage = value['skillStage'];
+    const careerStage = value['careerStage'];
+    const legacySkillStage = value['skillStage'];
 
     if (!skillLevels || !decisionHistory) {
       return null;
@@ -928,7 +1003,9 @@ export class AppStore {
       techDebt,
       scenarioOverrides: scenarioOverrides ?? {},
       spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
-      skillStage: this.normalizeSkillStage(skillStage),
+      careerStage: this.normalizeCareerStage(
+        typeof careerStage === 'string' ? careerStage : legacySkillStage,
+      ),
     };
   }
 
@@ -1052,10 +1129,14 @@ export class AppStore {
         }
       }
     }
-    return this._progress().skillStage ?? 'internship';
+    return this._progress().careerStage ?? 'internship';
   }
 
-  private normalizeSkillStage(value: unknown): SkillStageId {
+  private matchesScenarioProfession(scenario: Scenario, profession: string): boolean {
+    return scenario.profession === 'all' || scenario.profession === profession;
+  }
+
+  private normalizeCareerStage(value: unknown): SkillStageId {
     if (typeof value !== 'string') {
       return 'internship';
     }

@@ -1,6 +1,8 @@
-import { Skill } from '@/entities/skill';
+﻿import { Skill } from '@/entities/skill';
 
-export const SKILLS_MOCK: Skill[] = [
+const DEFAULT_SKILL_COST_PER_LEVEL = 1;
+
+const BASE_SKILLS: Skill[] = [
   {
     id: 'skill-frontend-foundations',
     name: 'Веб-основы (HTML/CSS/JS)',
@@ -317,7 +319,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-accessibility',
     name: 'Accessibility',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -333,7 +335,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-ai-gameplay',
     name: 'Ai Gameplay',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -341,7 +343,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-api-testing',
     name: 'API Testing',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -349,7 +351,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-app-optimization',
     name: 'App Optimization',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -365,7 +367,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-auth-basics',
     name: 'Auth Basics',
-    category: '?????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -373,7 +375,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-automation',
     name: 'Automation',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -389,7 +391,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-bug-reporting',
     name: 'Bug Reporting',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -397,7 +399,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-cache-basics',
     name: 'Cache Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -405,7 +407,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-capacity-planning',
     name: 'Capacity Planning',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -413,7 +415,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-cloud-basics',
     name: 'Cloud Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -421,7 +423,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-code-review-security',
     name: 'Code Review Security',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -429,7 +431,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-component-design',
     name: 'Component Design',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -437,7 +439,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-containerization',
     name: 'Containerization',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -445,7 +447,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-cost-optimization',
     name: 'Cost Optimization',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -453,7 +455,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-cross-platform-architecture',
     name: 'Cross Platform Architecture',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -461,7 +463,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-css-layout',
     name: 'CSS Layout',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -493,7 +495,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-data-security',
     name: 'Data Security',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -501,7 +503,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-design-system',
     name: 'Design System',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -509,7 +511,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-disaster-recovery',
     name: 'Disaster Recovery',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -517,7 +519,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-distributed-systems',
     name: 'Distributed Systems',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -525,7 +527,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-engine-optimization',
     name: 'Engine Optimization',
-    category: '?????????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -533,7 +535,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-etl-basics',
     name: 'ETL Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -541,7 +543,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-feature-engineering',
     name: 'Feature Engineering',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -549,7 +551,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-finops',
     name: 'Finops',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -557,7 +559,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-flaky-tests',
     name: 'Flaky Tests',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -565,7 +567,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-frontend-architecture-advanced',
     name: 'Frontend Architecture Advanced',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -573,7 +575,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-frontend-observability',
     name: 'Frontend Observability',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -581,7 +583,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-game-architecture',
     name: 'Game Architecture',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -589,7 +591,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-game-physics',
     name: 'Game Physics',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -597,7 +599,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-game-production',
     name: 'Game Production',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -605,7 +607,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-game-ui',
     name: 'Game UI',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -613,7 +615,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-git-basics',
     name: 'Git Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -629,7 +631,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-http-basics',
     name: 'Http Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -637,7 +639,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-iam-basics',
     name: 'IAM Basics',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -645,7 +647,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-incident-response',
     name: 'Incident Response',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -653,7 +655,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-incident-response-security',
     name: 'Incident Response Security',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -661,7 +663,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-kubernetes',
     name: 'Kubernetes',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -677,7 +679,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-level-design',
     name: 'Level Design',
-    category: '?????????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -685,7 +687,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-linux-basics',
     name: 'Linux Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -693,7 +695,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-live-ops',
     name: 'Live Ops',
-    category: '?????????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -701,7 +703,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-messaging',
     name: 'Messaging',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -709,7 +711,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-micro-frontend',
     name: 'Micro Frontend',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -781,7 +783,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-debugging',
     name: 'Mobile Debugging',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -789,7 +791,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-networking',
     name: 'Mobile Networking',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -797,7 +799,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-observability',
     name: 'Mobile Observability',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -805,7 +807,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-platform-basics',
     name: 'Mobile Platform Basics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -813,7 +815,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-security',
     name: 'Mobile Security',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -821,7 +823,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-storage',
     name: 'Mobile Storage',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -829,7 +831,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-testing',
     name: 'Mobile Testing',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -837,7 +839,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-mobile-ux-research',
     name: 'Mobile UX Research',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -845,7 +847,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-model-evaluation',
     name: 'Model Evaluation',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -853,7 +855,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-model-interpretability',
     name: 'Model Interpretability',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -861,7 +863,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-multiplayer',
     name: 'Multiplayer',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -869,7 +871,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-observability-qa',
     name: 'Observability QA',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -877,7 +879,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-offline-first',
     name: 'Offline First',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -885,7 +887,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-orchestration',
     name: 'Orchestration',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -893,7 +895,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-owasp',
     name: 'OWASP',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -901,7 +903,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-penetration-testing',
     name: 'Penetration Testing',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -909,7 +911,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-performance-backend',
     name: 'Performance Backend',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -925,7 +927,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-performance-profiling',
     name: 'Performance Profiling',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -933,7 +935,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-performance-testing',
     name: 'Performance Testing',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -941,7 +943,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-platform-engineering',
     name: 'Platform Engineering',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -949,7 +951,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-quality-leadership',
     name: 'Quality Leadership',
-    category: '?????????',
+    category: 'Лидерство',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -957,7 +959,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-red-team',
     name: 'Red Team',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -973,7 +975,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-rendering-advanced',
     name: 'Rendering Advanced',
-    category: '???????',
+    category: 'Геймдев',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -981,7 +983,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-risk-management',
     name: 'Risk Management',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -989,7 +991,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-routing',
     name: 'Routing',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -997,7 +999,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-scalability',
     name: 'Scalability',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1005,7 +1007,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-scale-mobile-teams',
     name: 'Scale Mobile Teams',
-    category: '?????????',
+    category: 'Лидерство',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1013,7 +1015,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-secure-architecture',
     name: 'Secure Architecture',
-    category: '?????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1021,7 +1023,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-security-automation',
     name: 'Security Automation',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1029,7 +1031,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-security-backend',
     name: 'Security Backend',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1037,7 +1039,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-security-observability',
     name: 'Security Observability',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1045,7 +1047,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-security-program',
     name: 'Security Program',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1053,7 +1055,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-security-testing',
     name: 'Security Testing',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1061,7 +1063,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-sre-metrics',
     name: 'SRE Metrics',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1069,7 +1071,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-test-architecture',
     name: 'Test Architecture',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1085,7 +1087,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-test-frameworks',
     name: 'Test Frameworks',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1093,7 +1095,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-test-strategy',
     name: 'Test Strategy',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1101,7 +1103,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-testing-backend',
     name: 'Testing Backend',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1109,7 +1111,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-testing-ui',
     name: 'Testing UI',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1117,7 +1119,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-tools-pipeline',
     name: 'Tools Pipeline',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1125,7 +1127,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-ui-testing',
     name: 'UI Testing',
-    category: '?????????',
+    category: 'Инженерия',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1133,7 +1135,7 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-vuln-management',
     name: 'Vuln Management',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
@@ -1141,9 +1143,14 @@ export const SKILLS_MOCK: Skill[] = [
   {
     id: 'skill-web-security',
     name: 'Web Security',
-    category: '????????????',
+    category: 'Безопасность',
     level: 0,
     maxLevel: 5,
     deps: [],
   },
 ];
+
+export const SKILLS_MOCK: Skill[] = BASE_SKILLS.map((skill) => ({
+  ...skill,
+  costPerLevel: DEFAULT_SKILL_COST_PER_LEVEL,
+}));
