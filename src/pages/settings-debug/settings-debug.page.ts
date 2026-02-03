@@ -28,6 +28,7 @@ export class SettingsDebugPage {
 
   protected readonly notifications = this.notificationsStore.notifications;
   protected readonly hasProfile = this.appStore.hasProfile;
+  protected readonly backupAvailable = this.appStore.backupAvailable;
   protected readonly sandboxSteps = BALANCE.sandbox.steps;
   private readonly _sandboxRows = signal<BalanceSandboxRow[]>([]);
   protected readonly sandboxRows = this._sandboxRows.asReadonly();
@@ -56,6 +57,10 @@ export class SettingsDebugPage {
 
   protected clearErrors(): void {
     this.errorLogStore.clearAll();
+  }
+
+  protected restoreBackup(): void {
+    this.appStore.restoreBackup();
   }
 
   protected runBalanceSandbox(): void {

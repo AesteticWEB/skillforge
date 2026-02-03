@@ -35,6 +35,29 @@
   <sf-card>
     <div class="flex items-center justify-between gap-3">
       <div>
+        <h2 class="text-lg font-semibold text-slate-100">Backup Save</h2>
+        <p class="mt-1 text-sm text-slate-400">Восстановление последнего сохранения.</p>
+      </div>
+      <sf-button
+        variant="ghost"
+        type="button"
+        (click)="restoreBackup()"
+        [disabled]="!backupAvailable()"
+      >
+        Restore backup
+      </sf-button>
+    </div>
+    @if (!backupAvailable()) {
+      <div
+        class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+      >
+        Backup отсутствует.
+      </div>
+    }
+  </sf-card>
+  <sf-card>
+    <div class="flex items-center justify-between gap-3">
+      <div>
         <h2 class="text-lg font-semibold text-slate-100">Balance Sandbox</h2>
         <p class="mt-1 text-sm text-slate-400">
           Симуляция {{ sandboxSteps }} ходов для проверки баланса. Dev-only.

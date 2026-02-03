@@ -104,6 +104,7 @@ export class NotificationsStore {
         : BALANCE.rewards.scenarioXp;
     const reputationDelta = event.payload.reputationDelta ?? 0;
     const techDebtDelta = event.payload.techDebtDelta ?? 0;
+    const coinsDelta = event.payload.coinsDelta ?? 0;
     const metricParts: string[] = [];
 
     const formatDelta = (value: number): string => (value > 0 ? `+${value}` : `${value}`);
@@ -113,6 +114,9 @@ export class NotificationsStore {
     }
     if (techDebtDelta !== 0) {
       metricParts.push(`РўРµС…РґРѕР»Рі ${formatDelta(techDebtDelta)}`);
+    }
+    if (coinsDelta !== 0) {
+      metricParts.push(`Coins ${formatDelta(coinsDelta)}`);
     }
 
     const metrics = metricParts.length > 0 ? ` (${metricParts.join(', ')})` : '';

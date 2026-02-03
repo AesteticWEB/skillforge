@@ -36,6 +36,7 @@ export type ScenarioCompletedEvent = DomainEventBase<
     rewardXp?: number;
     reputationDelta?: number;
     techDebtDelta?: number;
+    coinsDelta?: number;
   }
 >;
 
@@ -87,6 +88,7 @@ export const createScenarioCompletedEvent = (
     rewardXp?: number;
     reputationDelta?: number;
     techDebtDelta?: number;
+    coinsDelta?: number;
   } = {},
 ): ScenarioCompletedEvent => createEvent('ScenarioCompleted', { scenarioId, decisionId, ...meta });
 

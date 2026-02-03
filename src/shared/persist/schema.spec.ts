@@ -36,7 +36,10 @@ describe('persist schema migration', () => {
     expect(migrated).toEqual({
       version: PERSIST_SCHEMA_VERSION,
       user: v1.user,
-      progress: v1.progress,
+      progress: {
+        ...v1.progress,
+        coins: 0,
+      },
       featureFlags: v1.featureFlags,
       auth: v1.auth,
       xp: v1.xp,

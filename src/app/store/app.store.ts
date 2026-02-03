@@ -47,6 +47,8 @@ import {
 } from '@/shared/lib/events';
 import {
   migratePersistedState,
+  PERSIST_BACKUP_KEY,
+  PERSIST_LEGACY_BACKUP_KEYS,
   PERSIST_LEGACY_KEYS,
   PERSIST_SCHEMA_VERSION,
   PERSIST_STORAGE_KEY,
@@ -103,6 +105,7 @@ const createEmptyProgress = (): Progress => ({
   decisionHistory: [],
   reputation: 0,
   techDebt: 0,
+  coins: 0,
   scenarioOverrides: {},
   spentXpOnSkills: 0,
   careerStage: 'internship',
@@ -113,6 +116,8 @@ export class AppStore {
   private static readonly STORAGE_KEY = PERSIST_STORAGE_KEY;
   private static readonly STORAGE_VERSION = PERSIST_SCHEMA_VERSION;
   private static readonly LEGACY_STORAGE_KEYS = PERSIST_LEGACY_KEYS;
+  private static readonly BACKUP_STORAGE_KEY = PERSIST_BACKUP_KEY;
+  private static readonly LEGACY_BACKUP_KEYS = PERSIST_LEGACY_BACKUP_KEYS;
 
   private readonly skillsApi = inject(SkillsApi);
   private readonly scenariosApi = inject(ScenariosApi);
@@ -132,6 +137,7 @@ export class AppStore {
   private readonly _auth = signal<AuthState>(createEmptyAuth());
   private readonly _xp = signal(0);
   private readonly _progress = signal<Progress>(createEmptyProgress());
+  private readonly _backupAvailable = signal(false);
 
   readonly user = this._user.asReadonly();
   readonly skills = this._skills.asReadonly();
@@ -142,6 +148,7 @@ export class AppStore {
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
   readonly xp = this._xp.asReadonly();
+  readonly backupAvailable = this._backupAvailable.asReadonly();
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -228,6 +235,7 @@ export class AppStore {
   readonly decisionCount = computed(() => this._progress().decisionHistory.length);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
+  readonly coins = computed(() => this._progress().coins);
   readonly canUndoDecision = computed(() => {
     const history = this._progress().decisionHistory;
     const lastEntry = history[history.length - 1];
@@ -308,6 +316,7 @@ export class AppStore {
 
   constructor() {
     this.hydrateFromStorage();
+    this.syncBackupAvailability();
     this.load();
     this.hasHydrated = true;
     effect(() => {
@@ -455,6 +464,7 @@ export class AppStore {
       decisionHistory: [],
       reputation: 0,
       techDebt: 0,
+      coins: 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
       careerStage: 'internship',
@@ -506,7 +516,48 @@ export class AppStore {
         error: 'РќРµРїРѕРґРґРµСЂР¶РёРІР°РµРјР°СЏ РІРµСЂСЃРёСЏ СЌРєСЃРїРѕСЂС‚Р°.',
       };
     }
+    return this.applyPersistedState(migrated);
+  }
 
+  restoreBackup(): boolean {
+    if (!this.isStorageAvailable()) {
+      return false;
+    }
+
+    const backupEntry = this.readRawBackup();
+    if (!backupEntry) {
+      return false;
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(backupEntry.raw);
+    } catch (error) {
+      this.handleStorageError(error, 'backup-parse');
+      return false;
+    }
+
+    const migrated = migratePersistedState(parsed);
+    if (!migrated) {
+      this.handleStorageError(new Error('Unsupported backup version'), 'backup-migrate');
+      return false;
+    }
+
+    const result = this.applyPersistedState(migrated);
+    if (!result.ok) {
+      this.handleStorageError(new Error(result.error ?? 'Invalid backup payload'), 'backup-apply');
+      return false;
+    }
+
+    if (backupEntry.key !== AppStore.BACKUP_STORAGE_KEY) {
+      localStorage.removeItem(backupEntry.key);
+    }
+    this.notificationsStore.success('Бэкап восстановлен.');
+    this._backupAvailable.set(true);
+    return true;
+  }
+
+  private applyPersistedState(migrated: PersistedStateLatest): ImportResult {
     const user = this.parseUser(migrated.user);
     if (!user) {
       return { ok: false, error: 'РќРµРєРѕСЂСЂРµРєС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ.' };
@@ -578,6 +629,7 @@ export class AppStore {
 
     const reputationDelta = decision.effects['reputation'] ?? 0;
     const techDebtDelta = decision.effects['techDebt'] ?? 0;
+    const coinsDelta = decision.effects['coins'] ?? 0;
     const rewardXp = BALANCE.rewards.scenarioXp;
     const snapshot = createProgressSnapshot(this._progress());
     const beforeSkills = this._skills();
@@ -597,6 +649,7 @@ export class AppStore {
         rewardXp,
         reputationDelta,
         techDebtDelta,
+        coinsDelta,
       }),
     );
   }
@@ -868,9 +921,14 @@ export class AppStore {
       return;
     }
     localStorage.removeItem(AppStore.STORAGE_KEY);
+    localStorage.removeItem(AppStore.BACKUP_STORAGE_KEY);
     for (const key of AppStore.LEGACY_STORAGE_KEYS) {
       localStorage.removeItem(key);
     }
+    for (const key of AppStore.LEGACY_BACKUP_KEYS) {
+      localStorage.removeItem(key);
+    }
+    this._backupAvailable.set(false);
   }
 
   private persistToStorage(): void {
@@ -888,7 +946,10 @@ export class AppStore {
     };
 
     try {
-      localStorage.setItem(AppStore.STORAGE_KEY, JSON.stringify(payload));
+      const serialized = JSON.stringify(payload);
+      localStorage.setItem(AppStore.STORAGE_KEY, serialized);
+      localStorage.setItem(AppStore.BACKUP_STORAGE_KEY, serialized);
+      this._backupAvailable.set(true);
     } catch {
       // Ignore storage errors (quota or privacy mode).
     }
@@ -943,9 +1004,36 @@ export class AppStore {
     return null;
   }
 
+  private readRawBackup(): { key: string; raw: string } | null {
+    const current = localStorage.getItem(AppStore.BACKUP_STORAGE_KEY);
+    if (current) {
+      return { key: AppStore.BACKUP_STORAGE_KEY, raw: current };
+    }
+
+    for (const key of AppStore.LEGACY_BACKUP_KEYS) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        return { key, raw };
+      }
+    }
+
+    return null;
+  }
+
+  private syncBackupAvailability(): void {
+    if (!this.isStorageAvailable()) {
+      this._backupAvailable.set(false);
+      return;
+    }
+    this._backupAvailable.set(Boolean(this.readRawBackup()));
+  }
+
   private persistMigratedState(fromKey: string, state: PersistedStateLatest): void {
     try {
-      localStorage.setItem(AppStore.STORAGE_KEY, JSON.stringify(state));
+      const serialized = JSON.stringify(state);
+      localStorage.setItem(AppStore.STORAGE_KEY, serialized);
+      localStorage.setItem(AppStore.BACKUP_STORAGE_KEY, serialized);
+      this._backupAvailable.set(true);
       if (fromKey !== AppStore.STORAGE_KEY) {
         localStorage.removeItem(fromKey);
       }
@@ -974,6 +1062,7 @@ export class AppStore {
       decisionHistory: progress.decisionHistory ?? [],
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
+      coins: this.normalizeCoins(progress.coins ?? 0),
       scenarioOverrides: progress.scenarioOverrides ?? {},
       spentXpOnSkills: progress.spentXpOnSkills ?? 0,
       careerStage: this.normalizeCareerStage(
@@ -1025,6 +1114,7 @@ export class AppStore {
     const decisionHistory = this.parseDecisionHistory(value['decisionHistory']);
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
+    const coins = value['coins'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
     const spentXpOnSkills = value['spentXpOnSkills'];
     const careerStage = value['careerStage'];
@@ -1036,6 +1126,9 @@ export class AppStore {
     if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
       return null;
     }
+    if (coins !== undefined && typeof coins !== 'number') {
+      return null;
+    }
     if (spentXpOnSkills !== undefined && typeof spentXpOnSkills !== 'number') {
       return null;
     }
@@ -1045,6 +1138,7 @@ export class AppStore {
       decisionHistory,
       reputation,
       techDebt,
+      coins: this.normalizeCoins(typeof coins === 'number' ? coins : 0),
       scenarioOverrides: scenarioOverrides ?? {},
       spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
       careerStage: this.normalizeCareerStage(
@@ -1143,12 +1237,16 @@ export class AppStore {
     const skillLevels = this.parseNumberRecord(value['skillLevels']);
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
+    const coins = value['coins'];
     const scenarioOverrides = this.parseBooleanRecord(value['scenarioOverrides']);
     const spentXpOnSkills = value['spentXpOnSkills'];
     if (!skillLevels) {
       return null;
     }
     if (typeof reputation !== 'number' || typeof techDebt !== 'number') {
+      return null;
+    }
+    if (coins !== undefined && typeof coins !== 'number') {
       return null;
     }
     if (spentXpOnSkills !== undefined && typeof spentXpOnSkills !== 'number') {
@@ -1158,6 +1256,7 @@ export class AppStore {
       skillLevels,
       reputation,
       techDebt,
+      coins: this.normalizeCoins(typeof coins === 'number' ? coins : 0),
       scenarioOverrides: scenarioOverrides ?? {},
       spentXpOnSkills: typeof spentXpOnSkills === 'number' ? this.normalizeXp(spentXpOnSkills) : 0,
     };
@@ -1191,6 +1290,13 @@ export class AppStore {
   }
 
   private normalizeXp(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeCoins(value: number): number {
     if (!Number.isFinite(value)) {
       return 0;
     }

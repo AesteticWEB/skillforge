@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, isDevMode } from '@angular/core';
+﻿import { ChangeDetectionStrategy, Component, computed, inject, isDevMode } from '@angular/core';
 import { AppStore } from '@/app/store/app.store';
 import { AchievementsStore } from '@/features/achievements';
 import { ButtonComponent } from '@/shared/ui/button';
@@ -11,8 +11,11 @@ type DecisionStats = {
   debtDown: number;
   repUp: number;
   repDown: number;
+  coinUp: number;
+  coinDown: number;
   netDebt: number;
   netRep: number;
+  netCoins: number;
   total: number;
 };
 
@@ -95,6 +98,8 @@ export class AnalyticsPage {
     let debtDown = 0;
     let repUp = 0;
     let repDown = 0;
+    let coinUp = 0;
+    let coinDown = 0;
 
     history.forEach((entry) => {
       const debt = entry.effects['techDebt'] ?? 0;
@@ -110,6 +115,13 @@ export class AnalyticsPage {
       } else if (rep < 0) {
         repDown += 1;
       }
+
+      const coins = entry.effects['coins'] ?? 0;
+      if (coins > 0) {
+        coinUp += 1;
+      } else if (coins < 0) {
+        coinDown += 1;
+      }
     });
 
     return {
@@ -117,15 +129,18 @@ export class AnalyticsPage {
       debtDown,
       repUp,
       repDown,
+      coinUp,
+      coinDown,
       netDebt: this.store.techDebt(),
       netRep: this.store.reputation(),
+      netCoins: this.store.coins(),
       total: history.length,
     };
   });
   protected readonly tensionChart = computed<TensionChart>(() => {
     const history = this.history();
     const hasTechDebt = history.some((entry) => typeof entry.effects['techDebt'] === 'number');
-    const metricLabel = hasTechDebt ? 'техдолг' : 'репутация';
+    const metricLabel = hasTechDebt ? 'С‚РµС…РґРѕР»Рі' : 'СЂРµРїСѓС‚Р°С†РёСЏ';
 
     let current = 0;
     const values = history.map((entry) => {
@@ -181,7 +196,7 @@ export class AnalyticsPage {
     }
     const skills = this.topSkills();
     if (skills.length === 0) {
-      return ['Сильные стороны ещё не определены'];
+      return ['РЎРёР»СЊРЅС‹Рµ СЃС‚РѕСЂРѕРЅС‹ РµС‰С‘ РЅРµ РѕРїСЂРµРґРµР»РµРЅС‹'];
     }
     return skills.map((skill) => skill.name);
   });
@@ -192,16 +207,18 @@ export class AnalyticsPage {
     const stats = this.decisionStats();
     const risks: string[] = [];
     if (stats.netDebt >= 3) {
-      risks.push('Высокий техдолг: часто выбирались быстрые решения');
+      risks.push(
+        'Р’С‹СЃРѕРєРёР№ С‚РµС…РґРѕР»Рі: С‡Р°СЃС‚Рѕ РІС‹Р±РёСЂР°Р»РёСЃСЊ Р±С‹СЃС‚СЂС‹Рµ СЂРµС€РµРЅРёСЏ',
+      );
     }
     if (stats.netRep <= -2) {
-      risks.push('Просела репутация: конфликтные решения');
+      risks.push('РџСЂРѕСЃРµР»Р° СЂРµРїСѓС‚Р°С†РёСЏ: РєРѕРЅС„Р»РёРєС‚РЅС‹Рµ СЂРµС€РµРЅРёСЏ');
     }
     if (stats.total < 4) {
-      risks.push('Мало решений: не хватило практики');
+      risks.push('РњР°Р»Рѕ СЂРµС€РµРЅРёР№: РЅРµ С…РІР°С‚РёР»Рѕ РїСЂР°РєС‚РёРєРё');
     }
     if (risks.length === 0) {
-      risks.push('Риски не выявлены');
+      risks.push('Р РёСЃРєРё РЅРµ РІС‹СЏРІР»РµРЅС‹');
     }
     return risks.slice(0, 3);
   });
@@ -237,35 +254,39 @@ export class AnalyticsPage {
     if (stats.netDebt <= 1 && debtBias <= -2) {
       return {
         id: 'optimizer',
-        title: 'Системный оптимизатор',
-        description: 'Стабилизируешь платформу и держишь техдолг под контролем.',
+        title: 'РЎРёСЃС‚РµРјРЅС‹Р№ РѕРїС‚РёРјРёР·Р°С‚РѕСЂ',
+        description:
+          'РЎС‚Р°Р±РёР»РёР·РёСЂСѓРµС€СЊ РїР»Р°С‚С„РѕСЂРјСѓ Рё РґРµСЂР¶РёС€СЊ С‚РµС…РґРѕР»Рі РїРѕРґ РєРѕРЅС‚СЂРѕР»РµРј.',
       };
     }
     if (stats.netDebt >= 4 || debtBias >= 2) {
       return {
         id: 'firefighter',
-        title: 'Пожарный-спасатель',
-        description: 'Берёшься за срочные задачи, но это увеличивает техдолг.',
+        title: 'РџРѕР¶Р°СЂРЅС‹Р№-СЃРїР°СЃР°С‚РµР»СЊ',
+        description:
+          'Р‘РµСЂС‘С€СЊСЃСЏ Р·Р° СЃСЂРѕС‡РЅС‹Рµ Р·Р°РґР°С‡Рё, РЅРѕ СЌС‚Рѕ СѓРІРµР»РёС‡РёРІР°РµС‚ С‚РµС…РґРѕР»Рі.',
       };
     }
     if (stats.netRep >= 4 || repBias >= 2) {
       return {
         id: 'diplomat',
-        title: 'Дипломат',
-        description: 'Выбираешь решения, которые укрепляют доверие и коммуникацию.',
+        title: 'Р”РёРїР»РѕРјР°С‚',
+        description:
+          'Р’С‹Р±РёСЂР°РµС€СЊ СЂРµС€РµРЅРёСЏ, РєРѕС‚РѕСЂС‹Рµ СѓРєСЂРµРїР»СЏСЋС‚ РґРѕРІРµСЂРёРµ Рё РєРѕРјРјСѓРЅРёРєР°С†РёСЋ.',
       };
     }
     return {
       id: 'pragmatist',
-      title: 'Прагматик',
-      description: 'Держишь баланс между скоростью, качеством и отношениями.',
+      title: 'РџСЂР°РіРјР°С‚РёРє',
+      description:
+        'Р”РµСЂР¶РёС€СЊ Р±Р°Р»Р°РЅСЃ РјРµР¶РґСѓ СЃРєРѕСЂРѕСЃС‚СЊСЋ, РєР°С‡РµСЃС‚РІРѕРј Рё РѕС‚РЅРѕС€РµРЅРёСЏРјРё.',
     };
   }
 
   private formatEffects(effects: Record<string, number>, skillMap: Map<string, string>): string {
     const entries = Object.entries(effects);
     if (entries.length === 0) {
-      return 'Р‘РµР· СЌС„С„РµРєС‚РѕРІ';
+      return 'Р вЂР ВµР В· РЎРЊРЎвЂћРЎвЂћР ВµР С”РЎвЂљР С•Р Р†';
     }
     return entries
       .map(([key, delta]) => {
@@ -277,10 +298,13 @@ export class AnalyticsPage {
 
   private formatEffectLabel(key: string, skillMap: Map<string, string>): string {
     if (key === 'reputation') {
-      return 'Р РµРїСѓС‚Р°С†РёСЏ';
+      return '\u0420\u0435\u043f\u0443\u0442\u0430\u0446\u0438\u044f';
     }
     if (key === 'techDebt') {
-      return 'РўРµС…РґРѕР»Рі';
+      return '\u0422\u0435\u0445\u0434\u043e\u043b\u0433';
+    }
+    if (key === 'coins') {
+      return 'Coins';
     }
     return skillMap.get(key) ?? key;
   }

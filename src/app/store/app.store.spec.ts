@@ -72,6 +72,7 @@ describe('AppStore', () => {
     ];
     const reputationDelta = BALANCE.effects.reputation.gain * 2;
     const techDebtDelta = -BALANCE.effects.techDebt.relief;
+    const coinsDelta = 5;
     const scenarios: Scenario[] = [
       {
         id: 'scenario-1',
@@ -88,6 +89,7 @@ describe('AppStore', () => {
             effects: {
               reputation: reputationDelta,
               techDebt: techDebtDelta,
+              coins: coinsDelta,
               core: BALANCE.effects.skill.gain,
             },
           },
@@ -100,6 +102,7 @@ describe('AppStore', () => {
 
     expect(store.reputation()).toBe(reputationDelta);
     expect(store.techDebt()).toBe(techDebtDelta);
+    expect(store.coins()).toBe(coinsDelta);
     expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(0);
     expect(store.progress().decisionHistory).toHaveLength(1);
     expect(store.progress().decisionHistory[0]?.scenarioId).toBe('scenario-1');

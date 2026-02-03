@@ -1,4 +1,4 @@
-import { Progress } from '@/entities/progress';
+﻿import { Progress } from '@/entities/progress';
 import { Skill } from '@/entities/skill';
 import { Scenario, ScenarioAvailabilityEffect, ScenarioRequirement } from '../model/scenario.model';
 
@@ -31,7 +31,7 @@ export const getScenarioGateResultWithContext = (
     return { available: true, reasons: [] };
   }
   if (override === false) {
-    return { available: false, reasons: ['Закрыто правилом сценариев.'] };
+    return { available: false, reasons: ['Р—Р°РєСЂС‹С‚Рѕ РїСЂР°РІРёР»РѕРј СЃС†РµРЅР°СЂРёРµРІ.'] };
   }
 
   const requirements = scenario.requirements ?? [];
@@ -92,7 +92,7 @@ const getRequirementBlockReason = (
     const name = skill?.name ?? requirement.skillId;
     const level = skill?.level ?? 0;
     if (level < requirement.minLevel) {
-      return `Нужно: ${name} уровень ${requirement.minLevel}`;
+      return `РќСѓР¶РЅРѕ: ${name} СѓСЂРѕРІРµРЅСЊ ${requirement.minLevel}`;
     }
     return null;
   }
@@ -101,16 +101,16 @@ const getRequirementBlockReason = (
     const value = progress[requirement.metric] ?? 0;
     const metricName = formatMetricName(requirement.metric);
     if (requirement.min !== undefined && value < requirement.min) {
-      return `Нужно: ${metricName} ≥ ${requirement.min}`;
+      return `РќСѓР¶РЅРѕ: ${metricName} в‰Ґ ${requirement.min}`;
     }
     if (requirement.max !== undefined && value > requirement.max) {
-      return `Нужно: ${metricName} ≤ ${requirement.max}`;
+      return `РќСѓР¶РЅРѕ: ${metricName} в‰¤ ${requirement.max}`;
     }
     return null;
   }
 
   if (!completed.has(requirement.scenarioId)) {
-    return `Сначала пройди сценарий ${requirement.scenarioId}`;
+    return `РЎРЅР°С‡Р°Р»Р° РїСЂРѕР№РґРё СЃС†РµРЅР°СЂРёР№ ${requirement.scenarioId}`;
   }
 
   return null;
@@ -118,10 +118,13 @@ const getRequirementBlockReason = (
 
 const formatMetricName = (metric: keyof Progress): string => {
   if (metric === 'reputation') {
-    return 'репутация';
+    return 'СЂРµРїСѓС‚Р°С†РёСЏ';
   }
   if (metric === 'techDebt') {
-    return 'техдолг';
+    return 'С‚РµС…РґРѕР»Рі';
+  }
+  if (metric === 'coins') {
+    return 'coins';
   }
   return metric;
 };

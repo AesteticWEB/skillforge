@@ -1,12 +1,13 @@
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 
-export type MetricKey = 'reputation' | 'techDebt';
+export type MetricKey = 'reputation' | 'techDebt' | 'coins';
 
 export interface ProgressSnapshot {
   skillLevels: Record<string, number>;
   reputation: number;
   techDebt: number;
+  coins: number;
   scenarioOverrides: Record<string, boolean>;
   spentXpOnSkills: number;
 }
@@ -23,6 +24,7 @@ export interface Progress {
   decisionHistory: DecisionHistoryEntry[];
   reputation: number;
   techDebt: number;
+  coins: number;
   scenarioOverrides: Record<string, boolean>;
   spentXpOnSkills: number;
   careerStage: SkillStageId;

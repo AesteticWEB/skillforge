@@ -12,6 +12,7 @@ export const createProgressSnapshot = (progress: Progress): ProgressSnapshot => 
   skillLevels: { ...progress.skillLevels },
   reputation: progress.reputation,
   techDebt: progress.techDebt,
+  coins: progress.coins,
   scenarioOverrides: { ...progress.scenarioOverrides },
   spentXpOnSkills: progress.spentXpOnSkills,
 });
@@ -54,6 +55,10 @@ export const undoLastDecision = (skills: Skill[], progress: Progress): UndoDecis
     skillLevels: { ...lastEntry.snapshot.skillLevels },
     reputation: lastEntry.snapshot.reputation ?? progress.reputation,
     techDebt: lastEntry.snapshot.techDebt ?? progress.techDebt,
+    coins:
+      typeof lastEntry.snapshot.coins === 'number'
+        ? Math.max(0, lastEntry.snapshot.coins)
+        : progress.coins,
     scenarioOverrides: { ...(lastEntry.snapshot.scenarioOverrides ?? {}) },
     spentXpOnSkills: lastEntry.snapshot.spentXpOnSkills ?? progress.spentXpOnSkills,
     decisionHistory: nextHistory,

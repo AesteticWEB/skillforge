@@ -20,6 +20,7 @@ describe('decision history undo', () => {
       decisionHistory: [],
       reputation: reputationGain,
       techDebt: techDebtGain * 2,
+      coins: 5,
       scenarioOverrides: { 'scenario-2': true },
       spentXpOnSkills: 0,
       careerStage: 'internship',
@@ -34,6 +35,7 @@ describe('decision history undo', () => {
       skillLevels: { core: 2 },
       reputation: reputationGain * 3,
       techDebt: techDebtGain,
+      coins: 1,
       scenarioOverrides: { 'scenario-2': false },
       decisionHistory: [historyEntry],
       spentXpOnSkills: skillCost * 8,
@@ -44,6 +46,7 @@ describe('decision history undo', () => {
     expect(result.undone).toBe(true);
     expect(result.progress.reputation).toBe(reputationGain);
     expect(result.progress.techDebt).toBe(techDebtGain * 2);
+    expect(result.progress.coins).toBe(5);
     expect(result.progress.skillLevels.core).toBe(1);
     expect(result.progress.scenarioOverrides['scenario-2']).toBe(true);
     expect(result.progress.decisionHistory).toHaveLength(0);

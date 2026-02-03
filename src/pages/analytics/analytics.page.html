@@ -47,7 +47,7 @@
         <p class="mt-2 text-sm text-slate-300">{{ summary.archetype.description }}</p>
       </div>
 
-      <div class="mt-4 grid gap-3 sm:grid-cols-2">
+      <div class="mt-4 grid gap-3 sm:grid-cols-3">
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
           Техдолг итого: <span class="font-semibold text-slate-100">{{ summary.netDebt }}</span>
         </div>
@@ -67,7 +67,7 @@
       <div class="text-xs text-slate-400">Всего решений: {{ decisionStats().total }}</div>
     </div>
 
-    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+    <div class="mt-4 grid gap-3 sm:grid-cols-3">
       <div
         class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-200"
       >
@@ -79,6 +79,12 @@
       >
         Репутация: +{{ decisionStats().repUp }} / -{{ decisionStats().repDown }}
         <span class="text-slate-400">(итог {{ decisionStats().netRep }})</span>
+      </div>
+      <div
+        class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm text-slate-200"
+      >
+        Coins: +{{ decisionStats().coinUp }} / -{{ decisionStats().coinDown }}
+        <span class="text-slate-400">(итог {{ decisionStats().netCoins }})</span>
       </div>
     </div>
   </sf-card>

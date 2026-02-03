@@ -2,7 +2,7 @@ import { DecisionEffects } from '@/entities/decision';
 import { Skill } from '@/entities/skill';
 import { MetricKey, Progress } from '../model/progress.model';
 
-const DEFAULT_METRICS: readonly MetricKey[] = ['reputation', 'techDebt'];
+const DEFAULT_METRICS: readonly MetricKey[] = ['reputation', 'techDebt', 'coins'];
 
 export const applyDecisionEffects = (
   skills: Skill[],
@@ -14,6 +14,7 @@ export const applyDecisionEffects = (
   const nextSkillLevels = { ...progress.skillLevels };
   let reputation = progress.reputation;
   let techDebt = progress.techDebt;
+  let coins = progress.coins;
 
   for (const [key, delta] of Object.entries(effects)) {
     if (metricKeys.includes(key as MetricKey)) {
@@ -21,6 +22,8 @@ export const applyDecisionEffects = (
         reputation += delta;
       } else if (key === 'techDebt') {
         techDebt += delta;
+      } else if (key === 'coins') {
+        coins += delta;
       }
       continue;
     }
@@ -35,6 +38,7 @@ export const applyDecisionEffects = (
       skillLevels: nextSkillLevels,
       reputation,
       techDebt,
+      coins: Math.max(0, coins),
     },
   };
 };
