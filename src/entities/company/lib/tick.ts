@@ -5,6 +5,7 @@ import { getCompanyModifiersFromAssignments } from './assignments';
 import type {
   Company,
   CompanyLedgerEntry,
+  CompanyLedgerReason,
   CompanyTickReason,
   Employee,
 } from '../model/company.model';
@@ -120,13 +121,39 @@ const resolveLedgerCreatedAt = (tickIndex: number): string => {
   return new Date(base + offsetMs).toISOString();
 };
 
-const buildLedgerTitle = (reason: CompanyTickReason): string => {
+const buildLedgerTitle = (reason: CompanyTickReason, incidentHappened: boolean): string => {
+  if (incidentHappened) {
+    return 'Инцидент в проде';
+  }
   const label: Record<CompanyTickReason, string> = {
     scenario: 'сценарий',
     exam: 'экзамен',
     manual: 'ручной',
   };
   return `Тик компании (${label[reason] ?? reason})`;
+};
+
+const resolveLedgerReason = (
+  reason: CompanyTickReason,
+  incidentHappened: boolean,
+): CompanyLedgerReason => (incidentHappened ? 'incident' : reason);
+
+const clampLedgerLines = (lines: string[]): string[] => {
+  const maxLines = 6;
+  const maxLength = 120;
+  return lines
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(0, maxLines)
+    .map((line) => (line.length > maxLength ? `${line.slice(0, maxLength - 3)}...` : line));
+};
+
+const resolveAverageMorale = (employees: Employee[]): number => {
+  if (employees.length === 0) {
+    return 0;
+  }
+  const total = employees.reduce((sum, employee) => sum + (employee.morale ?? 0), 0);
+  return total / employees.length;
 };
 
 export const runCompanyTick = ({
@@ -243,11 +270,15 @@ export const runCompanyTick = ({
 
   const moraleMin = moraleBalance?.min ?? 0;
   const moraleMax = moraleBalance?.max ?? 100;
+  const avgMoraleBefore = resolveAverageMorale(employees);
 
   const nextEmployees = employees.map((employee) => ({
     ...employee,
     morale: clamp(round(employee.morale + moraleDelta), moraleMin, moraleMax),
   }));
+
+  const avgMoraleAfter = resolveAverageMorale(nextEmployees);
+  const avgMoraleDelta = avgMoraleAfter - avgMoraleBefore;
 
   const nextCompany: Company = {
     ...company,
@@ -255,34 +286,36 @@ export const runCompanyTick = ({
     employees: nextEmployees,
   };
 
-  const ledgerLines: string[] = [
+  const netCash = round(income - salaries - (incident?.costCash ?? 0));
+  const ledgerLines = clampLedgerLines([
     `Доход: +${round(income)} cash`,
     `Зарплаты: -${round(salaries)} cash`,
-    `Итог за тик: ${formatSigned(cashDelta)} cash`,
-    `Баланс: ${formatSigned(nextCompany.cash)} cash`,
-    `Мораль: ${formatSigned(moraleDelta)}`,
-    `Шанс инцидента: ${Math.round(incidentChance * 1000) / 10}%`,
-    incident?.happened
-      ? `Инцидент: да (-${incident.costCash} cash, -${incident.repPenalty} реп.)`
-      : 'Инцидент: нет',
-  ];
-
-  if (techDebtDelta !== 0) {
-    ledgerLines.push(`Техдолг: ${formatSigned(techDebtDelta)}`);
-  }
-  if (reputationDelta !== 0) {
-    ledgerLines.push(`Репутация: ${formatSigned(reputationDelta)}`);
-  }
-  if (isCrisis) {
-    ledgerLines.push('Кризис: cash ниже нуля — штраф репутации/морали');
-  }
+    `Итог: ${formatSigned(netCash)} cash`,
+    incident?.happened ? `Инцидент: -${incident.costCash} cash` : '',
+    `Репутация: ${formatSigned(reputationDelta)}`,
+    `Cash после: ${round(nextCompany.cash)}`,
+    isCrisis ? 'Кризис: cash ниже нуля — штраф репутации/морали' : '',
+  ]);
 
   const ledgerEntry: CompanyLedgerEntry = {
     id: resolveLedgerId(`${seed}:tick:${tickIndex}:${reason}`),
-    title: buildLedgerTitle(reason),
-    lines: ledgerLines,
+    title: buildLedgerTitle(reason, Boolean(incident?.happened)),
     createdAtIso: resolveLedgerCreatedAt(tickIndex),
-    reason,
+    reason: resolveLedgerReason(reason, Boolean(incident?.happened)),
+    delta: {
+      incomeCash: round(income),
+      salariesCash: round(salaries),
+      incidentCash: incident?.costCash,
+      netCash,
+      reputationDelta: round(reputationDelta),
+      moraleDelta: round(avgMoraleDelta),
+    },
+    balanceAfter: {
+      cash: round(nextCompany.cash),
+      reputation: round(state.reputation + reputationDelta),
+      avgMorale: round(avgMoraleAfter),
+    },
+    lines: ledgerLines.length > 0 ? ledgerLines : undefined,
   };
 
   return {

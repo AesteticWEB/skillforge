@@ -27,9 +27,10 @@ import {
 import {
   Company,
   CompanyLedgerEntry,
+  CompanyLedgerReason,
   CompanyLevel,
+  COMPANY_LEDGER_REASONS,
   COMPANY_LEVELS,
-  COMPANY_TICK_REASONS,
   CompanyTickReason,
   EMPLOYEE_ASSIGNMENTS,
   Employee,
@@ -981,7 +982,7 @@ export class AppStore {
       return;
     }
 
-    const cashDelta = normalizedCash - companyBefore.cash;
+    const cashDelta = result.ledgerEntry.delta.netCash;
     const signedDelta = `${cashDelta >= 0 ? '+' : ''}${this.formatNumber(Math.abs(cashDelta))}`;
     this.notificationsStore.success(`Компания: ${signedDelta} cash (доход - зарплаты)`);
   }
@@ -2780,9 +2781,70 @@ export class AppStore {
     if (!Array.isArray(value)) {
       return [];
     }
-    return value.filter((entry): entry is CompanyLedgerEntry =>
-      this.isValidCompanyLedgerEntry(entry),
-    );
+    const normalized: CompanyLedgerEntry[] = [];
+    for (const entry of value) {
+      if (this.isValidCompanyLedgerEntry(entry)) {
+        normalized.push(this.sanitizeLedgerEntry(entry));
+      }
+    }
+    return normalized.slice(0, 50);
+  }
+
+  private sanitizeLedgerEntry(entry: CompanyLedgerEntry): CompanyLedgerEntry {
+    const lines = this.normalizeLedgerLines(entry.lines);
+    return {
+      ...entry,
+      delta: {
+        incomeCash: this.normalizeLedgerNumber(entry.delta.incomeCash),
+        salariesCash: this.normalizeLedgerNumber(entry.delta.salariesCash),
+        incidentCash:
+          typeof entry.delta.incidentCash === 'number' && Number.isFinite(entry.delta.incidentCash)
+            ? entry.delta.incidentCash
+            : undefined,
+        netCash: this.normalizeLedgerNumber(entry.delta.netCash),
+        reputationDelta: this.normalizeLedgerNumber(entry.delta.reputationDelta),
+        moraleDelta:
+          typeof entry.delta.moraleDelta === 'number' && Number.isFinite(entry.delta.moraleDelta)
+            ? entry.delta.moraleDelta
+            : undefined,
+      },
+      balanceAfter: {
+        cash: this.normalizeLedgerNumber(entry.balanceAfter.cash),
+        reputation:
+          typeof entry.balanceAfter.reputation === 'number' &&
+          Number.isFinite(entry.balanceAfter.reputation)
+            ? entry.balanceAfter.reputation
+            : undefined,
+        avgMorale:
+          typeof entry.balanceAfter.avgMorale === 'number' &&
+          Number.isFinite(entry.balanceAfter.avgMorale)
+            ? entry.balanceAfter.avgMorale
+            : undefined,
+      },
+      lines: lines && lines.length > 0 ? lines : undefined,
+    };
+  }
+
+  private normalizeLedgerLines(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const maxLines = 6;
+    const maxLength = 120;
+    const cleaned = value
+      .filter((line): line is string => typeof line === 'string')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .slice(0, maxLines)
+      .map((line) => (line.length > maxLength ? `${line.slice(0, maxLength - 3)}...` : line));
+    return cleaned.length > 0 ? cleaned : undefined;
+  }
+
+  private normalizeLedgerNumber(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.round(value);
   }
 
   private appendCompanyLedger(
@@ -2790,8 +2852,9 @@ export class AppStore {
     entry: CompanyLedgerEntry,
   ): CompanyLedgerEntry[] {
     const maxEntries = 50;
-    const merged = [...current, entry];
-    return merged.length > maxEntries ? merged.slice(-maxEntries) : merged;
+    const sanitized = this.sanitizeLedgerEntry(entry);
+    const merged = [sanitized, ...current];
+    return merged.slice(0, maxEntries);
   }
 
   private normalizeCandidatesPool(value: unknown): Candidate[] {
@@ -2962,17 +3025,51 @@ export class AppStore {
     if (typeof value['title'] !== 'string') {
       return false;
     }
-    if (
-      !Array.isArray(value['lines']) ||
-      !value['lines'].every((line) => typeof line === 'string')
-    ) {
-      return false;
-    }
     if (typeof value['createdAtIso'] !== 'string') {
       return false;
     }
-    if (!this.isCompanyTickReason(value['reason'])) {
+    if (!this.isCompanyLedgerReason(value['reason'])) {
       return false;
+    }
+    const delta = value['delta'];
+    if (!this.isRecord(delta)) {
+      return false;
+    }
+    if (typeof delta['incomeCash'] !== 'number' || typeof delta['salariesCash'] !== 'number') {
+      return false;
+    }
+    if (typeof delta['netCash'] !== 'number' || typeof delta['reputationDelta'] !== 'number') {
+      return false;
+    }
+    if (delta['incidentCash'] !== undefined && typeof delta['incidentCash'] !== 'number') {
+      return false;
+    }
+    if (delta['moraleDelta'] !== undefined && typeof delta['moraleDelta'] !== 'number') {
+      return false;
+    }
+    const balanceAfter = value['balanceAfter'];
+    if (!this.isRecord(balanceAfter)) {
+      return false;
+    }
+    if (typeof balanceAfter['cash'] !== 'number') {
+      return false;
+    }
+    if (
+      balanceAfter['reputation'] !== undefined &&
+      typeof balanceAfter['reputation'] !== 'number'
+    ) {
+      return false;
+    }
+    if (balanceAfter['avgMorale'] !== undefined && typeof balanceAfter['avgMorale'] !== 'number') {
+      return false;
+    }
+    if (value['lines'] !== undefined) {
+      if (
+        !Array.isArray(value['lines']) ||
+        !value['lines'].every((line) => typeof line === 'string')
+      ) {
+        return false;
+      }
     }
     return true;
   }
@@ -3203,8 +3300,10 @@ export class AppStore {
     return typeof value === 'string' && (COMPANY_LEVELS as readonly string[]).includes(value);
   }
 
-  private isCompanyTickReason(value: unknown): value is CompanyTickReason {
-    return typeof value === 'string' && (COMPANY_TICK_REASONS as readonly string[]).includes(value);
+  private isCompanyLedgerReason(value: unknown): value is CompanyLedgerReason {
+    return (
+      typeof value === 'string' && (COMPANY_LEDGER_REASONS as readonly string[]).includes(value)
+    );
   }
 
   private logDevError(message: string, payload: unknown): void {

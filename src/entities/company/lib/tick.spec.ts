@@ -50,7 +50,8 @@ describe('runCompanyTick', () => {
     expect(first.nextCompany.cash).toBe(second.nextCompany.cash);
     expect(first.nextCompany.employees[0]?.morale).toBe(second.nextCompany.employees[0]?.morale);
     expect(first.incident?.happened).toBe(second.incident?.happened);
-    expect(first.ledgerEntry.lines).toEqual(second.ledgerEntry.lines);
+    expect(first.ledgerEntry.delta).toEqual(second.ledgerEntry.delta);
+    expect(first.ledgerEntry.balanceAfter).toEqual(second.ledgerEntry.balanceAfter);
   });
 
   it('changes results with a different tick index', () => {

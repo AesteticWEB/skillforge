@@ -3,10 +3,12 @@ import type { CandidateTrait } from '@/features/hiring';
 export const COMPANY_LEVELS = ['none', 'lead', 'manager', 'director', 'cto'] as const;
 export const EMPLOYEE_ASSIGNMENTS = ['delivery', 'refactor', 'qa', 'ops', 'sales'] as const;
 export const COMPANY_TICK_REASONS = ['scenario', 'exam', 'manual'] as const;
+export const COMPANY_LEDGER_REASONS = ['scenario', 'exam', 'manual', 'incident'] as const;
 
 export type CompanyLevel = (typeof COMPANY_LEVELS)[number];
 export type EmployeeAssignment = (typeof EMPLOYEE_ASSIGNMENTS)[number];
 export type CompanyTickReason = (typeof COMPANY_TICK_REASONS)[number];
+export type CompanyLedgerReason = (typeof COMPANY_LEDGER_REASONS)[number];
 
 export interface Employee {
   id: string;
@@ -23,9 +25,22 @@ export interface Employee {
 export interface CompanyLedgerEntry {
   id: string;
   title: string;
-  lines: string[];
   createdAtIso: string;
-  reason: CompanyTickReason;
+  reason: CompanyLedgerReason;
+  delta: {
+    incomeCash: number;
+    salariesCash: number;
+    incidentCash?: number;
+    netCash: number;
+    reputationDelta: number;
+    moraleDelta?: number;
+  };
+  balanceAfter: {
+    cash: number;
+    reputation?: number;
+    avgMorale?: number;
+  };
+  lines?: string[];
 }
 
 export interface Company {

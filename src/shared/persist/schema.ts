@@ -135,7 +135,7 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
   const unlocked = typeof base.unlocked === 'boolean' ? base.unlocked : false;
   const onboardingSeen = typeof base.onboardingSeen === 'boolean' ? base.onboardingSeen : false;
   const employees = Array.isArray(base.employees) ? base.employees : [];
-  const ledger = Array.isArray(base.ledger) ? base.ledger : [];
+  const ledger = Array.isArray(base.ledger) ? base.ledger.slice(0, 50) : [];
 
   return {
     ...base,

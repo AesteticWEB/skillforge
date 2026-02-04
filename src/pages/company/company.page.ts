@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+﻿import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { AppStore } from '@/app/store/app.store';
 import type {
   Contract,
@@ -9,6 +16,7 @@ import type {
 import {
   ASSIGNMENT_LABELS,
   ASSIGNMENT_OPTIONS,
+  CompanyLedgerReason,
   EmployeeAssignment,
   getCompanyModifiersFromAssignments,
 } from '@/entities/company';
@@ -34,6 +42,13 @@ const ROLE_LABELS: Record<CandidateRole, string> = {
   senior: 'Сеньор',
 };
 
+const LEDGER_REASON_LABELS: Record<CompanyLedgerReason, string> = {
+  scenario: 'Сценарий',
+  exam: 'Экзамен',
+  manual: 'Ручной',
+  incident: 'Инцидент',
+};
+
 @Component({
   selector: 'app-company-page',
   imports: [CardComponent, ButtonComponent, EmptyStateComponent, HiringCandidatesPanelComponent],
@@ -44,6 +59,10 @@ const ROLE_LABELS: Record<CandidateRole, string> = {
 export class CompanyPage implements OnInit {
   private readonly store = inject(AppStore);
   private readonly numberFormatter = new Intl.NumberFormat('ru-RU');
+  private readonly dateTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 
   protected readonly availableContracts = this.store.availableContracts;
   protected readonly activeContracts = this.store.activeContracts;
@@ -67,6 +86,14 @@ export class CompanyPage implements OnInit {
   protected readonly assignmentOptions = ASSIGNMENT_OPTIONS;
   protected readonly assignmentSummary = computed(() =>
     getCompanyModifiersFromAssignments(this.employees()),
+  );
+  private readonly ledgerVisibleCount = signal(10);
+  protected readonly companyLedger = computed(() => this.company().ledger ?? []);
+  protected readonly visibleLedger = computed(() =>
+    this.companyLedger().slice(0, this.ledgerVisibleCount()),
+  );
+  protected readonly canShowMoreLedger = computed(
+    () => this.companyLedger().length > this.ledgerVisibleCount(),
   );
 
   ngOnInit(): void {
@@ -114,6 +141,35 @@ export class CompanyPage implements OnInit {
 
   protected dismissOnboarding(): void {
     this.store.setCompanyOnboardingSeen(true);
+  }
+
+  protected showMoreLedger(): void {
+    const next = Math.min(this.companyLedger().length, this.ledgerVisibleCount() + 10);
+    this.ledgerVisibleCount.set(next);
+  }
+
+  protected formatLedgerDateTime(value: string): string {
+    if (!value) {
+      return '';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+    return this.dateTimeFormatter.format(date);
+  }
+
+  protected formatLedgerReason(reason: CompanyLedgerReason): string {
+    return LEDGER_REASON_LABELS[reason] ?? reason;
+  }
+
+  protected formatSignedValue(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? '+' : rounded < 0 ? '-' : '';
+    return `${sign}${this.formatNumber(Math.abs(rounded))}`;
   }
 
   protected formatReward(reward: ContractReward): string {
