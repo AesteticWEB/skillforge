@@ -52,6 +52,19 @@ import {
   createIncidentFromRoll,
 } from '@/entities/incidents';
 import {
+  FinaleChoiceId,
+  FinaleHistoryEntry,
+  FinaleState,
+  FinaleStep,
+  FinaleStepId,
+  FINALE_CHAIN_IDS,
+  FINALE_CHOICE_IDS,
+  FINALE_STEP_IDS,
+  createEmptyFinaleState,
+  resolveFinaleEndingId,
+  resolveFinaleStep,
+} from '@/entities/finale';
+import {
   CompletedContractEntry,
   Contract,
   ContractProgressEvent,
@@ -220,6 +233,7 @@ const createEmptyProgress = (): Progress => ({
   candidatesPool: [],
   candidatesRefreshIndex: 0,
   companyTickIndex: 0,
+  finale: createEmptyFinaleState(),
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -279,6 +293,7 @@ export class AppStore {
   readonly activeContracts = computed(() => this._progress().activeContracts);
   readonly sessionQuests = computed(() => this._progress().sessionQuests);
   readonly candidatesPool = computed(() => this._progress().candidatesPool);
+  readonly finale = computed(() => this._progress().finale);
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -1260,6 +1275,9 @@ export class AppStore {
         onboardingSeen: false,
       };
     });
+    if (unlocked) {
+      this.checkFinaleUnlock();
+    }
   }
 
   setCompanyLevel(level: CompanyLevel): void {
@@ -1271,6 +1289,7 @@ export class AppStore {
       ...company,
       level,
     }));
+    this.checkFinaleUnlock();
   }
 
   setCompanyOnboardingSeen(seen: boolean): void {
@@ -1320,6 +1339,279 @@ export class AppStore {
         stage: this.careerStage(),
       });
     }
+  }
+
+  checkFinaleUnlock(): void {
+    const finale = this._progress().finale;
+    if (finale.unlocked) {
+      return;
+    }
+    const company = this._company();
+    if (!company.unlocked) {
+      return;
+    }
+    if (company.level !== 'cto') {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      finale: {
+        ...progress.finale,
+        unlocked: true,
+      },
+    }));
+  }
+
+  startFinaleChain(): void {
+    const finale = this._progress().finale;
+    if (!finale.unlocked) {
+      this.notificationsStore.error('Финал ещё закрыт.');
+      return;
+    }
+    if (this._company().level !== 'cto') {
+      this.notificationsStore.error('Финал доступен только на уровне CTO.');
+      return;
+    }
+    if (finale.finished) {
+      this.notificationsStore.error('Финал уже завершён.');
+      return;
+    }
+    if (finale.active) {
+      this.notificationsStore.error('Финал уже идёт.');
+      return;
+    }
+
+    const startStep = resolveFinaleStep('board_meeting', 'bm_1', finale.branchFlags);
+    if (!startStep) {
+      this.logDevError('finale-start-step-missing', { chainId: finale.chainId });
+      return;
+    }
+
+    this._progress.update((progress) => ({
+      ...progress,
+      finale: {
+        ...progress.finale,
+        unlocked: true,
+        active: true,
+        chainId: 'board_meeting',
+        currentStepId: 'bm_1',
+        completedStepIds: [],
+        history: [],
+        branchFlags: {},
+        finished: false,
+        endingId: undefined,
+      },
+    }));
+  }
+
+  chooseFinaleOption(choiceId: FinaleChoiceId): void {
+    const progress = this._progress();
+    const finale = progress.finale;
+    if (!finale.active || finale.finished) {
+      return;
+    }
+
+    const step = resolveFinaleStep(finale.chainId, finale.currentStepId, finale.branchFlags);
+    if (!step) {
+      this.logDevError('finale-step-missing', {
+        chainId: finale.chainId,
+        stepId: finale.currentStepId,
+      });
+      this._progress.update((current) => ({
+        ...current,
+        finale: {
+          ...current.finale,
+          active: false,
+        },
+      }));
+      return;
+    }
+
+    const choice = step.choices.find((entry) => entry.id === choiceId);
+    if (!choice) {
+      this.logDevError('finale-choice-missing', {
+        stepId: step.id,
+        choiceId,
+      });
+      return;
+    }
+
+    const updatedFlags = this.applyFinaleBranchFlags(step.id, choice.id, finale.branchFlags);
+    const nextCompleted = this.appendFinaleCompletedStep(finale.completedStepIds, step.id);
+    const nextHistory = [
+      ...finale.history,
+      { stepId: step.id, choiceId: choice.id, atIso: new Date().toISOString() },
+    ];
+
+    const nextInfo = this.resolveFinaleNextStep({
+      step,
+      choice,
+      completedStepIds: nextCompleted,
+      branchFlags: updatedFlags,
+    });
+    if (nextInfo.failed) {
+      this._progress.update((current) => ({
+        ...current,
+        finale: {
+          ...current.finale,
+          active: false,
+        },
+      }));
+      return;
+    }
+    const nextStep = nextInfo.nextStep;
+    if (nextStep && !resolveFinaleStep(finale.chainId, nextStep, updatedFlags)) {
+      this.logDevError('finale-next-step-missing', {
+        chainId: finale.chainId,
+        stepId: nextStep,
+      });
+      this._progress.update((current) => ({
+        ...current,
+        finale: {
+          ...current.finale,
+          active: false,
+        },
+      }));
+      return;
+    }
+
+    const effects = choice.effects ?? {};
+    const cashDelta = effects.cashDelta ?? 0;
+    const reputationDelta = effects.reputationDelta ?? 0;
+    const techDebtDelta = effects.techDebtDelta ?? 0;
+    const moraleDelta = effects.moraleDelta ?? 0;
+
+    const company = this._company();
+    const nextCash = this.normalizeCash(company.cash + cashDelta);
+    const nextEmployees =
+      moraleDelta !== 0
+        ? company.employees.map((employee) => ({
+            ...employee,
+            morale: this.normalizeEmployeeMorale(employee.morale + moraleDelta),
+          }))
+        : company.employees;
+
+    const nextReputation = this.normalizeReputation(progress.reputation + reputationDelta);
+    const nextTechDebt = this.normalizeTechDebt(progress.techDebt + techDebtDelta);
+
+    let endingId: string | undefined;
+    const isFinished = nextStep === null;
+    if (isFinished) {
+      endingId = resolveFinaleEndingId({
+        branchFlags: updatedFlags,
+        cash: nextCash,
+        reputation: nextReputation,
+        techDebt: nextTechDebt,
+      });
+    }
+
+    this._company.update((current) => ({
+      ...current,
+      cash: nextCash,
+      employees: nextEmployees,
+    }));
+
+    this._progress.update((current) => ({
+      ...current,
+      reputation: nextReputation,
+      techDebt: nextTechDebt,
+      finale: {
+        ...current.finale,
+        branchFlags: updatedFlags,
+        completedStepIds: nextCompleted,
+        history: nextHistory,
+        currentStepId: nextStep ?? current.finale.currentStepId,
+        active: !isFinished,
+        finished: isFinished ? true : current.finale.finished,
+        endingId: endingId ?? current.finale.endingId,
+      },
+    }));
+  }
+
+  isFinaleStepAllowed(stepId: FinaleStepId): boolean {
+    const finale = this._progress().finale;
+    if (!finale.active) {
+      return false;
+    }
+    if (finale.currentStepId === stepId) {
+      return true;
+    }
+    return finale.completedStepIds.includes(stepId);
+  }
+
+  private applyFinaleBranchFlags(
+    stepId: FinaleStepId,
+    choiceId: FinaleChoiceId,
+    currentFlags: Record<string, boolean>,
+  ): Record<string, boolean> {
+    const flags = { ...currentFlags };
+    if (stepId === 'bm_1') {
+      if (choiceId === 'a') {
+        flags['aggressive'] = true;
+      }
+      if (choiceId === 'b') {
+        flags['stability'] = true;
+      }
+      if (choiceId === 'c') {
+        flags['balanced'] = true;
+      }
+    }
+    if (stepId === 'bm_2') {
+      if (choiceId === 'a') {
+        flags['stability'] = true;
+      }
+      if (choiceId === 'b') {
+        flags['aggressive'] = true;
+        flags['fastTrackDeal'] = true;
+      }
+      if (choiceId === 'c') {
+        flags['ethical'] = true;
+      }
+    }
+    if (stepId === 'bm_3' && choiceId === 'b') {
+      flags['ethical'] = true;
+    }
+    return flags;
+  }
+
+  private appendFinaleCompletedStep(current: FinaleStepId[], stepId: FinaleStepId): FinaleStepId[] {
+    if (current.includes(stepId)) {
+      return current;
+    }
+    return [...current, stepId];
+  }
+
+  private resolveFinaleNextStep(params: {
+    step: FinaleStep;
+    choice: FinaleStep['choices'][number];
+    completedStepIds: FinaleStepId[];
+    branchFlags: Record<string, boolean>;
+  }): { nextStep: FinaleStepId | null; failed: boolean } {
+    let nextStep = params.choice.nextStep ?? params.step.defaultNext;
+    if (nextStep === null) {
+      return { nextStep: null, failed: false };
+    }
+
+    if (params.branchFlags['fastTrackDeal']) {
+      if (params.step.id === 'bm_4' && !params.completedStepIds.includes('bm_3')) {
+        nextStep = 'bm_3';
+      }
+      if (params.step.id === 'bm_3' && params.completedStepIds.includes('bm_4')) {
+        nextStep = 'bm_5';
+      }
+    }
+
+    if (!this.isFinaleStepId(nextStep)) {
+      this.logDevError('finale-next-step-invalid', { stepId: params.step.id, nextStep });
+      return { nextStep: null, failed: true };
+    }
+
+    if (params.completedStepIds.includes(nextStep)) {
+      this.logDevWarn('finale-next-step-completed', { stepId: params.step.id, nextStep });
+      return { nextStep: null, failed: true };
+    }
+
+    return { nextStep, failed: false };
   }
 
   logout(): void {
@@ -1373,6 +1665,7 @@ export class AppStore {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
+      finale: createEmptyFinaleState(),
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -1545,6 +1838,7 @@ export class AppStore {
     }
 
     this.checkAndUnlockCompany({ allowLegacy: options.allowLegacy });
+    this.checkFinaleUnlock();
     return { ok: true };
   }
 
@@ -2268,6 +2562,7 @@ export class AppStore {
       candidatesPool: this.normalizeCandidatesPool(progress.candidatesPool),
       candidatesRefreshIndex: this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex),
       companyTickIndex: this.normalizeCompanyTickIndex(progress.companyTickIndex),
+      finale: this.normalizeFinaleState(progress.finale),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -2364,6 +2659,7 @@ export class AppStore {
       value['candidatesRefreshIndex'],
     );
     const companyTickIndex = value['companyTickIndex'];
+    const finale = this.normalizeFinaleState(value['finale']);
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -2402,6 +2698,7 @@ export class AppStore {
       candidatesPool,
       candidatesRefreshIndex,
       companyTickIndex: this.normalizeCompanyTickIndex(companyTickIndex),
+      finale,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -3107,6 +3404,88 @@ export class AppStore {
     return Math.max(0, Math.floor(value));
   }
 
+  private normalizeFinaleState(value: unknown): FinaleState {
+    if (!this.isRecord(value)) {
+      return createEmptyFinaleState();
+    }
+    const chainId = this.isFinaleChainId(value['chainId'])
+      ? (value['chainId'] as FinaleState['chainId'])
+      : 'board_meeting';
+    const currentStepId = this.isFinaleStepId(value['currentStepId'])
+      ? (value['currentStepId'] as FinaleStepId)
+      : 'bm_1';
+    const completedStepIds = this.normalizeFinaleStepIds(value['completedStepIds']);
+    const history = this.normalizeFinaleHistory(value['history']);
+    const branchFlags = this.normalizeFinaleBranchFlags(value['branchFlags']);
+    const unlocked = typeof value['unlocked'] === 'boolean' ? value['unlocked'] : false;
+    const active = typeof value['active'] === 'boolean' ? value['active'] : false;
+    const finished = typeof value['finished'] === 'boolean' ? value['finished'] : false;
+    const endingId = typeof value['endingId'] === 'string' ? value['endingId'] : undefined;
+
+    return {
+      ...createEmptyFinaleState(),
+      unlocked,
+      active,
+      chainId,
+      currentStepId,
+      completedStepIds,
+      history,
+      branchFlags,
+      finished,
+      endingId,
+    };
+  }
+
+  private normalizeFinaleStepIds(value: unknown): FinaleStepId[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const unique = new Set<FinaleStepId>();
+    for (const entry of value) {
+      if (this.isFinaleStepId(entry)) {
+        unique.add(entry);
+      }
+    }
+    return Array.from(unique);
+  }
+
+  private normalizeFinaleHistory(value: unknown): FinaleHistoryEntry[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: FinaleHistoryEntry[] = [];
+    for (const entry of value) {
+      if (!this.isRecord(entry)) {
+        continue;
+      }
+      if (!this.isFinaleStepId(entry['stepId']) || !this.isFinaleChoiceId(entry['choiceId'])) {
+        continue;
+      }
+      if (typeof entry['atIso'] !== 'string') {
+        continue;
+      }
+      normalized.push({
+        stepId: entry['stepId'],
+        choiceId: entry['choiceId'],
+        atIso: entry['atIso'],
+      });
+    }
+    return normalized;
+  }
+
+  private normalizeFinaleBranchFlags(value: unknown): Record<string, boolean> {
+    if (!this.isRecord(value)) {
+      return {};
+    }
+    const normalized: Record<string, boolean> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (typeof entry === 'boolean') {
+        normalized[key] = entry;
+      }
+    }
+    return normalized;
+  }
+
   private normalizeEmployee(value: unknown): Employee | null {
     if (!this.isRecord(value)) {
       return null;
@@ -3613,6 +3992,18 @@ export class AppStore {
 
   private isIncidentSource(value: unknown): value is 'tick' {
     return typeof value === 'string' && (INCIDENT_SOURCES as readonly string[]).includes(value);
+  }
+
+  private isFinaleChainId(value: unknown): value is FinaleState['chainId'] {
+    return typeof value === 'string' && (FINALE_CHAIN_IDS as readonly string[]).includes(value);
+  }
+
+  private isFinaleStepId(value: unknown): value is FinaleStepId {
+    return typeof value === 'string' && (FINALE_STEP_IDS as readonly string[]).includes(value);
+  }
+
+  private isFinaleChoiceId(value: unknown): value is FinaleChoiceId {
+    return typeof value === 'string' && (FINALE_CHOICE_IDS as readonly string[]).includes(value);
   }
 
   private logDevError(message: string, payload: unknown): void {

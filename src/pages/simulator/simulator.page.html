@@ -103,6 +103,83 @@
       <div
         class="mt-8 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4 text-sm text-slate-300"
       >
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Финал</div>
+            <div class="mt-1 text-lg font-semibold text-slate-100">Board Meeting</div>
+            <div class="mt-1 text-sm text-slate-400">
+              Заключительная цепочка решений, доступная на уровне CTO.
+            </div>
+          </div>
+          @if (
+            finaleUnlocked() && !finaleActive() && !finaleFinished() && company().level === 'cto'
+          ) {
+            <sf-button type="button" (click)="startFinale()">Начать Board Meeting</sf-button>
+          }
+        </div>
+
+        @if (!finaleUnlocked() && !finaleActive() && !finaleFinished()) {
+          <div class="mt-4 text-sm text-slate-400">Откроется на уровне CTO.</div>
+        }
+        @if (
+          finaleUnlocked() && !finaleActive() && !finaleFinished() && company().level !== 'cto'
+        ) {
+          <div class="mt-4 text-sm text-amber-200">Нужен уровень CTO для запуска финала.</div>
+        }
+
+        @if (finaleWarning()) {
+          <div
+            class="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs text-amber-200"
+          >
+            Внимание: уровень компании ниже CTO, но финал продолжается.
+          </div>
+        }
+
+        @if (finaleActive()) {
+          <div class="mt-4 text-xs text-slate-500">
+            Шаг {{ finaleStepIndex() }} из {{ finaleStepTotal }}
+          </div>
+          @if (finaleStep(); as step) {
+            <div class="mt-2 text-lg font-semibold text-slate-100">{{ step.title }}</div>
+            <div class="mt-2 whitespace-pre-line text-sm text-slate-300">
+              {{ formatFinaleNarrative(step) }}
+            </div>
+            <div class="mt-4 grid gap-3">
+              @for (choice of step.choices; track choice.id) {
+                <button
+                  type="button"
+                  class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60"
+                  (click)="chooseFinaleChoice(choice.id)"
+                >
+                  <div class="text-sm font-semibold text-slate-100">{{ choice.title }}</div>
+                  @if (choice.description) {
+                    <div class="mt-1 text-xs text-slate-400">{{ choice.description }}</div>
+                  }
+                </button>
+              }
+            </div>
+          } @else {
+            <div class="mt-3 text-sm text-rose-300">Шаг финала не найден.</div>
+          }
+        } @else if (finaleFinished()) {
+          <div class="mt-4 text-sm font-semibold text-slate-100">
+            Итог совета директоров: {{ formatFinaleEndingTitle() }}
+          </div>
+          <div class="mt-2 text-sm text-slate-300">{{ formatFinaleEndingSummary() }}</div>
+          <div class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Ключевые решения
+          </div>
+          <div class="mt-2 grid gap-1 text-xs text-slate-400">
+            @for (line of finaleSummary(); track line) {
+              <div>{{ line }}</div>
+            }
+          </div>
+        }
+      </div>
+
+      <div
+        class="mt-8 rounded-2xl border border-slate-800/80 bg-slate-950/40 px-5 py-4 text-sm text-slate-300"
+      >
         <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
           Что делать дальше
         </div>

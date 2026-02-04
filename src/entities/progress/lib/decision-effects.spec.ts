@@ -1,5 +1,6 @@
 import { DecisionEffects } from '@/entities/decision';
 import { applyDecisionEffects, Progress } from '@/entities/progress';
+import { createEmptyFinaleState } from '@/entities/finale';
 import { Skill } from '@/entities/skill';
 import { BALANCE } from '@/shared/config';
 
@@ -21,6 +22,7 @@ describe('decision effects', () => {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
+      finale: createEmptyFinaleState(),
       specializationId: null,
       reputation: 0,
       techDebt: 0,

@@ -5,6 +5,7 @@ import {
   Progress,
   undoLastDecision,
 } from '@/entities/progress';
+import { createEmptyFinaleState } from '@/entities/finale';
 import { BALANCE } from '@/shared/config';
 
 describe('decision history undo', () => {
@@ -28,6 +29,7 @@ describe('decision history undo', () => {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
+      finale: createEmptyFinaleState(),
       specializationId: null,
       reputation: reputationGain,
       techDebt: techDebtGain * 2,

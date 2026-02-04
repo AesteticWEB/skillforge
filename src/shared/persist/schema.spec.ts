@@ -1,3 +1,4 @@
+import { createEmptyFinaleState } from '@/entities/finale';
 import { migratePersistedState, PERSIST_SCHEMA_VERSION } from '@/shared/persist/schema';
 
 describe('persist schema migration', () => {
@@ -46,6 +47,7 @@ describe('persist schema migration', () => {
         candidatesPool: [],
         candidatesRefreshIndex: 0,
         companyTickIndex: 0,
+        finale: createEmptyFinaleState(),
       },
       company: {
         cash: 0,
@@ -107,6 +109,7 @@ describe('persist schema migration', () => {
         candidatesPool: [],
         candidatesRefreshIndex: 0,
         companyTickIndex: 0,
+        finale: createEmptyFinaleState(),
       },
       company: {
         ...v4.company,

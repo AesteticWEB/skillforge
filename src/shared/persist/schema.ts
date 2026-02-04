@@ -3,6 +3,7 @@ import { COMPANY_LEVELS } from '@/entities/company';
 import type { Inventory } from '@/entities/inventory';
 import { normalizeOwnedItemIds } from '@/entities/inventory';
 import type { Progress } from '@/entities/progress';
+import { createEmptyFinaleState } from '@/entities/finale';
 import type { User } from '@/entities/user';
 import type { FeatureFlags } from '@/shared/config';
 
@@ -108,6 +109,7 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     typeof base.companyTickIndex === 'number' && Number.isFinite(base.companyTickIndex)
       ? Math.max(0, Math.floor(base.companyTickIndex))
       : 0;
+  const finale = createEmptyFinaleState();
 
   return {
     ...base,
@@ -119,6 +121,7 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     candidatesPool,
     candidatesRefreshIndex,
     companyTickIndex,
+    finale: base.finale ?? finale,
   };
 };
 

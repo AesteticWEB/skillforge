@@ -5,6 +5,7 @@ import type { Quest } from '@/entities/quests';
 import type { Candidate } from '@/features/hiring';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
+import type { FinaleState } from '@/entities/finale';
 
 export type MetricKey = 'reputation' | 'techDebt' | 'coins';
 
@@ -37,6 +38,7 @@ export interface Progress {
   candidatesPool: Candidate[];
   candidatesRefreshIndex: number;
   companyTickIndex: number;
+  finale: FinaleState;
   specializationId: string | null;
   reputation: number;
   techDebt: number;
