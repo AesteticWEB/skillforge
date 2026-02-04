@@ -20,12 +20,14 @@ import {
   EmployeeAssignment,
   getCompanyModifiersFromAssignments,
 } from '@/entities/company';
+import type { IncidentDecision, IncidentDecisionId, IncidentSeverity } from '@/entities/incidents';
 import { HiringCandidatesPanelComponent } from '@/features/hiring';
 import type { CandidateRole } from '@/features/hiring';
 import { BALANCE } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
+import { ModalComponent } from '@/shared/ui/modal';
 
 const MAX_ACTIVE_CONTRACTS = 3;
 
@@ -49,9 +51,21 @@ const LEDGER_REASON_LABELS: Record<CompanyLedgerReason, string> = {
   incident: 'Инцидент',
 };
 
+const INCIDENT_SEVERITY_LABELS: Record<IncidentSeverity, string> = {
+  minor: 'Мелкий',
+  major: 'Крупный',
+  critical: 'Критический',
+};
+
 @Component({
   selector: 'app-company-page',
-  imports: [CardComponent, ButtonComponent, EmptyStateComponent, HiringCandidatesPanelComponent],
+  imports: [
+    CardComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    HiringCandidatesPanelComponent,
+    ModalComponent,
+  ],
   templateUrl: './company.page.html',
   styleUrl: './company.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +82,11 @@ export class CompanyPage implements OnInit {
   protected readonly activeContracts = this.store.activeContracts;
   protected readonly candidatesPool = this.store.candidatesPool;
   protected readonly company = this.store.company;
+  protected readonly activeIncident = computed(() => this.company().activeIncident);
+  protected readonly incidentTitle = computed(() => {
+    const incident = this.activeIncident();
+    return incident ? `Инцидент: ${incident.title}` : '';
+  });
   protected readonly companyUnlocked = this.store.companyUnlocked;
   protected readonly companyOnboardingSeen = this.store.companyOnboardingSeen;
   protected readonly stageLabel = this.store.stageLabel;
@@ -146,6 +165,32 @@ export class CompanyPage implements OnInit {
   protected showMoreLedger(): void {
     const next = Math.min(this.companyLedger().length, this.ledgerVisibleCount() + 10);
     this.ledgerVisibleCount.set(next);
+  }
+
+  protected resolveIncidentDecision(decisionId: IncidentDecisionId): void {
+    this.store.resolveIncident(decisionId);
+  }
+
+  protected formatIncidentSeverity(severity: IncidentSeverity): string {
+    return INCIDENT_SEVERITY_LABELS[severity] ?? severity;
+  }
+
+  protected formatIncidentEffects(decision: IncidentDecision): string {
+    const effects = decision.effects;
+    const parts: string[] = [];
+    if (effects.cashDelta) {
+      parts.push(`${this.formatSignedValue(effects.cashDelta)} cash`);
+    }
+    if (effects.reputationDelta) {
+      parts.push(`репутация ${this.formatSignedValue(effects.reputationDelta)}`);
+    }
+    if (effects.techDebtDelta) {
+      parts.push(`техдолг ${this.formatSignedValue(effects.techDebtDelta)}`);
+    }
+    if (effects.moraleDelta) {
+      parts.push(`мораль ${this.formatSignedValue(effects.moraleDelta)}`);
+    }
+    return parts.length > 0 ? parts.join(', ') : 'Без заметных последствий';
   }
 
   protected formatLedgerDateTime(value: string): string {

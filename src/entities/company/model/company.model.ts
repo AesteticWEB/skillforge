@@ -1,4 +1,5 @@
 import type { CandidateTrait } from '@/features/hiring';
+import type { ActiveIncident, IncidentHistoryEntry } from '@/entities/incidents';
 
 export const COMPANY_LEVELS = ['none', 'lead', 'manager', 'director', 'cto'] as const;
 export const EMPLOYEE_ASSIGNMENTS = ['delivery', 'refactor', 'qa', 'ops', 'sales'] as const;
@@ -50,4 +51,6 @@ export interface Company {
   onboardingSeen: boolean;
   employees: Employee[];
   ledger: CompanyLedgerEntry[];
+  activeIncident: ActiveIncident | null;
+  incidentsHistory: IncidentHistoryEntry[];
 }

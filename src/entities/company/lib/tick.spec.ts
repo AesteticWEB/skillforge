@@ -32,6 +32,8 @@ const createCompany = (overrides: Partial<Company> = {}): Company => ({
   onboardingSeen: overrides.onboardingSeen ?? true,
   employees: overrides.employees ?? [createEmployee()],
   ledger: overrides.ledger ?? [],
+  activeIncident: overrides.activeIncident ?? null,
+  incidentsHistory: overrides.incidentsHistory ?? [],
 });
 
 describe('runCompanyTick', () => {

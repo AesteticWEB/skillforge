@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  HostListener,
+  Input,
+  Output,
+} from '@angular/core';
 
 @Component({
   selector: 'sf-modal',
@@ -11,6 +18,7 @@ export class ModalComponent {
   @Input() open = false;
   @Input() title = '';
   @Input() subtitle?: string;
+  @Input() showClose = true;
   @Input() closeOnBackdrop = true;
   @Input() closeOnEsc = true;
   @Output() closed = new EventEmitter<void>();

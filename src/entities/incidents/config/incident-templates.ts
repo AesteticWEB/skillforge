@@ -1,0 +1,275 @@
+﻿import type { IncidentTemplate } from '../model/incident.model';
+
+export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
+  {
+    id: 'prod-outage',
+    titleRu: 'Падение продакшена',
+    descRu: 'Сервис недоступен, пользователи теряют сессию.',
+    severity: 'major',
+    tags: ['tech', 'ops'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Срочный хотфикс',
+        description: 'Быстро чиним, но оставляем техдолг.',
+        effects: { cashDelta: -600, reputationDelta: 2, techDebtDelta: 2, moraleDelta: -1 },
+      },
+      {
+        id: 'b',
+        title: 'Плановое восстановление',
+        description: 'Вернуть сервис и подготовить нормальный патч.',
+        effects: { cashDelta: -300, reputationDelta: 1, techDebtDelta: 1 },
+      },
+      {
+        id: 'c',
+        title: 'Перезапуск без фикса',
+        description: 'Дёшево и быстро, но риск повторения высокий.',
+        effects: { cashDelta: -50, reputationDelta: -2, techDebtDelta: 3, moraleDelta: -2 },
+      },
+    ],
+  },
+  {
+    id: 'data-leak',
+    titleRu: 'Утечка данных',
+    descRu: 'Есть признаки компрометации пользовательских данных.',
+    severity: 'critical',
+    tags: ['security', 'tech', 'reputation'],
+    weightByStage: { internship: 0.5, junior: 0.7, middle: 1, senior: 1 },
+    decisions: [
+      {
+        id: 'a',
+        title: 'Полный аудит и компенсации',
+        description: 'Дорого, но снижает репутационный удар.',
+        effects: { cashDelta: -900, reputationDelta: 1, techDebtDelta: 1 },
+      },
+      {
+        id: 'b',
+        title: 'Расследование и уведомления',
+        description: 'Средний вариант: закрыть дыру и предупредить.',
+        effects: { cashDelta: -500, reputationDelta: 0, techDebtDelta: 2 },
+      },
+      {
+        id: 'c',
+        title: 'Скрыть проблему',
+        description: 'Дёшево сейчас, но риск репутационного удара.',
+        effects: { cashDelta: 0, reputationDelta: -4, techDebtDelta: 3, moraleDelta: -2 },
+      },
+    ],
+  },
+  {
+    id: 'resource-shortage',
+    titleRu: 'Нехватка ресурсов',
+    descRu: 'Сервера перегружены, растут задержки.',
+    severity: 'major',
+    tags: ['ops', 'tech'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Срочное расширение',
+        description: 'Увеличить мощности здесь и сейчас.',
+        effects: { cashDelta: -700, reputationDelta: 1, techDebtDelta: 1 },
+      },
+      {
+        id: 'b',
+        title: 'Оптимизировать нагрузку',
+        description: 'Чуть дольше, но дешевле.',
+        effects: { cashDelta: -300, reputationDelta: 0, techDebtDelta: 0 },
+      },
+      {
+        id: 'c',
+        title: 'Отключить часть функций',
+        description: 'Дешевле, но пользователи недовольны.',
+        effects: { cashDelta: -100, reputationDelta: -1, techDebtDelta: 1 },
+      },
+    ],
+  },
+  {
+    id: 'deadline-slip',
+    titleRu: 'Срыв дедлайна',
+    descRu: 'Команда не укладывается в обещанный срок.',
+    severity: 'minor',
+    tags: ['process'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Подрядчики и овертайм',
+        description: 'Быстро закрыть, но дорого для команды.',
+        effects: { cashDelta: -400, reputationDelta: 1, techDebtDelta: 1, moraleDelta: -1 },
+      },
+      {
+        id: 'b',
+        title: 'Перепланирование',
+        description: 'Согласовать новый срок и переработать план.',
+        effects: { cashDelta: -100, reputationDelta: 0, techDebtDelta: 0 },
+      },
+      {
+        id: 'c',
+        title: 'Сжать сроки',
+        description: 'Команда выгорит, но релиз будет вовремя.',
+        effects: { cashDelta: 0, reputationDelta: -1, techDebtDelta: 2, moraleDelta: -2 },
+      },
+    ],
+  },
+  {
+    id: 'payment-bug',
+    titleRu: 'Баг в платежах',
+    descRu: 'Платежи проходят с ошибками и откатами.',
+    severity: 'major',
+    tags: ['tech', 'finance'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Откат и ручные возвраты',
+        description: 'Дорого, но снижает риск потери доверия.',
+        effects: { cashDelta: -600, reputationDelta: 1, techDebtDelta: 1 },
+      },
+      {
+        id: 'b',
+        title: 'Починить и компенсировать',
+        description: 'Средний вариант с частичной компенсацией.',
+        effects: { cashDelta: -300, reputationDelta: 0, techDebtDelta: 1 },
+      },
+      {
+        id: 'c',
+        title: 'Сделать вид, что всё ок',
+        description: 'Клиенты недовольны и уходят.',
+        effects: { cashDelta: 0, reputationDelta: -2, techDebtDelta: 2 },
+      },
+    ],
+  },
+  {
+    id: 'team-conflict',
+    titleRu: 'Конфликт в команде',
+    descRu: 'Спор между ключевыми разработчиками замедляет работу.',
+    severity: 'minor',
+    tags: ['people'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Медиатор и выходной',
+        description: 'Потеряем время, но снизим напряжение.',
+        effects: { cashDelta: -200, reputationDelta: 1, techDebtDelta: 1, moraleDelta: 3 },
+      },
+      {
+        id: 'b',
+        title: 'Фасилитация встречи',
+        description: 'Обсудить конфликт и договориться.',
+        effects: { cashDelta: -80, reputationDelta: 0, moraleDelta: 1 },
+      },
+      {
+        id: 'c',
+        title: 'Игнорировать',
+        description: 'Конфликт останется и усилится.',
+        effects: { cashDelta: 0, reputationDelta: -1, techDebtDelta: 1, moraleDelta: -3 },
+      },
+    ],
+  },
+  {
+    id: 'tech-debt-spike',
+    titleRu: 'Техдолг взорвался',
+    descRu: 'Система стала нестабильной из-за накопленного долга.',
+    severity: 'major',
+    tags: ['tech', 'debt'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Полный рефактор',
+        description: 'Дорого, но снижает риск инцидентов.',
+        effects: { cashDelta: -800, reputationDelta: 1, techDebtDelta: -3, moraleDelta: -1 },
+      },
+      {
+        id: 'b',
+        title: 'Точечная стабилизация',
+        description: 'Закроем самые острые проблемы.',
+        effects: { cashDelta: -300, reputationDelta: 0, techDebtDelta: -1 },
+      },
+      {
+        id: 'c',
+        title: 'Отложить на потом',
+        description: 'Дешево сейчас, но риск растет.',
+        effects: { cashDelta: 0, reputationDelta: -1, techDebtDelta: 2 },
+      },
+    ],
+  },
+  {
+    id: 'negative-review',
+    titleRu: 'Негативный отзыв',
+    descRu: 'Клиент оставил резкий отзыв в публичном канале.',
+    severity: 'minor',
+    tags: ['reputation'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Публичный ответ и бонус',
+        description: 'Смягчаем конфликт и удерживаем клиента.',
+        effects: { cashDelta: -250, reputationDelta: 2 },
+      },
+      {
+        id: 'b',
+        title: 'Вежливое объяснение',
+        description: 'Честно отвечаем и фиксируем ошибки.',
+        effects: { cashDelta: -50, reputationDelta: 1 },
+      },
+      {
+        id: 'c',
+        title: 'Игнорировать',
+        description: 'Риск ухудшения репутации.',
+        effects: { cashDelta: 0, reputationDelta: -2 },
+      },
+    ],
+  },
+  {
+    id: 'partner-integration',
+    titleRu: 'Сбой интеграции партнёра',
+    descRu: 'Интеграция партнёра отвалилась и ломает поток данных.',
+    severity: 'major',
+    tags: ['tech', 'reputation'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Срочная поддержка партнёра',
+        description: 'Дорого, но быстро восстанавливаем доверие.',
+        effects: { cashDelta: -500, reputationDelta: 1, techDebtDelta: 1 },
+      },
+      {
+        id: 'b',
+        title: 'Совместное расследование',
+        description: 'Подключаем их команду и ищем причину.',
+        effects: { cashDelta: -200, reputationDelta: 0, techDebtDelta: 0 },
+      },
+      {
+        id: 'c',
+        title: 'Обойти вручную',
+        description: 'Временное решение с рисками.',
+        effects: { cashDelta: -50, reputationDelta: -1, techDebtDelta: 2 },
+      },
+    ],
+  },
+  {
+    id: 'release-failure',
+    titleRu: 'Срыв релиза',
+    descRu: 'Релиз сорвался из-за неготовности тестов.',
+    severity: 'major',
+    tags: ['process', 'tech'],
+    decisions: [
+      {
+        id: 'a',
+        title: 'Отложить и усилить QA',
+        description: 'Более безопасно, но требует бюджета.',
+        effects: { cashDelta: -350, reputationDelta: 1, techDebtDelta: 0 },
+      },
+      {
+        id: 'b',
+        title: 'Минимальный релиз',
+        description: 'Частичный запуск с контролем рисков.',
+        effects: { cashDelta: -150, reputationDelta: 0, techDebtDelta: 1 },
+      },
+      {
+        id: 'c',
+        title: 'Выпустить как есть',
+        description: 'Быстро, но риск проблем в проде высок.',
+        effects: { cashDelta: 0, reputationDelta: -2, techDebtDelta: 2 },
+      },
+    ],
+  },
+];

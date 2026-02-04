@@ -229,7 +229,7 @@ export const runCompanyTick = ({
   );
 
   const cashDelta = round(income - salaries);
-  let nextCash = company.cash + cashDelta;
+  const nextCash = company.cash + cashDelta;
 
   let reputationDelta = round(assignmentModifiers.repDeltaTotal);
   const techDebtDelta = round(assignmentModifiers.debtDeltaTotal + traitTechDebtDelta);
@@ -247,16 +247,11 @@ export const runCompanyTick = ({
   const incidentRoll = rng();
   let incident: IncidentResult | undefined;
   if (incidentRoll < incidentChance) {
-    const costCash = round(incidentBalance?.baseCostCash ?? 0);
-    const repPenalty = round(incidentBalance?.baseRepPenalty ?? 0);
-    nextCash -= costCash;
-    reputationDelta -= repPenalty;
-    moraleDelta -= round(incidentBalance?.moralePenalty ?? 0);
     incident = {
       happened: true,
       kind: 'Инцидент в проде',
-      costCash,
-      repPenalty,
+      costCash: 0,
+      repPenalty: 0,
     };
   }
 
@@ -291,7 +286,7 @@ export const runCompanyTick = ({
     `Доход: +${round(income)} cash`,
     `Зарплаты: -${round(salaries)} cash`,
     `Итог: ${formatSigned(netCash)} cash`,
-    incident?.happened ? `Инцидент: -${incident.costCash} cash` : '',
+    incident?.happened ? 'Инцидент: требуется решение' : '',
     `Репутация: ${formatSigned(reputationDelta)}`,
     `Cash после: ${round(nextCompany.cash)}`,
     isCrisis ? 'Кризис: cash ниже нуля — штраф репутации/морали' : '',

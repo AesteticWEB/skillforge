@@ -270,5 +270,40 @@
         }
       </div>
     </sf-card>
+
+    <sf-modal
+      [open]="!!activeIncident()"
+      [title]="incidentTitle()"
+      [subtitle]="'Требуется решение'"
+      [closeOnBackdrop]="false"
+      [closeOnEsc]="false"
+      [showClose]="false"
+    >
+      @if (activeIncident(); as incident) {
+        <div class="grid gap-4">
+          <div class="text-sm text-slate-300">{{ incident.description }}</div>
+          <div class="text-xs text-slate-400">
+            Серьёзность: {{ formatIncidentSeverity(incident.severity) }}
+          </div>
+          <div class="grid gap-3">
+            @for (decision of incident.decisions; track decision.id) {
+              <button
+                type="button"
+                class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-left transition hover:border-emerald-400/50 hover:bg-slate-950/60"
+                (click)="resolveIncidentDecision(decision.id)"
+              >
+                <div class="text-sm font-semibold text-slate-100">{{ decision.title }}</div>
+                <div class="mt-1 text-xs text-slate-400">
+                  {{ decision.description }}
+                </div>
+                <div class="mt-2 text-xs font-semibold text-emerald-200">
+                  {{ formatIncidentEffects(decision) }}
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </sf-modal>
   }
 </section>

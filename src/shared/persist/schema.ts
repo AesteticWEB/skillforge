@@ -136,6 +136,10 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
   const onboardingSeen = typeof base.onboardingSeen === 'boolean' ? base.onboardingSeen : false;
   const employees = Array.isArray(base.employees) ? base.employees : [];
   const ledger = Array.isArray(base.ledger) ? base.ledger.slice(0, 50) : [];
+  const activeIncident = isRecord(base.activeIncident) ? base.activeIncident : null;
+  const incidentsHistory = Array.isArray(base.incidentsHistory)
+    ? base.incidentsHistory.slice(0, 20)
+    : [];
 
   return {
     ...base,
@@ -145,6 +149,8 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
     onboardingSeen,
     employees,
     ledger,
+    activeIncident,
+    incidentsHistory,
   };
 };
 

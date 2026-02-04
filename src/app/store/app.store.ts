@@ -41,6 +41,17 @@ import {
   runCompanyTick,
 } from '@/entities/company';
 import {
+  ActiveIncident,
+  IncidentDecision,
+  IncidentDecisionId,
+  IncidentHistoryEntry,
+  IncidentSeverity,
+  INCIDENT_DECISION_IDS,
+  INCIDENT_SEVERITIES,
+  INCIDENT_SOURCES,
+  createIncidentFromRoll,
+} from '@/entities/incidents';
+import {
   CompletedContractEntry,
   Contract,
   ContractProgressEvent,
@@ -188,6 +199,8 @@ const createEmptyCompany = (): Company => ({
   onboardingSeen: false,
   employees: [],
   ledger: [],
+  activeIncident: null,
+  incidentsHistory: [],
 });
 
 const createEmptyInventory = (): Inventory => ({
@@ -976,15 +989,102 @@ export class AppStore {
     }));
 
     if (result.incident?.happened) {
-      const cashLoss = this.formatNumber(result.incident.costCash);
-      const repLoss = this.formatNumber(result.incident.repPenalty);
-      this.notificationsStore.error(`Инцидент! Потеря: -${cashLoss} cash, репутация -${repLoss}`);
+      this.tryStartIncidentFromTick({ ...result, tickIndex, reason });
+      this.notificationsStore.error('Инцидент! Требуется решение.');
       return;
     }
 
     const cashDelta = result.ledgerEntry.delta.netCash;
     const signedDelta = `${cashDelta >= 0 ? '+' : ''}${this.formatNumber(Math.abs(cashDelta))}`;
     this.notificationsStore.success(`Компания: ${signedDelta} cash (доход - зарплаты)`);
+  }
+
+  tryStartIncidentFromTick(
+    context: ReturnType<typeof runCompanyTick> & {
+      tickIndex: number;
+      reason: CompanyTickReason;
+    },
+  ): void {
+    if (!context.incident?.happened) {
+      return;
+    }
+    const company = this._company();
+    if (company.activeIncident) {
+      this.logDevInfo('incident-skip-active', { instanceId: company.activeIncident.instanceId });
+      return;
+    }
+    const incident = createIncidentFromRoll({
+      seed: `${this.resolveCompanyTickSeed()}`,
+      tickIndex: context.tickIndex,
+      reason: context.reason,
+      stage: this.careerStage(),
+      reputation: this.reputation(),
+      techDebt: this.techDebt(),
+    });
+
+    this._company.update((current) => ({
+      ...current,
+      activeIncident: incident,
+    }));
+  }
+
+  resolveIncident(decisionId: IncidentDecisionId): void {
+    const company = this._company();
+    const incident = company.activeIncident;
+    if (!incident) {
+      return;
+    }
+    const decision = incident.decisions.find((entry) => entry.id === decisionId);
+    if (!decision) {
+      this.logDevError('incident-decision-not-found', {
+        instanceId: incident.instanceId,
+        decisionId,
+      });
+      return;
+    }
+
+    const effects = decision.effects;
+    const resolvedAtIso = new Date().toISOString();
+    const moraleDelta = typeof effects.moraleDelta === 'number' ? effects.moraleDelta : 0;
+
+    const nextEmployees = company.employees.map((employee) => ({
+      ...employee,
+      morale: this.normalizeEmployeeMorale(employee.morale + moraleDelta),
+    }));
+
+    const nextHistory = [
+      {
+        instanceId: incident.instanceId,
+        templateId: incident.templateId,
+        chosenDecisionId: decision.id,
+        resolvedAtIso,
+        effects: { ...effects },
+      },
+      ...(company.incidentsHistory ?? []),
+    ].slice(0, 20);
+
+    this._company.update((current) => ({
+      ...current,
+      cash: this.normalizeCash(current.cash + effects.cashDelta),
+      employees: nextEmployees,
+      activeIncident: null,
+      incidentsHistory: nextHistory,
+    }));
+
+    this._progress.update((current) => ({
+      ...current,
+      reputation: this.normalizeReputation(current.reputation + effects.reputationDelta),
+      techDebt:
+        typeof effects.techDebtDelta === 'number'
+          ? this.normalizeTechDebt(current.techDebt + effects.techDebtDelta)
+          : current.techDebt,
+    }));
+
+    const cashLabel = this.formatSignedValue(effects.cashDelta);
+    const repLabel = this.formatSignedValue(effects.reputationDelta);
+    this.notificationsStore.success(
+      `Инцидент решён: ${incident.title}. Итог: ${cashLabel} cash, репутация ${repLabel}`,
+    );
   }
 
   setUser(user: User): void {
@@ -2188,6 +2288,8 @@ export class AppStore {
       onboardingSeen: typeof company.onboardingSeen === 'boolean' ? company.onboardingSeen : false,
       employees: this.normalizeEmployees(company.employees),
       ledger: this.normalizeCompanyLedger(company.ledger),
+      activeIncident: this.normalizeActiveIncident(company.activeIncident),
+      incidentsHistory: this.normalizeIncidentsHistory(company.incidentsHistory),
     };
   }
 
@@ -2322,6 +2424,8 @@ export class AppStore {
     const onboardingSeen = value['onboardingSeen'];
     const employees = this.normalizeEmployees(value['employees']);
     const ledger = this.normalizeCompanyLedger(value['ledger']);
+    const activeIncident = this.normalizeActiveIncident(value['activeIncident']);
+    const incidentsHistory = this.normalizeIncidentsHistory(value['incidentsHistory']);
     if (cash !== undefined && typeof cash !== 'number') {
       return null;
     }
@@ -2332,6 +2436,8 @@ export class AppStore {
       onboardingSeen: typeof onboardingSeen === 'boolean' ? onboardingSeen : false,
       employees,
       ledger,
+      activeIncident,
+      incidentsHistory,
     };
   }
 
@@ -2724,6 +2830,15 @@ export class AppStore {
     return this.numberFormatter.format(Math.max(0, Math.floor(value)));
   }
 
+  private formatSignedValue(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    const rounded = Math.round(value);
+    const sign = rounded > 0 ? '+' : rounded < 0 ? '-' : '';
+    return `${sign}${this.formatNumber(Math.abs(rounded))}`;
+  }
+
   private grantQuestBadge(badgeId: string): void {
     const normalized = badgeId?.trim();
     if (!normalized) {
@@ -2788,6 +2903,120 @@ export class AppStore {
       }
     }
     return normalized.slice(0, 50);
+  }
+
+  private normalizeActiveIncident(value: unknown): ActiveIncident | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    if (!this.isValidActiveIncident(value)) {
+      return null;
+    }
+    const decisions = this.normalizeIncidentDecisions(value['decisions']);
+    if (decisions.length !== 3) {
+      return null;
+    }
+    return {
+      instanceId: value['instanceId'] as string,
+      templateId: value['templateId'] as string,
+      title: value['title'] as string,
+      description: value['description'] as string,
+      severity: value['severity'] as IncidentSeverity,
+      decisions,
+      createdAtIso: value['createdAtIso'] as string,
+      source: value['source'] as 'tick',
+      seed: value['seed'] as string,
+      resolvedAtIso:
+        typeof value['resolvedAtIso'] === 'string' ? (value['resolvedAtIso'] as string) : undefined,
+      chosenDecisionId: this.isIncidentDecisionId(value['chosenDecisionId'])
+        ? (value['chosenDecisionId'] as IncidentDecisionId)
+        : undefined,
+    };
+  }
+
+  private normalizeIncidentsHistory(value: unknown): IncidentHistoryEntry[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: IncidentHistoryEntry[] = [];
+    for (const entry of value) {
+      if (this.isValidIncidentHistoryEntry(entry)) {
+        normalized.push({
+          instanceId: entry['instanceId'] as string,
+          templateId: entry['templateId'] as string,
+          chosenDecisionId: entry['chosenDecisionId'] as IncidentDecisionId,
+          resolvedAtIso: entry['resolvedAtIso'] as string,
+          effects: this.normalizeIncidentEffects(entry['effects']),
+        });
+      }
+    }
+    return normalized.slice(0, 20);
+  }
+
+  private normalizeIncidentDecisions(value: unknown): IncidentDecision[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: IncidentDecision[] = [];
+    for (const entry of value) {
+      const decision = this.normalizeIncidentDecision(entry);
+      if (decision) {
+        normalized.push(decision);
+      }
+    }
+    return normalized;
+  }
+
+  private normalizeIncidentDecision(value: unknown): IncidentDecision | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const id = value['id'];
+    const title = value['title'];
+    const description = value['description'];
+    const effects = value['effects'];
+    if (!this.isIncidentDecisionId(id)) {
+      return null;
+    }
+    if (typeof title !== 'string' || typeof description !== 'string') {
+      return null;
+    }
+    if (!this.isRecord(effects)) {
+      return null;
+    }
+    if (
+      typeof effects['cashDelta'] !== 'number' ||
+      typeof effects['reputationDelta'] !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      id,
+      title,
+      description,
+      effects: this.normalizeIncidentEffects(effects),
+    };
+  }
+
+  private normalizeIncidentEffects(value: unknown): IncidentDecision['effects'] {
+    if (!this.isRecord(value)) {
+      return {
+        cashDelta: 0,
+        reputationDelta: 0,
+      };
+    }
+    return {
+      cashDelta: this.normalizeLedgerNumber(value['cashDelta'] as number),
+      reputationDelta: this.normalizeLedgerNumber(value['reputationDelta'] as number),
+      techDebtDelta:
+        typeof value['techDebtDelta'] === 'number' && Number.isFinite(value['techDebtDelta'])
+          ? value['techDebtDelta']
+          : undefined,
+      moraleDelta:
+        typeof value['moraleDelta'] === 'number' && Number.isFinite(value['moraleDelta'])
+          ? value['moraleDelta']
+          : undefined,
+    };
   }
 
   private sanitizeLedgerEntry(entry: CompanyLedgerEntry): CompanyLedgerEntry {
@@ -3074,6 +3303,72 @@ export class AppStore {
     return true;
   }
 
+  private isValidActiveIncident(value: unknown): value is ActiveIncident {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['instanceId'] !== 'string' || typeof value['templateId'] !== 'string') {
+      return false;
+    }
+    if (typeof value['title'] !== 'string' || typeof value['description'] !== 'string') {
+      return false;
+    }
+    if (!this.isIncidentSeverity(value['severity'])) {
+      return false;
+    }
+    if (!this.isIncidentSource(value['source'])) {
+      return false;
+    }
+    if (typeof value['createdAtIso'] !== 'string' || typeof value['seed'] !== 'string') {
+      return false;
+    }
+    if (!Array.isArray(value['decisions'])) {
+      return false;
+    }
+    if (value['resolvedAtIso'] !== undefined && typeof value['resolvedAtIso'] !== 'string') {
+      return false;
+    }
+    if (
+      value['chosenDecisionId'] !== undefined &&
+      !this.isIncidentDecisionId(value['chosenDecisionId'])
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  private isValidIncidentHistoryEntry(value: unknown): value is IncidentHistoryEntry {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['instanceId'] !== 'string' || typeof value['templateId'] !== 'string') {
+      return false;
+    }
+    if (!this.isIncidentDecisionId(value['chosenDecisionId'])) {
+      return false;
+    }
+    if (typeof value['resolvedAtIso'] !== 'string') {
+      return false;
+    }
+    const effects = value['effects'];
+    if (!this.isRecord(effects)) {
+      return false;
+    }
+    if (
+      typeof effects['cashDelta'] !== 'number' ||
+      typeof effects['reputationDelta'] !== 'number'
+    ) {
+      return false;
+    }
+    if (effects['techDebtDelta'] !== undefined && typeof effects['techDebtDelta'] !== 'number') {
+      return false;
+    }
+    if (effects['moraleDelta'] !== undefined && typeof effects['moraleDelta'] !== 'number') {
+      return false;
+    }
+    return true;
+  }
+
   private isValidQuest(value: unknown): value is Quest {
     if (!this.isRecord(value)) {
       return false;
@@ -3304,6 +3599,20 @@ export class AppStore {
     return (
       typeof value === 'string' && (COMPANY_LEDGER_REASONS as readonly string[]).includes(value)
     );
+  }
+
+  private isIncidentSeverity(value: unknown): value is IncidentSeverity {
+    return typeof value === 'string' && (INCIDENT_SEVERITIES as readonly string[]).includes(value);
+  }
+
+  private isIncidentDecisionId(value: unknown): value is IncidentDecisionId {
+    return (
+      typeof value === 'string' && (INCIDENT_DECISION_IDS as readonly string[]).includes(value)
+    );
+  }
+
+  private isIncidentSource(value: unknown): value is 'tick' {
+    return typeof value === 'string' && (INCIDENT_SOURCES as readonly string[]).includes(value);
   }
 
   private logDevError(message: string, payload: unknown): void {
