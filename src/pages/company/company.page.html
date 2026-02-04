@@ -58,6 +58,9 @@
             Сотрудники ({{ employees().length }})
           </h2>
           <p class="mt-1 text-sm text-slate-400">Команда, которую ты собрал.</p>
+          <p class="mt-2 text-xs text-slate-500">
+            Сводка эффектов компании: {{ formatAssignmentSummary() }}
+          </p>
         </div>
       </div>
 
@@ -78,6 +81,25 @@
 
             <div class="mt-2 text-xs text-slate-400">
               Мораль: {{ formatNumber(employee.morale) }}/100
+            </div>
+
+            <div class="mt-3 grid gap-2 text-xs text-slate-400">
+              <div>Назначение: {{ formatAssignmentLabel(employee.assignment) }}</div>
+              <div>
+                <label class="text-[11px] text-slate-500">Назначение</label>
+                <select
+                  class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-xs text-slate-100"
+                  [value]="employee.assignment"
+                  (change)="updateAssignment(employee.id, $event)"
+                >
+                  @for (option of assignmentOptions; track option.id) {
+                    <option [value]="option.id">{{ option.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="text-[11px] text-slate-500">
+                {{ assignmentEffectSummary(employee.assignment) }}
+              </div>
             </div>
 
             <div class="mt-3 flex flex-wrap gap-2">

@@ -33,6 +33,38 @@ export const BALANCE = {
     },
     moraleStartMin: 80,
     moraleStartMax: 100,
+    assignments: {
+      delivery: {
+        cashIncomePct: 0.06,
+        repDelta: 1,
+        debtDelta: 0.4,
+        incidentReducePct: 0.02,
+      },
+      refactor: {
+        cashIncomePct: 0.02,
+        repDelta: 0,
+        debtDelta: -1.2,
+        incidentReducePct: 0.05,
+      },
+      qa: {
+        cashIncomePct: 0.02,
+        repDelta: 0.5,
+        debtDelta: -0.4,
+        incidentReducePct: 0.12,
+      },
+      ops: {
+        cashIncomePct: 0.03,
+        repDelta: 0.3,
+        debtDelta: -0.6,
+        incidentReducePct: 0.18,
+      },
+      sales: {
+        cashIncomePct: 0.1,
+        repDelta: 0.8,
+        debtDelta: 0.6,
+        incidentReducePct: 0,
+      },
+    },
   },
   hiring: {
     refreshCostCoins: 200,

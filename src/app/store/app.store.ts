@@ -28,7 +28,10 @@ import {
   Company,
   CompanyLevel,
   COMPANY_LEVELS,
+  EMPLOYEE_ASSIGNMENTS,
   Employee,
+  EmployeeAssignment,
+  ASSIGNMENT_LABELS,
   createEmployeeFromCandidate,
   resolveHireCostForCandidate,
 } from '@/entities/company';
@@ -628,6 +631,34 @@ export class AppStore {
     );
 
     return { ok: true };
+  }
+
+  setEmployeeAssignment(employeeId: string, assignment: EmployeeAssignment): void {
+    if (!this.isEmployeeAssignment(assignment)) {
+      this.logDevWarn('employee-assignment-invalid', { assignment });
+      return;
+    }
+    const company = this._company();
+    const index = company.employees.findIndex((employee) => employee.id === employeeId);
+    if (index === -1) {
+      this.logDevError('employee-not-found', { employeeId });
+      return;
+    }
+    const employee = company.employees[index];
+    if (employee.assignment === assignment) {
+      return;
+    }
+    const nextEmployees = [...company.employees];
+    nextEmployees[index] = {
+      ...employee,
+      assignment,
+    };
+    this._company.update((current) => ({
+      ...current,
+      employees: nextEmployees,
+    }));
+    const label = ASSIGNMENT_LABELS[assignment] ?? assignment;
+    this.notificationsStore.success(`Назначение обновлено: ${employee.name} → ${label}`);
   }
 
   ensureSessionQuests(force = false): void {
@@ -2664,7 +2695,14 @@ export class AppStore {
     if (!Array.isArray(value)) {
       return [];
     }
-    return value.filter((entry): entry is Employee => this.isValidEmployee(entry));
+    const normalized: Employee[] = [];
+    for (const entry of value) {
+      const employee = this.normalizeEmployee(entry);
+      if (employee) {
+        normalized.push(employee);
+      }
+    }
+    return normalized;
   }
 
   private normalizeCandidatesPool(value: unknown): Candidate[] {
@@ -2679,6 +2717,59 @@ export class AppStore {
       return 0;
     }
     return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeEmployee(value: unknown): Employee | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const assignment = this.normalizeEmployeeAssignment(value['assignment'], value['id']);
+    const candidate = {
+      ...value,
+      assignment,
+    };
+    if (!this.isValidEmployee(candidate)) {
+      return null;
+    }
+    return {
+      id: candidate.id,
+      name: candidate.name,
+      role: candidate.role,
+      quality: this.normalizeEmployeeQuality(candidate.quality),
+      morale: this.normalizeEmployeeMorale(candidate.morale),
+      traits: Array.isArray(candidate.traits) ? candidate.traits : [],
+      hiredAtIso: candidate.hiredAtIso,
+      salaryCash: this.normalizeCash(candidate.salaryCash),
+      assignment,
+    };
+  }
+
+  private normalizeEmployeeAssignment(value: unknown, employeeId?: unknown): EmployeeAssignment {
+    if (this.isEmployeeAssignment(value)) {
+      return value;
+    }
+    if (value !== undefined) {
+      this.logDevWarn('employee-assignment-invalid', { employeeId, value });
+    }
+    return 'delivery';
+  }
+
+  private normalizeEmployeeQuality(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private normalizeEmployeeMorale(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+
+  private isEmployeeAssignment(value: unknown): value is EmployeeAssignment {
+    return (EMPLOYEE_ASSIGNMENTS as readonly string[]).includes(value as string);
   }
 
   private isValidContract(value: unknown): value is Contract {
@@ -2741,7 +2832,7 @@ export class AppStore {
     if (typeof value['name'] !== 'string') {
       return false;
     }
-    if (typeof value['role'] !== 'string') {
+    if (value['role'] !== 'junior' && value['role'] !== 'middle' && value['role'] !== 'senior') {
       return false;
     }
     if (typeof value['quality'] !== 'number') {
@@ -2757,6 +2848,9 @@ export class AppStore {
       return false;
     }
     if (typeof value['salaryCash'] !== 'number') {
+      return false;
+    }
+    if (!this.isEmployeeAssignment(value['assignment'])) {
       return false;
     }
     return true;

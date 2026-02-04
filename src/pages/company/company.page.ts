@@ -6,6 +6,12 @@ import type {
   ContractReward,
   ContractType,
 } from '@/entities/contracts';
+import {
+  ASSIGNMENT_LABELS,
+  ASSIGNMENT_OPTIONS,
+  EmployeeAssignment,
+  getCompanyModifiersFromAssignments,
+} from '@/entities/company';
 import { HiringCandidatesPanelComponent } from '@/features/hiring';
 import type { CandidateRole } from '@/features/hiring';
 import { BALANCE } from '@/shared/config';
@@ -58,6 +64,10 @@ export class CompanyPage implements OnInit {
   protected readonly hiredCandidateIds = computed(() =>
     this.employees().map((employee) => employee.id),
   );
+  protected readonly assignmentOptions = ASSIGNMENT_OPTIONS;
+  protected readonly assignmentSummary = computed(() =>
+    getCompanyModifiersFromAssignments(this.employees()),
+  );
 
   ngOnInit(): void {
     if (this.companyUnlocked() && this.availableContracts().length === 0) {
@@ -92,6 +102,16 @@ export class CompanyPage implements OnInit {
     this.store.hireCandidate(candidateId);
   }
 
+  protected updateAssignment(employeeId: string, event: Event): void {
+    const value = (event.target as HTMLSelectElement | null)?.value as
+      | EmployeeAssignment
+      | undefined;
+    if (!value) {
+      return;
+    }
+    this.store.setEmployeeAssignment(employeeId, value);
+  }
+
   protected dismissOnboarding(): void {
     this.store.setCompanyOnboardingSeen(true);
   }
@@ -118,6 +138,40 @@ export class CompanyPage implements OnInit {
     return ROLE_LABELS[role] ?? role;
   }
 
+  protected formatAssignmentLabel(assignment: EmployeeAssignment): string {
+    return ASSIGNMENT_LABELS[assignment] ?? assignment;
+  }
+
+  protected assignmentEffectSummary(assignment: EmployeeAssignment): string {
+    const effects = BALANCE.company?.assignments?.[assignment];
+    if (!effects) {
+      return 'Без эффекта';
+    }
+    const parts: string[] = [];
+    if (effects.cashIncomePct) {
+      parts.push(`Доход ${this.formatPercent(effects.cashIncomePct)}`);
+    }
+    if (effects.repDelta) {
+      parts.push(`Репутация ${this.formatSigned(effects.repDelta)}`);
+    }
+    if (effects.debtDelta) {
+      parts.push(`Техдолг ${this.formatSigned(effects.debtDelta)}`);
+    }
+    if (effects.incidentReducePct) {
+      parts.push(`Защита ${this.formatPercent(effects.incidentReducePct)}`);
+    }
+    return parts.length > 0 ? parts.join(', ') : 'Без эффекта';
+  }
+
+  protected formatAssignmentSummary(): string {
+    const summary = this.assignmentSummary();
+    return `Доход ${this.formatPercent(summary.cashIncomePctTotal)}, Репутация ${this.formatSigned(
+      summary.repDeltaTotal,
+    )}, Техдолг ${this.formatSigned(summary.debtDeltaTotal)}, Защита ${this.formatPercent(
+      summary.incidentReducePctTotal,
+    )}`;
+  }
+
   private formatObjectiveTargetItem(objective: ContractObjective): string {
     const label = OBJECTIVE_LABELS[objective.type] ?? objective.type;
     return `${objective.targetValue} ${label}`;
@@ -133,5 +187,17 @@ export class CompanyPage implements OnInit {
       return '0';
     }
     return this.numberFormatter.format(Math.max(0, Math.floor(value)));
+  }
+
+  private formatSigned(value: number): string {
+    const normalized = Math.round(value * 10) / 10;
+    const sign = normalized > 0 ? '+' : '';
+    return `${sign}${normalized}`;
+  }
+
+  private formatPercent(value: number): string {
+    const percent = Math.round(value * 100);
+    const sign = percent > 0 ? '+' : '';
+    return `${sign}${percent}%`;
   }
 }

@@ -71,5 +71,6 @@ export const createEmployeeFromCandidate = (candidate: Candidate, hiredAtIso: st
     })),
     hiredAtIso,
     salaryCash,
+    assignment: 'delivery',
   };
 };
