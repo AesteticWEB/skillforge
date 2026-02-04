@@ -26,14 +26,18 @@ import {
 } from '@/entities/skill';
 import {
   Company,
+  CompanyLedgerEntry,
   CompanyLevel,
   COMPANY_LEVELS,
+  COMPANY_TICK_REASONS,
+  CompanyTickReason,
   EMPLOYEE_ASSIGNMENTS,
   Employee,
   EmployeeAssignment,
   ASSIGNMENT_LABELS,
   createEmployeeFromCandidate,
   resolveHireCostForCandidate,
+  runCompanyTick,
 } from '@/entities/company';
 import {
   CompletedContractEntry,
@@ -182,6 +186,7 @@ const createEmptyCompany = (): Company => ({
   level: 'none',
   onboardingSeen: false,
   employees: [],
+  ledger: [],
 });
 
 const createEmptyInventory = (): Inventory => ({
@@ -200,6 +205,7 @@ const createEmptyProgress = (): Progress => ({
   sessionQuestSessionId: null,
   candidatesPool: [],
   candidatesRefreshIndex: 0,
+  companyTickIndex: 0,
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -468,6 +474,7 @@ export class AppStore {
       };
       this.applyEventToContracts(progressEvent);
       this.applyEventToSessionQuests(progressEvent);
+      this.applyCompanyTick('scenario');
     });
     this.eventBus.subscribe('PurchaseMade', (event) => {
       const progressEvent: ContractProgressEvent = {
@@ -486,6 +493,7 @@ export class AppStore {
       };
       this.applyEventToContracts(progressEvent);
       this.applyEventToSessionQuests(progressEvent);
+      this.applyCompanyTick('exam');
     });
   }
 
@@ -925,6 +933,59 @@ export class AppStore {
     return { claimed, earnedCoins: totalCoins, earnedBadges: uniqueBadges };
   }
 
+  applyCompanyTick(reason: CompanyTickReason): void {
+    if (!this.isCompanyUnlocked()) {
+      return;
+    }
+
+    const progress = this._progress();
+    const tickIndex = this.normalizeCompanyTickIndex(progress.companyTickIndex);
+    const seed = this.resolveCompanyTickSeed();
+    const companyBefore = this._company();
+
+    const result = runCompanyTick({
+      reason,
+      state: {
+        company: companyBefore,
+        reputation: this.reputation(),
+        techDebt: this.techDebt(),
+        totalBuffs: this.totalBuffs(),
+      },
+      seed,
+      tickIndex,
+    });
+
+    const nextLedger = this.appendCompanyLedger(companyBefore.ledger ?? [], result.ledgerEntry);
+    const normalizedCash = this.normalizeCash(result.nextCompany.cash);
+
+    this._company.set({
+      ...result.nextCompany,
+      cash: normalizedCash,
+      ledger: nextLedger,
+    });
+
+    this._progress.update((current) => ({
+      ...current,
+      reputation: this.normalizeReputation(current.reputation + result.reputationDelta),
+      techDebt:
+        typeof result.techDebtDelta === 'number'
+          ? this.normalizeTechDebt(current.techDebt + result.techDebtDelta)
+          : current.techDebt,
+      companyTickIndex: tickIndex + 1,
+    }));
+
+    if (result.incident?.happened) {
+      const cashLoss = this.formatNumber(result.incident.costCash);
+      const repLoss = this.formatNumber(result.incident.repPenalty);
+      this.notificationsStore.error(`Инцидент! Потеря: -${cashLoss} cash, репутация -${repLoss}`);
+      return;
+    }
+
+    const cashDelta = normalizedCash - companyBefore.cash;
+    const signedDelta = `${cashDelta >= 0 ? '+' : ''}${this.formatNumber(Math.abs(cashDelta))}`;
+    this.notificationsStore.success(`Компания: ${signedDelta} cash (доход - зарплаты)`);
+  }
+
   setUser(user: User): void {
     this._user.set(user);
   }
@@ -1210,6 +1271,7 @@ export class AppStore {
       sessionQuestSessionId: null,
       candidatesPool: [],
       candidatesRefreshIndex: 0,
+      companyTickIndex: 0,
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -2104,6 +2166,7 @@ export class AppStore {
       sessionQuestSessionId: this.normalizeSessionQuestSessionId(progress.sessionQuestSessionId),
       candidatesPool: this.normalizeCandidatesPool(progress.candidatesPool),
       candidatesRefreshIndex: this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex),
+      companyTickIndex: this.normalizeCompanyTickIndex(progress.companyTickIndex),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -2123,6 +2186,7 @@ export class AppStore {
       level: this.normalizeCompanyLevel(company.level),
       onboardingSeen: typeof company.onboardingSeen === 'boolean' ? company.onboardingSeen : false,
       employees: this.normalizeEmployees(company.employees),
+      ledger: this.normalizeCompanyLedger(company.ledger),
     };
   }
 
@@ -2196,6 +2260,7 @@ export class AppStore {
     const candidatesRefreshIndex = this.normalizeCandidatesRefreshIndex(
       value['candidatesRefreshIndex'],
     );
+    const companyTickIndex = value['companyTickIndex'];
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -2214,6 +2279,9 @@ export class AppStore {
     if (coins !== undefined && typeof coins !== 'number') {
       return null;
     }
+    if (companyTickIndex !== undefined && typeof companyTickIndex !== 'number') {
+      return null;
+    }
     if (spentXpOnSkills !== undefined && typeof spentXpOnSkills !== 'number') {
       return null;
     }
@@ -2230,6 +2298,7 @@ export class AppStore {
       sessionQuestSessionId,
       candidatesPool,
       candidatesRefreshIndex,
+      companyTickIndex: this.normalizeCompanyTickIndex(companyTickIndex),
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -2251,6 +2320,7 @@ export class AppStore {
     const level = value['level'];
     const onboardingSeen = value['onboardingSeen'];
     const employees = this.normalizeEmployees(value['employees']);
+    const ledger = this.normalizeCompanyLedger(value['ledger']);
     if (cash !== undefined && typeof cash !== 'number') {
       return null;
     }
@@ -2260,6 +2330,7 @@ export class AppStore {
       level: this.normalizeCompanyLevel(level),
       onboardingSeen: typeof onboardingSeen === 'boolean' ? onboardingSeen : false,
       employees,
+      ledger,
     };
   }
 
@@ -2705,6 +2776,24 @@ export class AppStore {
     return normalized;
   }
 
+  private normalizeCompanyLedger(value: unknown): CompanyLedgerEntry[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is CompanyLedgerEntry =>
+      this.isValidCompanyLedgerEntry(entry),
+    );
+  }
+
+  private appendCompanyLedger(
+    current: readonly CompanyLedgerEntry[],
+    entry: CompanyLedgerEntry,
+  ): CompanyLedgerEntry[] {
+    const maxEntries = 50;
+    const merged = [...current, entry];
+    return merged.length > maxEntries ? merged.slice(-maxEntries) : merged;
+  }
+
   private normalizeCandidatesPool(value: unknown): Candidate[] {
     if (!Array.isArray(value)) {
       return [];
@@ -2713,6 +2802,13 @@ export class AppStore {
   }
 
   private normalizeCandidatesRefreshIndex(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeCompanyTickIndex(value: unknown): number {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       return 0;
     }
@@ -2856,6 +2952,31 @@ export class AppStore {
     return true;
   }
 
+  private isValidCompanyLedgerEntry(value: unknown): value is CompanyLedgerEntry {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string') {
+      return false;
+    }
+    if (typeof value['title'] !== 'string') {
+      return false;
+    }
+    if (
+      !Array.isArray(value['lines']) ||
+      !value['lines'].every((line) => typeof line === 'string')
+    ) {
+      return false;
+    }
+    if (typeof value['createdAtIso'] !== 'string') {
+      return false;
+    }
+    if (!this.isCompanyTickReason(value['reason'])) {
+      return false;
+    }
+    return true;
+  }
+
   private isValidQuest(value: unknown): value is Quest {
     if (!this.isRecord(value)) {
       return false;
@@ -2941,6 +3062,12 @@ export class AppStore {
     const login = this._auth().login?.trim();
     const base = login || this._user().startDate || this._user().role || 'guest';
     return `${base}:${this.careerStage()}`;
+  }
+
+  private resolveCompanyTickSeed(): string {
+    const login = this._auth().login?.trim();
+    const base = login || this._user().startDate || this._user().role || 'guest';
+    return `${base}:company`;
   }
 
   private resolveCandidatesSeed(refreshIndex: number): string {
@@ -3074,6 +3201,10 @@ export class AppStore {
 
   private isCompanyLevel(value: unknown): value is CompanyLevel {
     return typeof value === 'string' && (COMPANY_LEVELS as readonly string[]).includes(value);
+  }
+
+  private isCompanyTickReason(value: unknown): value is CompanyTickReason {
+    return typeof value === 'string' && (COMPANY_TICK_REASONS as readonly string[]).includes(value);
   }
 
   private logDevError(message: string, payload: unknown): void {

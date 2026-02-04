@@ -45,6 +45,7 @@ describe('persist schema migration', () => {
         sessionQuestSessionId: null,
         candidatesPool: [],
         candidatesRefreshIndex: 0,
+        companyTickIndex: 0,
       },
       company: {
         cash: 0,
@@ -52,6 +53,7 @@ describe('persist schema migration', () => {
         unlocked: false,
         onboardingSeen: false,
         employees: [],
+        ledger: [],
       },
       inventory: {
         ownedItemIds: [],
@@ -102,6 +104,7 @@ describe('persist schema migration', () => {
         sessionQuestSessionId: null,
         candidatesPool: [],
         candidatesRefreshIndex: 0,
+        companyTickIndex: 0,
       },
       company: {
         ...v4.company,
@@ -109,6 +112,7 @@ describe('persist schema migration', () => {
         unlocked: false,
         onboardingSeen: false,
         employees: [],
+        ledger: [],
       },
       inventory: {
         ownedItemIds: ['shop-a', 'shop-b'],

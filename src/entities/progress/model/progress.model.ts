@@ -36,6 +36,7 @@ export interface Progress {
   sessionQuestSessionId: string | null;
   candidatesPool: Candidate[];
   candidatesRefreshIndex: number;
+  companyTickIndex: number;
   specializationId: string | null;
   reputation: number;
   techDebt: number;

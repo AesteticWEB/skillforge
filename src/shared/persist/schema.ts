@@ -104,6 +104,10 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     typeof base.candidatesRefreshIndex === 'number' && Number.isFinite(base.candidatesRefreshIndex)
       ? Math.max(0, Math.floor(base.candidatesRefreshIndex))
       : 0;
+  const companyTickIndex =
+    typeof base.companyTickIndex === 'number' && Number.isFinite(base.companyTickIndex)
+      ? Math.max(0, Math.floor(base.companyTickIndex))
+      : 0;
 
   return {
     ...base,
@@ -114,6 +118,7 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     sessionQuestSessionId,
     candidatesPool,
     candidatesRefreshIndex,
+    companyTickIndex,
   };
 };
 
@@ -130,6 +135,7 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
   const unlocked = typeof base.unlocked === 'boolean' ? base.unlocked : false;
   const onboardingSeen = typeof base.onboardingSeen === 'boolean' ? base.onboardingSeen : false;
   const employees = Array.isArray(base.employees) ? base.employees : [];
+  const ledger = Array.isArray(base.ledger) ? base.ledger : [];
 
   return {
     ...base,
@@ -138,6 +144,7 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
     unlocked,
     onboardingSeen,
     employees,
+    ledger,
   };
 };
 

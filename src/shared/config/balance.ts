@@ -33,6 +33,35 @@ export const BALANCE = {
     },
     moraleStartMin: 80,
     moraleStartMax: 100,
+    tick: {
+      baseIncomeCash: 120,
+      incomePerEmployeeCash: 80,
+      salaryByRole: {
+        junior: 60,
+        middle: 140,
+        senior: 260,
+      },
+      morale: {
+        startMin: 80,
+        startMax: 100,
+        driftUpWhenProfitable: 1,
+        driftDownWhenCrisis: 2,
+        min: 0,
+        max: 100,
+      },
+      incident: {
+        baseChance: 0.12,
+        chanceFromTechDebtPct: 0.01,
+        chanceReduceCapPct: 0.5,
+        baseCostCash: 260,
+        baseRepPenalty: 2,
+        moralePenalty: 6,
+      },
+      crisis: {
+        repPenalty: 3,
+        moralePenalty: 8,
+      },
+    },
     assignments: {
       delivery: {
         cashIncomePct: 0.06,

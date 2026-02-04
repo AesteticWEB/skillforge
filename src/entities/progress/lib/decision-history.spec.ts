@@ -27,6 +27,7 @@ describe('decision history undo', () => {
       sessionQuestSessionId: null,
       candidatesPool: [],
       candidatesRefreshIndex: 0,
+      companyTickIndex: 0,
       specializationId: null,
       reputation: reputationGain,
       techDebt: techDebtGain * 2,
