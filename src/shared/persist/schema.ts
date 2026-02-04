@@ -99,6 +99,11 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
   const sessionQuests = Array.isArray(base.sessionQuests) ? base.sessionQuests : [];
   const sessionQuestSessionId =
     typeof base.sessionQuestSessionId === 'string' ? base.sessionQuestSessionId : null;
+  const candidatesPool = Array.isArray(base.candidatesPool) ? base.candidatesPool : [];
+  const candidatesRefreshIndex =
+    typeof base.candidatesRefreshIndex === 'number' && Number.isFinite(base.candidatesRefreshIndex)
+      ? Math.max(0, Math.floor(base.candidatesRefreshIndex))
+      : 0;
 
   return {
     ...base,
@@ -107,6 +112,8 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     completedContractsHistory,
     sessionQuests,
     sessionQuestSessionId,
+    candidatesPool,
+    candidatesRefreshIndex,
   };
 };
 

@@ -6,6 +6,8 @@ import type {
   ContractReward,
   ContractType,
 } from '@/entities/contracts';
+import { HiringCandidatesPanelComponent } from '@/features/hiring';
+import { BALANCE } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -21,7 +23,7 @@ const OBJECTIVE_LABELS: Record<ContractType, string> = {
 
 @Component({
   selector: 'app-company-page',
-  imports: [CardComponent, ButtonComponent, EmptyStateComponent],
+  imports: [CardComponent, ButtonComponent, EmptyStateComponent, HiringCandidatesPanelComponent],
   templateUrl: './company.page.html',
   styleUrl: './company.page.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -32,9 +34,12 @@ export class CompanyPage implements OnInit {
 
   protected readonly availableContracts = this.store.availableContracts;
   protected readonly activeContracts = this.store.activeContracts;
+  protected readonly candidatesPool = this.store.candidatesPool;
   protected readonly companyUnlocked = this.store.companyUnlocked;
   protected readonly companyOnboardingSeen = this.store.companyOnboardingSeen;
   protected readonly stageLabel = this.store.stageLabel;
+  protected readonly coins = this.store.coins;
+  protected readonly hiringRefreshCost = BALANCE.hiring?.refreshCostCoins ?? 200;
   protected readonly maxActiveContracts = MAX_ACTIVE_CONTRACTS;
   protected readonly activeCount = computed(() => this.activeContracts().length);
   protected readonly canAcceptMore = computed(
@@ -44,6 +49,9 @@ export class CompanyPage implements OnInit {
   ngOnInit(): void {
     if (this.companyUnlocked() && this.availableContracts().length === 0) {
       this.refreshAvailableContracts();
+    }
+    if (this.companyUnlocked() && this.candidatesPool().length === 0) {
+      this.initCandidates();
     }
   }
 
@@ -57,6 +65,14 @@ export class CompanyPage implements OnInit {
 
   protected abandonContract(contractId: string): void {
     this.store.abandonContract(contractId);
+  }
+
+  protected initCandidates(): void {
+    this.store.initCandidatesIfEmpty();
+  }
+
+  protected refreshCandidates(): void {
+    this.store.refreshCandidates();
   }
 
   protected dismissOnboarding(): void {

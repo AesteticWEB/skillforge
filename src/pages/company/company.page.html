@@ -40,6 +40,14 @@
       </sf-card>
     }
 
+    <sf-hiring-candidates-panel
+      [candidates]="candidatesPool()"
+      [coins]="coins()"
+      [refreshCost]="hiringRefreshCost"
+      [canRefresh]="companyUnlocked()"
+      (refresh)="refreshCandidates()"
+    ></sf-hiring-candidates-panel>
+
     <sf-card>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>

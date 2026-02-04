@@ -2,6 +2,7 @@ import type { ExamAttempt, ExamRun } from '@/entities/exam';
 import type { Certificate } from '@/entities/certificates';
 import type { CompletedContractEntry, Contract } from '@/entities/contracts';
 import type { Quest } from '@/entities/quests';
+import type { Candidate } from '@/features/hiring';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 
@@ -33,6 +34,8 @@ export interface Progress {
   completedContractsHistory: CompletedContractEntry[];
   sessionQuests: Quest[];
   sessionQuestSessionId: string | null;
+  candidatesPool: Candidate[];
+  candidatesRefreshIndex: number;
   specializationId: string | null;
   reputation: number;
   techDebt: number;

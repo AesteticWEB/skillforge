@@ -18,6 +18,8 @@ describe('decision effects', () => {
       completedContractsHistory: [],
       sessionQuests: [],
       sessionQuestSessionId: null,
+      candidatesPool: [],
+      candidatesRefreshIndex: 0,
       specializationId: null,
       reputation: 0,
       techDebt: 0,

@@ -27,6 +27,18 @@ export const BALANCE = {
     startCash: 5000,
     startLevel: 'lead',
   },
+  hiring: {
+    refreshCostCoins: 200,
+    poolSize: 6,
+    maxTraitsPerCandidate: 3,
+    qualityBonusPctMax: 0.5,
+    traitEffectCaps: {
+      cashIncomeBonusPct: 0.3,
+      incidentReducePct: 0.3,
+      techDebtDeltaPerTickAbs: 1.2,
+      productivityPct: 0.3,
+    },
+  },
   skills: {
     upgradeCostPerLevel: 1,
     defaultLevel: 0,

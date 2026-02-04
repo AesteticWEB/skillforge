@@ -33,6 +33,7 @@ import {
   generateAvailableContracts,
 } from '@/entities/contracts';
 import { Quest, QuestProgressEvent, generateSessionQuests } from '@/entities/quests';
+import { Candidate, generateCandidates } from '@/features/hiring';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
@@ -186,6 +187,8 @@ const createEmptyProgress = (): Progress => ({
   completedContractsHistory: [],
   sessionQuests: [],
   sessionQuestSessionId: null,
+  candidatesPool: [],
+  candidatesRefreshIndex: 0,
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -244,6 +247,7 @@ export class AppStore {
   readonly backupAvailable = this._backupAvailable.asReadonly();
   readonly activeContracts = computed(() => this._progress().activeContracts);
   readonly sessionQuests = computed(() => this._progress().sessionQuests);
+  readonly candidatesPool = computed(() => this._progress().candidatesPool);
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -530,6 +534,46 @@ export class AppStore {
     });
     const activeIds = new Set(this._progress().activeContracts.map((contract) => contract.id));
     this._availableContracts.set(generated.filter((contract) => !activeIds.has(contract.id)));
+  }
+
+  initCandidatesIfEmpty(): void {
+    if (!this.isCompanyUnlocked()) {
+      return;
+    }
+    const progress = this._progress();
+    if (progress.candidatesPool.length > 0) {
+      return;
+    }
+    const refreshIndex = this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex);
+    const pool = this.buildCandidatesPool(refreshIndex);
+    this._progress.update((current) => ({
+      ...current,
+      candidatesPool: pool,
+      candidatesRefreshIndex: refreshIndex,
+    }));
+  }
+
+  refreshCandidates(): void {
+    if (!this.isCompanyUnlocked()) {
+      return;
+    }
+    const cost = BALANCE.hiring?.refreshCostCoins ?? 200;
+    const currentCoins = this.coins();
+    if (currentCoins < cost) {
+      this.notificationsStore.error('Не хватает coins.');
+      return;
+    }
+    const nextIndex = this.normalizeCandidatesRefreshIndex(
+      this._progress().candidatesRefreshIndex + 1,
+    );
+    const pool = this.buildCandidatesPool(nextIndex);
+    this._progress.update((current) => ({
+      ...current,
+      coins: this.normalizeCoins(current.coins - cost),
+      candidatesPool: pool,
+      candidatesRefreshIndex: nextIndex,
+    }));
+    this.notificationsStore.success(`Кандидаты обновлены (-${cost} coins)`);
   }
 
   ensureSessionQuests(force = false): void {
@@ -1079,6 +1123,8 @@ export class AppStore {
       completedContractsHistory: [],
       sessionQuests: [],
       sessionQuestSessionId: null,
+      candidatesPool: [],
+      candidatesRefreshIndex: 0,
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -1971,6 +2017,8 @@ export class AppStore {
       ),
       sessionQuests: this.normalizeSessionQuests(progress.sessionQuests),
       sessionQuestSessionId: this.normalizeSessionQuestSessionId(progress.sessionQuestSessionId),
+      candidatesPool: this.normalizeCandidatesPool(progress.candidatesPool),
+      candidatesRefreshIndex: this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -2058,6 +2106,10 @@ export class AppStore {
     const sessionQuestSessionId = this.normalizeSessionQuestSessionId(
       value['sessionQuestSessionId'],
     );
+    const candidatesPool = this.normalizeCandidatesPool(value['candidatesPool']);
+    const candidatesRefreshIndex = this.normalizeCandidatesRefreshIndex(
+      value['candidatesRefreshIndex'],
+    );
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -2090,6 +2142,8 @@ export class AppStore {
       completedContractsHistory,
       sessionQuests,
       sessionQuestSessionId,
+      candidatesPool,
+      candidatesRefreshIndex,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -2549,6 +2603,20 @@ export class AppStore {
     return normalized.length > 0 ? normalized : null;
   }
 
+  private normalizeCandidatesPool(value: unknown): Candidate[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is Candidate => this.isValidCandidate(entry));
+  }
+
+  private normalizeCandidatesRefreshIndex(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
   private isValidContract(value: unknown): value is Contract {
     if (!this.isRecord(value)) {
       return false;
@@ -2563,6 +2631,34 @@ export class AppStore {
       return false;
     }
     if (!this.isRecord(value['reward'])) {
+      return false;
+    }
+    if (typeof value['seed'] !== 'string') {
+      return false;
+    }
+    return true;
+  }
+
+  private isValidCandidate(value: unknown): value is Candidate {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string') {
+      return false;
+    }
+    if (typeof value['name'] !== 'string') {
+      return false;
+    }
+    if (typeof value['role'] !== 'string') {
+      return false;
+    }
+    if (typeof value['quality'] !== 'number') {
+      return false;
+    }
+    if (!Array.isArray(value['traits'])) {
+      return false;
+    }
+    if (typeof value['summary'] !== 'string') {
       return false;
     }
     if (typeof value['seed'] !== 'string') {
@@ -2656,6 +2752,22 @@ export class AppStore {
     const login = this._auth().login?.trim();
     const base = login || this._user().startDate || this._user().role || 'guest';
     return `${base}:${this.careerStage()}`;
+  }
+
+  private resolveCandidatesSeed(refreshIndex: number): string {
+    return `${this.resolveContractSeed()}:candidates:${refreshIndex}`;
+  }
+
+  private buildCandidatesPool(refreshIndex: number): Candidate[] {
+    const seed = this.resolveCandidatesSeed(refreshIndex);
+    return generateCandidates({
+      seed,
+      stage: this.careerStage(),
+      reputation: this.reputation(),
+      techDebt: this.techDebt(),
+      totalBuffs: this.totalBuffs(),
+      poolSize: BALANCE.hiring?.poolSize ?? 6,
+    });
   }
 
   private resolveSessionQuestSeed(): string {

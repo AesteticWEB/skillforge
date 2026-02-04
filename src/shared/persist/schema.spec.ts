@@ -43,6 +43,8 @@ describe('persist schema migration', () => {
         completedContractsHistory: [],
         sessionQuests: [],
         sessionQuestSessionId: null,
+        candidatesPool: [],
+        candidatesRefreshIndex: 0,
       },
       company: {
         cash: 0,
@@ -97,6 +99,8 @@ describe('persist schema migration', () => {
         completedContractsHistory: [],
         sessionQuests: [],
         sessionQuestSessionId: null,
+        candidatesPool: [],
+        candidatesRefreshIndex: 0,
       },
       company: {
         ...v4.company,
