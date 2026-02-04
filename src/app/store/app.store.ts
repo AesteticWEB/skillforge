@@ -32,6 +32,7 @@ import {
   RewardSummary,
   generateAvailableContracts,
 } from '@/entities/contracts';
+import { Quest, QuestProgressEvent, generateSessionQuests } from '@/entities/quests';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
@@ -54,6 +55,7 @@ import {
   SPECIALIZATIONS,
 } from '@/shared/config';
 import { NotificationsStore } from '@/features/notifications';
+import { AchievementsStore } from '@/features/achievements';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { ErrorLogStore } from '@/shared/lib/errors';
@@ -176,6 +178,8 @@ const createEmptyProgress = (): Progress => ({
   certificates: [],
   activeContracts: [],
   completedContractsHistory: [],
+  sessionQuests: [],
+  sessionQuestSessionId: null,
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -198,7 +202,9 @@ export class AppStore {
   private readonly eventBus = inject(DomainEventBus);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly errorLogStore = inject(ErrorLogStore);
+  private readonly achievementsStore = inject(AchievementsStore);
   private readonly numberFormatter = new Intl.NumberFormat('ru-RU');
+  private readonly sessionId = this.resolveSessionId();
 
   private hasHydrated = false;
   private readonly _user = signal<User>(createEmptyUser());
@@ -231,6 +237,7 @@ export class AppStore {
   readonly xp = this._xp.asReadonly();
   readonly backupAvailable = this._backupAvailable.asReadonly();
   readonly activeContracts = computed(() => this._progress().activeContracts);
+  readonly sessionQuests = computed(() => this._progress().sessionQuests);
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -430,6 +437,7 @@ export class AppStore {
     this.hydrateFromStorage();
     this.syncBackupAvailability();
     this.load();
+    this.ensureSessionQuests();
     this.hasHydrated = true;
     effect(() => {
       if (!this.hasHydrated) {
@@ -438,24 +446,30 @@ export class AppStore {
       this.persistToStorage();
     });
     this.eventBus.subscribe('ScenarioCompleted', (event) => {
-      this.applyEventToContracts({
+      const progressEvent: ContractProgressEvent = {
         type: 'ScenarioCompleted',
         scenarioId: event.payload.scenarioId,
-      });
+      };
+      this.applyEventToContracts(progressEvent);
+      this.applyEventToSessionQuests(progressEvent);
     });
     this.eventBus.subscribe('PurchaseMade', (event) => {
-      this.applyEventToContracts({
+      const progressEvent: ContractProgressEvent = {
         type: 'PurchaseMade',
         itemId: event.payload.itemId,
         currency: event.payload.currency,
-      });
+      };
+      this.applyEventToContracts(progressEvent);
+      this.applyEventToSessionQuests(progressEvent);
     });
     this.eventBus.subscribe('ExamPassed', (event) => {
-      this.applyEventToContracts({
+      const progressEvent: ContractProgressEvent = {
         type: 'ExamPassed',
         examId: event.payload.examId,
         stage: event.payload.stage,
-      });
+      };
+      this.applyEventToContracts(progressEvent);
+      this.applyEventToSessionQuests(progressEvent);
     });
   }
 
@@ -515,6 +529,45 @@ export class AppStore {
     });
     const activeIds = new Set(this._progress().activeContracts.map((contract) => contract.id));
     this._availableContracts.set(generated.filter((contract) => !activeIds.has(contract.id)));
+  }
+
+  ensureSessionQuests(force = false): void {
+    if (!this._user().isProfileComplete) {
+      if (
+        this._progress().sessionQuests.length > 0 ||
+        this._progress().sessionQuestSessionId !== null
+      ) {
+        this._progress.update((progress) => ({
+          ...progress,
+          sessionQuests: [],
+          sessionQuestSessionId: null,
+        }));
+      }
+      return;
+    }
+
+    const currentSessionId = this.sessionId;
+    const progress = this._progress();
+    const needsRefresh =
+      force ||
+      progress.sessionQuestSessionId !== currentSessionId ||
+      progress.sessionQuests.length !== 3;
+
+    if (!needsRefresh) {
+      return;
+    }
+
+    const seed = this.resolveSessionQuestSeed();
+    const quests = generateSessionQuests({ seed, sessionId: currentSessionId });
+    if (quests.length !== 3) {
+      return;
+    }
+
+    this._progress.update((current) => ({
+      ...current,
+      sessionQuests: quests,
+      sessionQuestSessionId: currentSessionId,
+    }));
   }
 
   acceptContract(contractId: string): void {
@@ -669,6 +722,79 @@ export class AppStore {
     return { completed, totalReward };
   }
 
+  applyEventToSessionQuests(event: QuestProgressEvent): {
+    claimed: Quest[];
+    earnedCoins: number;
+    earnedBadges: string[];
+  } {
+    const quests = this._progress().sessionQuests;
+    if (quests.length === 0) {
+      return { claimed: [], earnedCoins: 0, earnedBadges: [] };
+    }
+
+    const objectiveType = this.resolveQuestObjectiveType(event);
+    if (!objectiveType) {
+      return { claimed: [], earnedCoins: 0, earnedBadges: [] };
+    }
+
+    let didUpdate = false;
+    const claimed: Quest[] = [];
+    const updated = quests.map((quest) => {
+      if (quest.status === 'claimed') {
+        return quest;
+      }
+
+      const objective = quest.objective;
+      if (objective.type !== objectiveType) {
+        return quest;
+      }
+
+      const current = Number.isFinite(objective.current) ? objective.current : 0;
+      const target = Number.isFinite(objective.target) ? objective.target : 0;
+      const next = Math.min(target, current + 1);
+      if (next !== current) {
+        didUpdate = true;
+      }
+      const nextObjective = {
+        ...objective,
+        current: next,
+      };
+      const isCompleted = target > 0 && next >= target;
+      const nextStatus: Quest['status'] = isCompleted ? 'claimed' : quest.status;
+      const nextQuest = {
+        ...quest,
+        objective: nextObjective,
+        status: nextStatus,
+      };
+      if (isCompleted) {
+        claimed.push(nextQuest);
+      }
+      return nextQuest;
+    });
+
+    if (!didUpdate && claimed.length === 0) {
+      return { claimed: [], earnedCoins: 0, earnedBadges: [] };
+    }
+
+    const totalCoins = claimed.reduce((sum, quest) => sum + (quest.reward?.coins ?? 0), 0);
+    const badgeIds = claimed.map((quest) => quest.reward?.badgeId).filter(Boolean) as string[];
+    const uniqueBadges = Array.from(new Set(badgeIds));
+
+    this._progress.update((progress) => ({
+      ...progress,
+      sessionQuests: updated,
+      coins: this.normalizeCoins(progress.coins + totalCoins),
+    }));
+
+    if (uniqueBadges.length > 0) {
+      for (const badgeId of uniqueBadges) {
+        this.grantQuestBadge(badgeId);
+      }
+    }
+
+    return { claimed, earnedCoins: totalCoins, earnedBadges: uniqueBadges };
+  }
+
   setUser(user: User): void {
     this._user.set(user);
   }
@@ -706,6 +832,7 @@ export class AppStore {
     this._xp.set(0);
     this.setFeatureFlag('demoMode', false);
     this.load();
+    this.ensureSessionQuests(true);
     this.eventBus.publish(createProfileCreatedEvent(profile));
     return true;
   }
@@ -879,6 +1006,8 @@ export class AppStore {
       certificates: [],
       activeContracts: [],
       completedContractsHistory: [],
+      sessionQuests: [],
+      sessionQuestSessionId: null,
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -894,6 +1023,7 @@ export class AppStore {
 
     this.setFeatureFlag('demoMode', false);
     this.eventBus.publish(createProfileCreatedEvent(profile));
+    this.ensureSessionQuests(true);
   }
 
   applyDemoProfile(): void {
@@ -1009,6 +1139,7 @@ export class AppStore {
     this._inventory.set(inventory);
     this._availableContracts.set([]);
     this._featureFlags.set(featureFlags);
+    this.ensureSessionQuests();
     if (auth) {
       this._auth.set(auth);
       if (auth.isRegistered && !user.isProfileComplete) {
@@ -1750,6 +1881,8 @@ export class AppStore {
       completedContractsHistory: this.normalizeCompletedContractsHistory(
         progress.completedContractsHistory,
       ),
+      sessionQuests: this.normalizeSessionQuests(progress.sessionQuests),
+      sessionQuestSessionId: this.normalizeSessionQuestSessionId(progress.sessionQuestSessionId),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -1824,6 +1957,10 @@ export class AppStore {
     const completedContractsHistory = this.normalizeCompletedContractsHistory(
       value['completedContractsHistory'],
     );
+    const sessionQuests = this.normalizeSessionQuests(value['sessionQuests']);
+    const sessionQuestSessionId = this.normalizeSessionQuestSessionId(
+      value['sessionQuestSessionId'],
+    );
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -1854,6 +1991,8 @@ export class AppStore {
       certificates,
       activeContracts,
       completedContractsHistory,
+      sessionQuests,
+      sessionQuestSessionId,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -2215,6 +2354,19 @@ export class AppStore {
     }
   }
 
+  private resolveQuestObjectiveType(event: QuestProgressEvent): Quest['objective']['type'] | null {
+    switch (event.type) {
+      case 'ScenarioCompleted':
+        return 'scenario';
+      case 'ExamPassed':
+        return 'exam';
+      case 'PurchaseMade':
+        return 'purchase';
+      default:
+        return null;
+    }
+  }
+
   private createEmptyRewardSummary(): RewardSummary {
     return {
       coins: 0,
@@ -2259,6 +2411,14 @@ export class AppStore {
     return this.numberFormatter.format(Math.max(0, Math.floor(value)));
   }
 
+  private grantQuestBadge(badgeId: string): void {
+    const normalized = badgeId?.trim();
+    if (!normalized) {
+      return;
+    }
+    this.achievementsStore.grantAchievement(normalized);
+  }
+
   private normalizeActiveContracts(value: unknown): Contract[] {
     if (!Array.isArray(value)) {
       return [];
@@ -2273,6 +2433,21 @@ export class AppStore {
     return value.filter((entry): entry is CompletedContractEntry =>
       this.isValidCompletedContractEntry(entry),
     );
+  }
+
+  private normalizeSessionQuests(value: unknown): Quest[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is Quest => this.isValidQuest(entry));
+  }
+
+  private normalizeSessionQuestSessionId(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
   }
 
   private isValidContract(value: unknown): value is Contract {
@@ -2294,6 +2469,45 @@ export class AppStore {
     if (typeof value['seed'] !== 'string') {
       return false;
     }
+    return true;
+  }
+
+  private isValidQuest(value: unknown): value is Quest {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string') {
+      return false;
+    }
+    if (typeof value['title'] !== 'string' || typeof value['description'] !== 'string') {
+      return false;
+    }
+    if (!this.isRecord(value['objective'])) {
+      return false;
+    }
+    if (!this.isRecord(value['reward'])) {
+      return false;
+    }
+    if (typeof value['status'] !== 'string') {
+      return false;
+    }
+    if (typeof value['issuedAtIso'] !== 'string' || typeof value['sessionId'] !== 'string') {
+      return false;
+    }
+
+    const objective = value['objective'];
+    if (typeof objective['type'] !== 'string') {
+      return false;
+    }
+    if (typeof objective['target'] !== 'number' || typeof objective['current'] !== 'number') {
+      return false;
+    }
+
+    const reward = value['reward'];
+    if (typeof reward['coins'] !== 'number' || typeof reward['badgeId'] !== 'string') {
+      return false;
+    }
+
     return true;
   }
 
@@ -2343,6 +2557,38 @@ export class AppStore {
     const login = this._auth().login?.trim();
     const base = login || this._user().startDate || this._user().role || 'guest';
     return `${base}:${this.careerStage()}`;
+  }
+
+  private resolveSessionQuestSeed(): string {
+    const login = this._auth().login?.trim();
+    const base = login || this._user().startDate || this._user().role || 'guest';
+    const examAvailable = Boolean(this.resolveExamProfessionId());
+    const purchaseAvailable = true;
+    return `${base}:${this.careerStage()}|exam=${examAvailable ? 1 : 0}|purchase=${
+      purchaseAvailable ? 1 : 0
+    }`;
+  }
+
+  private resolveSessionId(): string {
+    if (!this.isSessionStorageAvailable()) {
+      return new Date().toISOString();
+    }
+    const key = 'skillforge.session.id';
+    const stored = sessionStorage.getItem(key);
+    if (stored && stored.trim().length > 0) {
+      return stored;
+    }
+    const created = new Date().toISOString();
+    try {
+      sessionStorage.setItem(key, created);
+    } catch {
+      return created;
+    }
+    return created;
+  }
+
+  private isSessionStorageAvailable(): boolean {
+    return typeof sessionStorage !== 'undefined';
   }
 
   private normalizeSpecializationId(value: unknown): string | null {

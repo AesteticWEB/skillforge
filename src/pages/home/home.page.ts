@@ -6,6 +6,7 @@ import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { InputComponent } from '@/shared/ui/input';
 import { PROFESSION_OPTIONS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
+import { SESSION_QUEST_BADGE_LABELS, type Quest } from '@/entities/quests';
 
 @Component({
   selector: 'app-home-page',
@@ -27,6 +28,18 @@ export class HomePage {
   protected readonly isRegistered = this.store.isRegistered;
   protected readonly auth = this.store.auth;
   protected readonly xp = this.store.xp;
+  protected readonly sessionQuests = this.store.sessionQuests;
+  protected readonly sessionQuestBadges = SESSION_QUEST_BADGE_LABELS;
+  protected readonly allSessionQuestsClaimed = computed(
+    () =>
+      this.sessionQuests().length > 0 &&
+      this.sessionQuests().every((quest) => quest.status === 'claimed'),
+  );
+  protected readonly sessionQuestCoinsEarned = computed(() =>
+    this.sessionQuests()
+      .filter((quest) => quest.status === 'claimed')
+      .reduce((sum, quest) => sum + (quest.reward?.coins ?? 0), 0),
+  );
   protected readonly careerProgress = this.store.careerProgress;
   protected readonly stageLabel = this.store.stageLabel;
   protected readonly careerStages = computed(() => {
@@ -80,5 +93,13 @@ export class HomePage {
   protected setProfession(event: Event): void {
     const target = event.target as HTMLSelectElement | null;
     this.profession.set(target?.value ?? '');
+  }
+
+  protected questStatusLabel(quest: Quest): string {
+    return quest.status === 'claimed' ? 'Выполнено' : 'В процессе';
+  }
+
+  protected badgeLabel(badgeId: string): string {
+    return this.sessionQuestBadges[badgeId] ?? badgeId;
   }
 }

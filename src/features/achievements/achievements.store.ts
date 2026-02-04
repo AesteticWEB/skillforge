@@ -67,6 +67,13 @@ export class AchievementsStore {
     this.clearStorage();
   }
 
+  grantAchievement(id: string): void {
+    if (!ACHIEVEMENT_LOOKUP.has(id as AchievementId)) {
+      return;
+    }
+    this.unlockAchievement(id as AchievementId);
+  }
+
   private handleScenarioCompleted(): void {
     const nextStreak = this.state().streak + 1;
     this.state.update((current) => ({

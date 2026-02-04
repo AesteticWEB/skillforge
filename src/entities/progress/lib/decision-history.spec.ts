@@ -23,6 +23,8 @@ describe('decision history undo', () => {
       certificates: [],
       activeContracts: [],
       completedContractsHistory: [],
+      sessionQuests: [],
+      sessionQuestSessionId: null,
       specializationId: null,
       reputation: reputationGain,
       techDebt: techDebtGain * 2,

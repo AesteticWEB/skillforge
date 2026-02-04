@@ -96,12 +96,17 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
   const completedContractsHistory = Array.isArray(base.completedContractsHistory)
     ? base.completedContractsHistory
     : [];
+  const sessionQuests = Array.isArray(base.sessionQuests) ? base.sessionQuests : [];
+  const sessionQuestSessionId =
+    typeof base.sessionQuestSessionId === 'string' ? base.sessionQuestSessionId : null;
 
   return {
     ...base,
     coins,
     activeContracts,
     completedContractsHistory,
+    sessionQuests,
+    sessionQuestSessionId,
   };
 };
 
