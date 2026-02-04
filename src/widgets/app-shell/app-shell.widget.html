@@ -33,6 +33,20 @@
                 <span>{{ item.label }}</span>
                 <span class="text-xs text-slate-600">{{ item.meta }}</span>
               </button>
+            } @else if (isItemLocked(item)) {
+              <button
+                type="button"
+                class="flex cursor-not-allowed items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-500 opacity-60"
+                aria-disabled="true"
+                tabindex="-1"
+                [attr.title]="item.lockHint ?? 'Откроется после достижения Senior'"
+                (click)="notifyCompanyLocked()"
+              >
+                <span>{{ item.label }}</span>
+                <span class="text-xs text-slate-600">
+                  {{ item.lockHint ?? item.meta }}
+                </span>
+              </button>
             } @else {
               <a
                 #navLink

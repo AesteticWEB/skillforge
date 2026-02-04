@@ -1,186 +1,396 @@
 <section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col gap-6 px-6 py-16">
   <sf-card>
-    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
-      Настройки / Отладка
-    </h1>
+    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Настройки / Отладка</h1>
     <p class="mt-3 text-base text-slate-300 sm:text-lg">
       Технические переключатели и диагностика. Страница только для разработки.
     </p>
   </sf-card>
 
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Уведомления</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Последние доменные события.
-        </p>
-      </div>
-      <sf-button variant="ghost" type="button" (click)="clearNotifications()"
-        >Очистить</sf-button
+  @if (!devMode) {
+    <sf-card>
+      <div
+        class="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
       >
-    </div>
-    <div class="mt-4 grid gap-3">
-      @for (note of notifications(); track note.id) {
-        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="text-sm text-slate-200">{{ note.message }}</div>
-          <div class="mt-1 text-xs text-slate-500">{{ formatDate(note.createdAt) }}</div>
+        Отладка доступна только в dev-режиме.
+      </div>
+    </sf-card>
+  } @else {
+    <sf-card>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Карьерный уровень</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Текущая стадия: {{ stageLabel() }} ({{ careerStage() }}).
+          </p>
+          <p class="mt-1 text-xs text-slate-500">Режим отладки: сертификаты не проверяются.</p>
         </div>
-      } @empty {
-        <div class="text-sm text-slate-400">Уведомлений пока нет.</div>
-      }
-    </div>
-  </sf-card>
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Backup Save</h2>
-        <p class="mt-1 text-sm text-slate-400">Восстановление последнего сохранения.</p>
       </div>
-      <sf-button
-        variant="ghost"
-        type="button"
-        (click)="restoreBackup()"
-        [disabled]="!backupAvailable()"
-      >
-        Restore backup
-      </sf-button>
-    </div>
-    @if (!backupAvailable()) {
-      <div
-        class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
-      >
-        Backup отсутствует.
+      <div class="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+        <div>
+          <label class="text-xs text-slate-400">Стадия</label>
+          <select
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="selectedStage()"
+            [disabled]="!devMode"
+            (change)="updateSelectedStage($event)"
+          >
+            @for (stage of stageOptions; track stage) {
+              <option [value]="stage">{{ formatStageLabel(stage) }} ({{ stage }})</option>
+            }
+          </select>
+        </div>
+        <div class="flex items-end">
+          <sf-button type="button" (click)="applyCareerStage()" [disabled]="!devMode">
+            Применить
+          </sf-button>
+        </div>
       </div>
-    }
-  </sf-card>
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Company</h2>
-        <p class="mt-1 text-sm text-slate-400">Текущее состояние компании.</p>
+    </sf-card>
+
+    <sf-card>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Компания</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Режим: {{ companyUnlocked() ? 'открыт' : 'закрыт' }} · Уровень:
+            {{ formatCompanyLevel(company().level) }}
+          </p>
+        </div>
       </div>
-    </div>
-    <div class="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
-      <div class="text-slate-400">Cash</div>
-      <div class="mt-1 text-lg font-semibold text-slate-100">{{ companyCash() }}</div>
-    </div>
-  </sf-card>
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Balance Sandbox</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Симуляция {{ sandboxSteps }} ходов для проверки баланса. Dev-only.
-        </p>
+      <div class="mt-4 grid gap-3 md:grid-cols-2">
+        <label class="flex items-center gap-2 text-sm text-slate-200">
+          <input
+            type="checkbox"
+            class="h-4 w-4 rounded border-slate-700 bg-slate-950/40 text-emerald-400"
+            [checked]="companyUnlockedInput()"
+            [disabled]="!devMode"
+            (change)="updateCompanyUnlocked($event)"
+          />
+          Открыть режим компании
+        </label>
+        <div>
+          <label class="text-xs text-slate-400">Уровень компании</label>
+          <select
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="selectedCompanyLevel()"
+            [disabled]="!devMode"
+            (change)="updateCompanyLevel($event)"
+          >
+            @for (level of companyLevelOptions; track level) {
+              <option [value]="level">{{ formatCompanyLevel(level) }}</option>
+            }
+          </select>
+        </div>
       </div>
-      <sf-button
-        variant="ghost"
-        type="button"
-        (click)="runBalanceSandbox()"
-        [disabled]="!hasProfile()"
-      >
-        Симулировать {{ sandboxSteps }} ходов
-      </sf-button>
-    </div>
-    @if (!hasProfile()) {
-      <div
-        class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
-      >
-        создайте профиль, чтобы запустить симуляцию.
+      <div class="mt-4">
+        <sf-button type="button" (click)="applyCompanySettings()" [disabled]="!devMode">
+          Применить
+        </sf-button>
       </div>
-    } @else {
-      <div class="mt-4 overflow-hidden rounded-xl border border-slate-800/80">
-        <div class="max-h-96 overflow-auto bg-slate-950/40">
-          <table class="min-w-full text-left text-sm">
-            <thead
-              class="sticky top-0 bg-slate-950/90 text-xs uppercase tracking-wide text-slate-500"
+    </sf-card>
+
+    <sf-card>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Валюты</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Монеты: {{ coins() }} · Кэш: {{ companyCash() }}
+          </p>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="text-xs text-slate-400">Монеты</div>
+          <input
+            type="number"
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="coinsInput()"
+            [disabled]="!devMode"
+            (input)="updateCoinsInput($event)"
+          />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <sf-button type="button" (click)="applyCoins()" [disabled]="!devMode">
+              Установить
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addCoins(100)" [disabled]="!devMode">
+              +100
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addCoins(1000)" [disabled]="!devMode">
+              +1000
+            </sf-button>
+          </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="text-xs text-slate-400">Кэш</div>
+          <input
+            type="number"
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="cashInput()"
+            [disabled]="!devMode"
+            (input)="updateCashInput($event)"
+          />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <sf-button type="button" (click)="applyCash()" [disabled]="!devMode">
+              Установить
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addCash(1000)" [disabled]="!devMode">
+              +1000
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addCash(10000)" [disabled]="!devMode">
+              +10000
+            </sf-button>
+          </div>
+        </div>
+      </div>
+    </sf-card>
+
+    <sf-card>
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Репутация / Техдолг</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Репутация: {{ reputation() }} · Техдолг: {{ techDebt() }}
+          </p>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+          <div class="text-xs text-slate-400">Репутация</div>
+          <input
+            type="number"
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="reputationInput()"
+            [disabled]="!devMode"
+            (input)="updateReputationInput($event)"
+          />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <sf-button type="button" (click)="applyReputation()" [disabled]="!devMode">
+              Установить
+            </sf-button>
+            <sf-button
+              type="button"
+              variant="ghost"
+              (click)="addReputation(1)"
+              [disabled]="!devMode"
             >
-              <tr>
-                <th class="px-3 py-2">Ход</th>
-                <th class="px-3 py-2">Coins</th>
-                <th class="px-3 py-2">Cash</th>
-                <th class="px-3 py-2">Rep</th>
-                <th class="px-3 py-2">Debt</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800/80 text-slate-200">
-              @for (row of sandboxRows(); track row.step) {
-                <tr>
-                  <td class="px-3 py-2 text-slate-400">{{ row.step }}</td>
-                  <td class="px-3 py-2">{{ row.coins }}</td>
-                  <td class="px-3 py-2">{{ row.cash }}</td>
-                  <td class="px-3 py-2">{{ row.reputation }}</td>
-                  <td class="px-3 py-2">{{ row.techDebt }}</td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td class="px-3 py-3 text-sm text-slate-500" colspan="5">
-                    Запусти симуляцию, чтобы увидеть результаты.
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+              +1
+            </sf-button>
+            <sf-button
+              type="button"
+              variant="ghost"
+              (click)="addReputation(5)"
+              [disabled]="!devMode"
+            >
+              +5
+            </sf-button>
+          </div>
         </div>
-      </div>
-    }
-  </sf-card>
 
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Лог ошибок</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Собранные ошибки во время работы.
-        </p>
-      </div>
-      <sf-button variant="ghost" type="button" (click)="clearErrors()">Очистить</sf-button>
-    </div>
-    @if (fatalError(); as error) {
-      <div
-        class="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
-      >
-        Критично: {{ error.message }}
-      </div>
-    }
-    <div class="mt-4 grid gap-3">
-      @for (entry of errorLog(); track entry.id) {
         <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="text-xs text-slate-500">{{ formatDate(entry.occurredAt) }}</div>
-          <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
-          @if (entry.context) {
-            <div class="mt-1 text-xs text-slate-400">Контекст: {{ entry.context }}</div>
-          }
+          <div class="text-xs text-slate-400">Техдолг</div>
+          <input
+            type="number"
+            class="mt-2 w-full rounded-xl border border-slate-800/80 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
+            [value]="techDebtInput()"
+            [disabled]="!devMode"
+            (input)="updateTechDebtInput($event)"
+          />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <sf-button type="button" (click)="applyTechDebt()" [disabled]="!devMode">
+              Установить
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addTechDebt(1)" [disabled]="!devMode">
+              +1
+            </sf-button>
+            <sf-button type="button" variant="ghost" (click)="addTechDebt(5)" [disabled]="!devMode">
+              +5
+            </sf-button>
+          </div>
         </div>
-      } @empty {
-        <div class="text-sm text-slate-400">Ошибок пока нет.</div>
-      }
-    </div>
-  </sf-card>
+      </div>
+    </sf-card>
 
-  <sf-card>
-    <div class="flex items-center justify-between gap-3">
-      <div>
-        <h2 class="text-lg font-semibold text-slate-100">Лог событий</h2>
-        <p class="mt-1 text-sm text-slate-400">
-          Профиль: {{ eventCounts().profileCreated }} | Навыки:
-          {{ eventCounts().skillUpgraded }} | Сценарии:
-          {{ eventCounts().scenarioCompleted }}
-        </p>
-      </div>
-      <sf-button variant="ghost" type="button" (click)="clearEvents()">Очистить</sf-button>
-    </div>
-    <div class="mt-4 grid gap-3">
-      @for (event of eventCards(); track event.key) {
-        <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
-          <div class="text-xs text-slate-500">{{ event.occurredAt }}</div>
-          <div class="mt-1 text-sm font-semibold text-slate-100">{{ event.type }}</div>
-          <div class="mt-1 text-xs text-slate-400">{{ event.summary }}</div>
+    <sf-card>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Опасные действия</h2>
+          <p class="mt-1 text-sm text-slate-400">Сброс сохранения удалит прогресс и настройки.</p>
         </div>
-      } @empty {
-        <div class="text-sm text-slate-400">Событий пока нет.</div>
+        <sf-button type="button" variant="ghost" (click)="resetProgress()" [disabled]="!devMode">
+          Сбросить прогресс/сейв
+        </sf-button>
+      </div>
+    </sf-card>
+
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Уведомления</h2>
+          <p class="mt-1 text-sm text-slate-400">Последние доменные события.</p>
+        </div>
+        <sf-button variant="ghost" type="button" (click)="clearNotifications()">Очистить</sf-button>
+      </div>
+      <div class="mt-4 grid gap-3">
+        @for (note of notifications(); track note.id) {
+          <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+            <div class="text-sm text-slate-200">{{ note.message }}</div>
+            <div class="mt-1 text-xs text-slate-500">{{ formatDate(note.createdAt) }}</div>
+          </div>
+        } @empty {
+          <div class="text-sm text-slate-400">Уведомлений пока нет.</div>
+        }
+      </div>
+    </sf-card>
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Резервное сохранение</h2>
+          <p class="mt-1 text-sm text-slate-400">Восстановление последнего сохранения.</p>
+        </div>
+        <sf-button
+          variant="ghost"
+          type="button"
+          (click)="restoreBackup()"
+          [disabled]="!backupAvailable()"
+        >
+          Восстановить
+        </sf-button>
+      </div>
+      @if (!backupAvailable()) {
+        <div
+          class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          Backup отсутствует.
+        </div>
       }
-    </div>
-  </sf-card>
+    </sf-card>
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Компания</h2>
+          <p class="mt-1 text-sm text-slate-400">Текущее состояние компании.</p>
+        </div>
+      </div>
+      <div class="mt-4 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3 text-sm">
+        <div class="text-slate-400">Кэш</div>
+        <div class="mt-1 text-lg font-semibold text-slate-100">{{ companyCash() }}</div>
+      </div>
+    </sf-card>
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Песочница баланса</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Симуляция {{ sandboxSteps }} ходов для проверки баланса. Только dev.
+          </p>
+        </div>
+        <sf-button
+          variant="ghost"
+          type="button"
+          (click)="runBalanceSandbox()"
+          [disabled]="!hasProfile()"
+        >
+          Симулировать {{ sandboxSteps }} ходов
+        </sf-button>
+      </div>
+      @if (!hasProfile()) {
+        <div
+          class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          создайте профиль, чтобы запустить симуляцию.
+        </div>
+      } @else {
+        <div class="mt-4 overflow-hidden rounded-xl border border-slate-800/80">
+          <div class="max-h-96 overflow-auto bg-slate-950/40">
+            <table class="min-w-full text-left text-sm">
+              <thead
+                class="sticky top-0 bg-slate-950/90 text-xs uppercase tracking-wide text-slate-500"
+              >
+                <tr>
+                  <th class="px-3 py-2">Ход</th>
+                  <th class="px-3 py-2">Монеты</th>
+                  <th class="px-3 py-2">Кэш</th>
+                  <th class="px-3 py-2">Репутация</th>
+                  <th class="px-3 py-2">Техдолг</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/80 text-slate-200">
+                @for (row of sandboxRows(); track row.step) {
+                  <tr>
+                    <td class="px-3 py-2 text-slate-400">{{ row.step }}</td>
+                    <td class="px-3 py-2">{{ row.coins }}</td>
+                    <td class="px-3 py-2">{{ row.cash }}</td>
+                    <td class="px-3 py-2">{{ row.reputation }}</td>
+                    <td class="px-3 py-2">{{ row.techDebt }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td class="px-3 py-3 text-sm text-slate-500" colspan="5">
+                      Запусти симуляцию, чтобы увидеть результаты.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </sf-card>
+
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Лог ошибок</h2>
+          <p class="mt-1 text-sm text-slate-400">Собранные ошибки во время работы.</p>
+        </div>
+        <sf-button variant="ghost" type="button" (click)="clearErrors()">Очистить</sf-button>
+      </div>
+      @if (fatalError(); as error) {
+        <div
+          class="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"
+        >
+          Критично: {{ error.message }}
+        </div>
+      }
+      <div class="mt-4 grid gap-3">
+        @for (entry of errorLog(); track entry.id) {
+          <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+            <div class="text-xs text-slate-500">{{ formatDate(entry.occurredAt) }}</div>
+            <div class="mt-1 text-sm font-semibold text-slate-100">{{ entry.message }}</div>
+            @if (entry.context) {
+              <div class="mt-1 text-xs text-slate-400">Контекст: {{ entry.context }}</div>
+            }
+          </div>
+        } @empty {
+          <div class="text-sm text-slate-400">Ошибок пока нет.</div>
+        }
+      </div>
+    </sf-card>
+
+    <sf-card>
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-100">Лог событий</h2>
+          <p class="mt-1 text-sm text-slate-400">
+            Профиль: {{ eventCounts().profileCreated }} | Навыки:
+            {{ eventCounts().skillUpgraded }} | Сценарии:
+            {{ eventCounts().scenarioCompleted }}
+          </p>
+        </div>
+        <sf-button variant="ghost" type="button" (click)="clearEvents()">Очистить</sf-button>
+      </div>
+      <div class="mt-4 grid gap-3">
+        @for (event of eventCards(); track event.key) {
+          <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
+            <div class="text-xs text-slate-500">{{ event.occurredAt }}</div>
+            <div class="mt-1 text-sm font-semibold text-slate-100">{{ event.type }}</div>
+            <div class="mt-1 text-xs text-slate-400">{{ event.summary }}</div>
+          </div>
+        } @empty {
+          <div class="text-sm text-slate-400">Событий пока нет.</div>
+        }
+      </div>
+    </sf-card>
+  }
 </section>

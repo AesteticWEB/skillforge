@@ -39,9 +39,12 @@ describe('persist schema migration', () => {
       progress: {
         ...v1.progress,
         coins: 0,
+        activeContracts: [],
       },
       company: {
         cash: 0,
+        level: 'none',
+        unlocked: false,
       },
       inventory: {
         ownedItemIds: [],
@@ -84,8 +87,15 @@ describe('persist schema migration', () => {
     expect(migrated).toEqual({
       version: PERSIST_SCHEMA_VERSION,
       user: v4.user,
-      progress: v4.progress,
-      company: v4.company,
+      progress: {
+        ...v4.progress,
+        activeContracts: [],
+      },
+      company: {
+        ...v4.company,
+        level: 'none',
+        unlocked: false,
+      },
       inventory: {
         ownedItemIds: ['shop-a', 'shop-b'],
       },

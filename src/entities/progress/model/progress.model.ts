@@ -1,5 +1,6 @@
 import type { ExamAttempt, ExamRun } from '@/entities/exam';
 import type { Certificate } from '@/entities/certificates';
+import type { Contract } from '@/entities/contracts';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 
@@ -27,6 +28,7 @@ export interface Progress {
   examHistory: ExamAttempt[];
   activeExamRun: ExamRun | null;
   certificates: Certificate[];
+  activeContracts: Contract[];
   specializationId: string | null;
   reputation: number;
   techDebt: number;

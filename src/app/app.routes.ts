@@ -33,6 +33,12 @@ export const routes: Routes = [
     loadComponent: () => import('../pages/shop/shop.page').then((m) => m.ShopPage),
   },
   {
+    path: 'company',
+    title: '\u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f | SkillForge',
+    canMatch: [authGuard],
+    loadComponent: () => import('../pages/company/company.page').then((m) => m.CompanyPage),
+  },
+  {
     path: 'simulator',
     title: '\u0421\u0438\u043c\u0443\u043b\u044f\u0442\u043e\u0440 | SkillForge',
     canMatch: [authGuard],

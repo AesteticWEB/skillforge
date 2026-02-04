@@ -1,4 +1,5 @@
-import type { Company } from '@/entities/company';
+import type { Company, CompanyLevel } from '@/entities/company';
+import { COMPANY_LEVELS } from '@/entities/company';
 import type { Inventory } from '@/entities/inventory';
 import { normalizeOwnedItemIds } from '@/entities/inventory';
 import type { Progress } from '@/entities/progress';
@@ -91,10 +92,12 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     typeof base.coins === 'number' && Number.isFinite(base.coins)
       ? Math.max(0, Math.floor(base.coins))
       : 0;
+  const activeContracts = Array.isArray(base.activeContracts) ? base.activeContracts : [];
 
   return {
     ...base,
     coins,
+    activeContracts,
   };
 };
 
@@ -104,10 +107,17 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
     typeof base.cash === 'number' && Number.isFinite(base.cash)
       ? Math.max(0, Math.floor(base.cash))
       : 0;
+  const level =
+    typeof base.level === 'string' && (COMPANY_LEVELS as readonly string[]).includes(base.level)
+      ? (base.level as CompanyLevel)
+      : 'none';
+  const unlocked = typeof base.unlocked === 'boolean' ? base.unlocked : false;
 
   return {
     ...base,
     cash,
+    level,
+    unlocked,
   };
 };
 

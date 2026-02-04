@@ -8,3 +8,4 @@ export * from './profession-perks';
 export * from './specializations';
 export * from './exams/exams';
 export * from './exams/questions';
+export * from './contract-templates';

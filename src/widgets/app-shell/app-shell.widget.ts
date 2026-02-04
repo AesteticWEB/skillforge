@@ -17,6 +17,8 @@ type NavItem = {
   path: string;
   exact: boolean;
   meta: string;
+  requiresCompany?: boolean;
+  lockHint?: string;
 };
 
 const NAV_ITEMS: readonly NavItem[] = [
@@ -24,6 +26,14 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Профиль', path: '/profile', exact: false, meta: 'Шаг 1' },
   { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 2' },
   { label: 'Магазин', path: '/shop', exact: false, meta: 'Бонусы' },
+  {
+    label: 'Компания',
+    path: '/company',
+    exact: false,
+    meta: 'Контракты',
+    requiresCompany: true,
+    lockHint: 'Откроется после достижения Senior',
+  },
   { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
   { label: 'Экзамен', path: '/exam', exact: false, meta: 'Арена' },
   { label: 'Аналитика', path: '/analytics', exact: false, meta: 'Итоги' },
@@ -93,7 +103,15 @@ export class AppShellWidget {
     return !this.isRegistered();
   }
 
+  protected isItemLocked(item: NavItem): boolean {
+    return Boolean(item.requiresCompany && !this.store.companyUnlocked());
+  }
+
   protected notifyLockedNav(): void {
     this.notifications.notify('Чтобы продолжить, зарегистрируйтесь.', 'info');
+  }
+
+  protected notifyCompanyLocked(): void {
+    this.notifications.notify('Откроется после достижения Senior.', 'info');
   }
 }

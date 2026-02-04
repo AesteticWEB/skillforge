@@ -24,7 +24,8 @@ import {
   getSkillUpgradeMeta as resolveSkillUpgradeMeta,
   Skill,
 } from '@/entities/skill';
-import { Company } from '@/entities/company';
+import { Company, CompanyLevel, COMPANY_LEVELS } from '@/entities/company';
+import { Contract, generateAvailableContracts } from '@/entities/contracts';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
@@ -135,6 +136,8 @@ const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
   senior: 'Сеньор',
 };
 
+const MAX_ACTIVE_CONTRACTS = 3;
+
 const createEmptyAuth = (): AuthState => ({
   login: '',
   profession: '',
@@ -150,6 +153,8 @@ const createEmptyUser = (): User => ({
 
 const createEmptyCompany = (): Company => ({
   cash: 0,
+  unlocked: false,
+  level: 'none',
 });
 
 const createEmptyInventory = (): Inventory => ({
@@ -162,6 +167,7 @@ const createEmptyProgress = (): Progress => ({
   examHistory: [],
   activeExamRun: null,
   certificates: [],
+  activeContracts: [],
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -199,6 +205,7 @@ export class AppStore {
   private readonly _progress = signal<Progress>(createEmptyProgress());
   private readonly _company = signal<Company>(createEmptyCompany());
   private readonly _inventory = signal<Inventory>(createEmptyInventory());
+  private readonly _availableContracts = signal<Contract[]>([]);
   private readonly _backupAvailable = signal(false);
 
   readonly user = this._user.asReadonly();
@@ -209,10 +216,12 @@ export class AppStore {
   readonly progress = this._progress.asReadonly();
   readonly company = this._company.asReadonly();
   readonly inventory = this._inventory.asReadonly();
+  readonly availableContracts = this._availableContracts.asReadonly();
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
   readonly xp = this._xp.asReadonly();
   readonly backupAvailable = this._backupAvailable.asReadonly();
+  readonly activeContracts = computed(() => this._progress().activeContracts);
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -325,6 +334,9 @@ export class AppStore {
   readonly companyCash = computed(() => this._company().cash);
   readonly companyUnlocked = computed(() => {
     const company = this._company();
+    if (company?.unlocked) {
+      return true;
+    }
     return Boolean(company) && Number.isFinite(company.cash) && this.careerStage() === 'senior';
   });
   readonly canUndoDecision = computed(() => {
@@ -463,6 +475,54 @@ export class AppStore {
     });
   }
 
+  refreshAvailableContracts(): void {
+    const seed = this.resolveContractSeed();
+    const generated = generateAvailableContracts({
+      stage: this.careerStage(),
+      reputation: this.reputation(),
+      techDebt: this.techDebt(),
+      seed,
+      count: 5,
+    });
+    const activeIds = new Set(this._progress().activeContracts.map((contract) => contract.id));
+    this._availableContracts.set(generated.filter((contract) => !activeIds.has(contract.id)));
+  }
+
+  acceptContract(contractId: string): void {
+    const active = this._progress().activeContracts;
+    if (active.some((contract) => contract.id === contractId)) {
+      return;
+    }
+    if (active.length >= MAX_ACTIVE_CONTRACTS) {
+      this.notificationsStore.error('Лимит 3 контракта');
+      return;
+    }
+    const available = this._availableContracts();
+    const contract = available.find((item) => item.id === contractId);
+    if (!contract) {
+      this.logDevError('contract-not-found', { contractId });
+      return;
+    }
+
+    this._progress.update((progress) => ({
+      ...progress,
+      activeContracts: [...progress.activeContracts, contract],
+    }));
+    this._availableContracts.set(available.filter((item) => item.id !== contractId));
+  }
+
+  abandonContract(contractId: string): void {
+    const active = this._progress().activeContracts;
+    if (!active.some((contract) => contract.id === contractId)) {
+      this.logDevError('contract-not-found', { contractId });
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      activeContracts: progress.activeContracts.filter((contract) => contract.id !== contractId),
+    }));
+  }
+
   setUser(user: User): void {
     this._user.set(user);
   }
@@ -494,6 +554,7 @@ export class AppStore {
     });
     this._user.set(profile);
     this._progress.set(createEmptyProgress());
+    this._availableContracts.set([]);
     this._company.set(createEmptyCompany());
     this._inventory.set(createEmptyInventory());
     this._xp.set(0);
@@ -512,6 +573,118 @@ export class AppStore {
       return;
     }
     this._xp.update((current) => this.normalizeXp(current + delta));
+  }
+
+  setCareerStage(stage: SkillStageId): void {
+    if (!this.isValidStage(stage)) {
+      this.logDevWarn('career-stage-invalid', { stage });
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      careerStage: stage,
+    }));
+  }
+
+  setCoins(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      coins: this.normalizeCoins(value),
+    }));
+  }
+
+  addCoins(delta: number): void {
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      coins: this.normalizeCoins(progress.coins + delta),
+    }));
+  }
+
+  setReputation(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      reputation: this.normalizeReputation(value),
+    }));
+  }
+
+  addReputation(delta: number): void {
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      reputation: this.normalizeReputation(progress.reputation + delta),
+    }));
+  }
+
+  setTechDebt(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      techDebt: this.normalizeTechDebt(value),
+    }));
+  }
+
+  addTechDebt(delta: number): void {
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      techDebt: this.normalizeTechDebt(progress.techDebt + delta),
+    }));
+  }
+
+  setCompanyCash(value: number): void {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    this._company.update((company) => ({
+      ...company,
+      cash: this.normalizeCash(value),
+    }));
+  }
+
+  addCompanyCash(delta: number): void {
+    if (!Number.isFinite(delta)) {
+      return;
+    }
+    this._company.update((company) => ({
+      ...company,
+      cash: this.normalizeCash(company.cash + delta),
+    }));
+  }
+
+  setCompanyUnlocked(unlocked: boolean): void {
+    if (typeof unlocked !== 'boolean') {
+      return;
+    }
+    this._company.update((company) => ({
+      ...company,
+      unlocked,
+    }));
+  }
+
+  setCompanyLevel(level: CompanyLevel): void {
+    if (!this.isCompanyLevel(level)) {
+      this.logDevWarn('company-level-invalid', { level });
+      return;
+    }
+    this._company.update((company) => ({
+      ...company,
+      level,
+    }));
   }
 
   logout(): void {
@@ -558,6 +731,7 @@ export class AppStore {
       examHistory: [],
       activeExamRun: null,
       certificates: [],
+      activeContracts: [],
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -566,6 +740,7 @@ export class AppStore {
       spentXpOnSkills: 0,
       careerStage: 'internship',
     });
+    this._availableContracts.set([]);
     this._company.set(createEmptyCompany());
     this._inventory.set(createEmptyInventory());
     this._xp.set(0);
@@ -685,6 +860,7 @@ export class AppStore {
     this._progress.set(progress);
     this._company.set(company);
     this._inventory.set(inventory);
+    this._availableContracts.set([]);
     this._featureFlags.set(featureFlags);
     if (auth) {
       this._auth.set(auth);
@@ -1250,6 +1426,7 @@ export class AppStore {
     this._progress.set(createEmptyProgress());
     this._company.set(createEmptyCompany());
     this._inventory.set(createEmptyInventory());
+    this._availableContracts.set([]);
     this._xp.set(0);
     this._featureFlags.set(DEFAULT_FEATURE_FLAGS);
     this._skills.set([]);
@@ -1410,6 +1587,7 @@ export class AppStore {
       examHistory: progress.examHistory ?? [],
       activeExamRun: progress.activeExamRun ?? null,
       certificates: progress.certificates ?? [],
+      activeContracts: this.normalizeActiveContracts(progress.activeContracts),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -1425,6 +1603,8 @@ export class AppStore {
   private mergeCompanyDefaults(company: Partial<Company>): Company {
     return {
       cash: this.normalizeCash(company.cash ?? 0),
+      unlocked: typeof company.unlocked === 'boolean' ? company.unlocked : false,
+      level: this.normalizeCompanyLevel(company.level),
     };
   }
 
@@ -1478,6 +1658,7 @@ export class AppStore {
     const examHistory = this.parseExamHistory(value['examHistory']) ?? [];
     const activeExamRun = this.parseExamRun(value['activeExamRun']);
     const certificates = this.parseCertificates(value['certificates']) ?? [];
+    const activeContracts = this.normalizeActiveContracts(value['activeContracts']);
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -1506,6 +1687,7 @@ export class AppStore {
       examHistory,
       activeExamRun,
       certificates,
+      activeContracts,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -1523,11 +1705,15 @@ export class AppStore {
       return null;
     }
     const cash = value['cash'];
+    const unlocked = value['unlocked'];
+    const level = value['level'];
     if (cash !== undefined && typeof cash !== 'number') {
       return null;
     }
     return {
       cash: this.normalizeCash(typeof cash === 'number' ? cash : 0),
+      unlocked: typeof unlocked === 'boolean' ? unlocked : false,
+      level: this.normalizeCompanyLevel(level),
     };
   }
 
@@ -1848,6 +2034,35 @@ export class AppStore {
     };
   }
 
+  private normalizeActiveContracts(value: unknown): Contract[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is Contract => this.isValidContract(entry));
+  }
+
+  private isValidContract(value: unknown): value is Contract {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string') {
+      return false;
+    }
+    if (typeof value['title'] !== 'string' || typeof value['description'] !== 'string') {
+      return false;
+    }
+    if (!Array.isArray(value['objectives'])) {
+      return false;
+    }
+    if (!this.isRecord(value['reward'])) {
+      return false;
+    }
+    if (typeof value['seed'] !== 'string') {
+      return false;
+    }
+    return true;
+  }
+
   private resolveSkillStageForSkill(skillId: string): SkillStageId | null {
     const profession = this._auth().profession || this._user().role;
     const mapping = PROFESSION_STAGE_SKILLS[profession as keyof typeof PROFESSION_STAGE_SKILLS];
@@ -1868,6 +2083,12 @@ export class AppStore {
       return null;
     }
     return EXAM_PROFESSION_IDS[index] ?? null;
+  }
+
+  private resolveContractSeed(): string {
+    const login = this._auth().login?.trim();
+    const base = login || this._user().startDate || this._user().role || 'guest';
+    return `${base}:${this.careerStage()}`;
   }
 
   private normalizeSpecializationId(value: unknown): string | null {
@@ -1914,6 +2135,9 @@ export class AppStore {
 
   private isCompanyUnlocked(): boolean {
     const company = this._company();
+    if (company?.unlocked) {
+      return true;
+    }
     if (!company || !Number.isFinite(company.cash)) {
       return false;
     }
@@ -1955,6 +2179,10 @@ export class AppStore {
     return (SKILL_STAGE_ORDER as readonly string[]).includes(value);
   }
 
+  private isCompanyLevel(value: unknown): value is CompanyLevel {
+    return typeof value === 'string' && (COMPANY_LEVELS as readonly string[]).includes(value);
+  }
+
   private logDevError(message: string, payload: unknown): void {
     const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
     if (isDev) {
@@ -1974,6 +2202,27 @@ export class AppStore {
       return 0;
     }
     return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeReputation(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeTechDebt(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.floor(value));
+  }
+
+  private normalizeCompanyLevel(value: unknown): CompanyLevel {
+    if (this.isCompanyLevel(value)) {
+      return value as CompanyLevel;
+    }
+    return 'none';
   }
 
   private parseNumberRecord(value: unknown): Record<string, number> | null {
