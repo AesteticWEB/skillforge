@@ -39,7 +39,7 @@
                 class="flex cursor-not-allowed items-center justify-between rounded-xl border border-transparent px-3 py-2 text-sm font-medium text-slate-500 opacity-60"
                 aria-disabled="true"
                 tabindex="-1"
-                [attr.title]="item.lockHint ?? 'Откроется после достижения Senior'"
+                [attr.title]="item.lockHint ?? 'Откроется после Senior и сертификата'"
                 (click)="notifyCompanyLocked()"
               >
                 <span>{{ item.label }}</span>

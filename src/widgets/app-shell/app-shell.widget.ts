@@ -32,7 +32,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     exact: false,
     meta: 'Контракты',
     requiresCompany: true,
-    lockHint: 'Откроется после достижения Senior',
+    lockHint: 'Откроется после Senior и сертификата',
   },
   { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
   { label: 'Экзамен', path: '/exam', exact: false, meta: 'Арена' },
@@ -112,6 +112,6 @@ export class AppShellWidget {
   }
 
   protected notifyCompanyLocked(): void {
-    this.notifications.notify('Откроется после достижения Senior.', 'info');
+    this.notifications.notify('Откроется после Senior и сертификата.', 'info');
   }
 }

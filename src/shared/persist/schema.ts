@@ -121,12 +121,14 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
       ? (base.level as CompanyLevel)
       : 'none';
   const unlocked = typeof base.unlocked === 'boolean' ? base.unlocked : false;
+  const onboardingSeen = typeof base.onboardingSeen === 'boolean' ? base.onboardingSeen : false;
 
   return {
     ...base,
     cash,
     level,
     unlocked,
+    onboardingSeen,
   };
 };
 

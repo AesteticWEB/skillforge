@@ -20,10 +20,26 @@
     <sf-card>
       <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-4">
         <div class="text-sm font-semibold text-slate-100">Компания ещё закрыта</div>
-        <p class="mt-2 text-sm text-slate-400">Откроется после достижения уровня Senior.</p>
+        <p class="mt-2 text-sm text-slate-400">Откроется после Senior и сертификата.</p>
       </div>
     </sf-card>
   } @else {
+    @if (!companyOnboardingSeen()) {
+      <sf-card>
+        <div class="rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-4">
+          <div class="text-sm font-semibold text-emerald-100">Добро пожаловать в Company Mode!</div>
+          <div class="mt-2 grid gap-1 text-sm text-slate-200">
+            <div>• Берите контракты и выполняйте их</div>
+            <div>• Зарабатывайте кэш и развивайте компанию</div>
+            <div>• Следите за репутацией и техдолгом</div>
+          </div>
+          <div class="mt-4">
+            <sf-button type="button" (click)="dismissOnboarding()">Понял</sf-button>
+          </div>
+        </div>
+      </sf-card>
+    }
+
     <sf-card>
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div>

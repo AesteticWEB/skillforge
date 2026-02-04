@@ -23,6 +23,10 @@ export const BALANCE = {
       maxBonusRatio: 0.2,
     },
   },
+  company: {
+    startCash: 5000,
+    startLevel: 'lead',
+  },
   skills: {
     upgradeCostPerLevel: 1,
     defaultLevel: 0,

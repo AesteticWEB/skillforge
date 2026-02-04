@@ -33,6 +33,7 @@ export class CompanyPage implements OnInit {
   protected readonly availableContracts = this.store.availableContracts;
   protected readonly activeContracts = this.store.activeContracts;
   protected readonly companyUnlocked = this.store.companyUnlocked;
+  protected readonly companyOnboardingSeen = this.store.companyOnboardingSeen;
   protected readonly stageLabel = this.store.stageLabel;
   protected readonly maxActiveContracts = MAX_ACTIVE_CONTRACTS;
   protected readonly activeCount = computed(() => this.activeContracts().length);
@@ -56,6 +57,10 @@ export class CompanyPage implements OnInit {
 
   protected abandonContract(contractId: string): void {
     this.store.abandonContract(contractId);
+  }
+
+  protected dismissOnboarding(): void {
+    this.store.setCompanyOnboardingSeen(true);
   }
 
   protected formatReward(reward: ContractReward): string {

@@ -249,7 +249,7 @@ describe('AppStore', () => {
     const errorSpy = jest.spyOn(notifications, 'error');
 
     const payload = JSON.parse(store.exportState());
-    payload.company = { cash: luxuryItem.price + 50 };
+    payload.company = { cash: luxuryItem.price + 50, unlocked: true, level: 'lead' };
     payload.progress = { ...payload.progress, careerStage: 'senior' };
     const importResult = store.importState(JSON.stringify(payload));
 

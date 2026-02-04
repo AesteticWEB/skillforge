@@ -48,6 +48,7 @@ describe('persist schema migration', () => {
         cash: 0,
         level: 'none',
         unlocked: false,
+        onboardingSeen: false,
       },
       inventory: {
         ownedItemIds: [],
@@ -101,6 +102,7 @@ describe('persist schema migration', () => {
         ...v4.company,
         level: 'none',
         unlocked: false,
+        onboardingSeen: false,
       },
       inventory: {
         ownedItemIds: ['shop-a', 'shop-b'],

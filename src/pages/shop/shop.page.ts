@@ -254,7 +254,7 @@ export class ShopPage {
       : isOwned
         ? null
         : isLocked
-          ? 'Откроется после Senior/Company Mode'
+          ? 'Откроется после Senior и сертификата'
           : !canAfford
             ? currency === 'cash'
               ? 'Не хватает кэша'

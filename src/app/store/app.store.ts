@@ -123,6 +123,11 @@ type ImportResult = {
   error?: string;
 };
 
+type StorageReadResult = {
+  state: PersistedStateLatest;
+  isLegacy: boolean;
+};
+
 const EXAM_PROFESSION_IDS = [
   'frontend',
   'backend',
@@ -164,6 +169,7 @@ const createEmptyCompany = (): Company => ({
   cash: 0,
   unlocked: false,
   level: 'none',
+  onboardingSeen: false,
 });
 
 const createEmptyInventory = (): Inventory => ({
@@ -348,13 +354,8 @@ export class AppStore {
     );
   });
   readonly companyCash = computed(() => this._company().cash);
-  readonly companyUnlocked = computed(() => {
-    const company = this._company();
-    if (company?.unlocked) {
-      return true;
-    }
-    return Boolean(company) && Number.isFinite(company.cash) && this.careerStage() === 'senior';
-  });
+  readonly companyUnlocked = computed(() => Boolean(this._company().unlocked));
+  readonly companyOnboardingSeen = computed(() => Boolean(this._company().onboardingSeen));
   readonly canUndoDecision = computed(() => {
     const history = this._progress().decisionHistory;
     const lastEntry = history[history.length - 1];
@@ -857,6 +858,7 @@ export class AppStore {
       ...progress,
       careerStage: stage,
     }));
+    this.checkAndUnlockCompany();
   }
 
   setCoins(value: number): void {
@@ -943,10 +945,30 @@ export class AppStore {
     if (typeof unlocked !== 'boolean') {
       return;
     }
-    this._company.update((company) => ({
-      ...company,
-      unlocked,
-    }));
+    this._company.update((company) => {
+      if (company.unlocked === unlocked) {
+        return company;
+      }
+      if (!unlocked) {
+        return {
+          ...company,
+          unlocked: false,
+        };
+      }
+
+      const startCash = BALANCE.company?.startCash ?? 5000;
+      const startLevel = BALANCE.company?.startLevel ?? 'lead';
+      const nextCash = Number.isFinite(company.cash) && company.cash > 0 ? company.cash : startCash;
+      const nextLevel = company.level !== 'none' ? company.level : startLevel;
+
+      return {
+        ...company,
+        unlocked: true,
+        level: nextLevel,
+        cash: this.normalizeCash(nextCash),
+        onboardingSeen: false,
+      };
+    });
   }
 
   setCompanyLevel(level: CompanyLevel): void {
@@ -958,6 +980,55 @@ export class AppStore {
       ...company,
       level,
     }));
+  }
+
+  setCompanyOnboardingSeen(seen: boolean): void {
+    if (typeof seen !== 'boolean') {
+      return;
+    }
+    this._company.update((company) => ({
+      ...company,
+      onboardingSeen: seen,
+    }));
+  }
+
+  checkAndUnlockCompany(options: { allowLegacy?: boolean } = {}): void {
+    const company = this._company();
+    if (company.unlocked) {
+      return;
+    }
+    if (this.careerStage() !== 'senior') {
+      return;
+    }
+
+    const professionId = this.resolveExamProfessionId();
+    const certificates = this._progress().certificates ?? [];
+    const hasSeniorCert = professionId
+      ? hasCertificate(certificates, professionId, 'senior')
+      : false;
+
+    if (!hasSeniorCert && !options.allowLegacy) {
+      return;
+    }
+
+    const startCash = BALANCE.company?.startCash ?? 5000;
+    const startLevel = BALANCE.company?.startLevel ?? 'lead';
+    const nextCash = Number.isFinite(company.cash) && company.cash > 0 ? company.cash : startCash;
+    const nextLevel = company.level !== 'none' ? company.level : startLevel;
+
+    this._company.update((current) => ({
+      ...current,
+      unlocked: true,
+      level: nextLevel,
+      cash: this.normalizeCash(nextCash),
+      onboardingSeen: false,
+    }));
+
+    if (options.allowLegacy && !hasSeniorCert) {
+      this.logDevInfo('[migrate] auto-unlocked company for legacy senior save', {
+        stage: this.careerStage(),
+      });
+    }
   }
 
   logout(): void {
@@ -1069,7 +1140,9 @@ export class AppStore {
         error: 'Неподдерживаемая версия экспорта.',
       };
     }
-    return this.applyPersistedState(migrated);
+    const sourceVersion = this.resolvePersistedVersion(parsed);
+    const allowLegacy = sourceVersion !== AppStore.STORAGE_VERSION;
+    return this.applyPersistedState(migrated, { allowLegacy });
   }
 
   restoreBackup(): boolean {
@@ -1096,7 +1169,9 @@ export class AppStore {
       return false;
     }
 
-    const result = this.applyPersistedState(migrated);
+    const sourceVersion = this.resolvePersistedVersion(parsed);
+    const allowLegacy = sourceVersion !== AppStore.STORAGE_VERSION;
+    const result = this.applyPersistedState(migrated, { allowLegacy });
     if (!result.ok) {
       this.handleStorageError(new Error(result.error ?? 'Invalid backup payload'), 'backup-apply');
       return false;
@@ -1110,7 +1185,10 @@ export class AppStore {
     return true;
   }
 
-  private applyPersistedState(migrated: PersistedStateLatest): ImportResult {
+  private applyPersistedState(
+    migrated: PersistedStateLatest,
+    options: { allowLegacy?: boolean } = {},
+  ): ImportResult {
     const user = this.parseUser(migrated.user);
     if (!user) {
       return { ok: false, error: 'Некорректные данные профиля.' };
@@ -1172,6 +1250,7 @@ export class AppStore {
       }));
     }
 
+    this.checkAndUnlockCompany({ allowLegacy: options.allowLegacy });
     return { ok: true };
   }
 
@@ -1337,6 +1416,7 @@ export class AppStore {
       ...progress,
       certificates: upsertCertificate(progress.certificates ?? [], certificate),
     }));
+    this.checkAndUnlockCompany();
   }
 
   clearDecisionHistory(): void {
@@ -1391,7 +1471,7 @@ export class AppStore {
     const currency = item.currency === 'cash' ? 'cash' : 'coins';
     if (currency === 'cash') {
       if (!this.isCompanyUnlocked()) {
-        this.notificationsStore.error('Люкс-магазин откроется после Senior/Company Mode.');
+        this.notificationsStore.error('Люкс-магазин откроется после Senior и сертификата.');
         return false;
       }
       const company = this._company();
@@ -1585,6 +1665,7 @@ export class AppStore {
       careerStage: nextStage,
       skillLevels: resetLevels,
     }));
+    this.checkAndUnlockCompany();
     this.eventBus.publish(createStagePromotedEvent(status.stage, nextStage));
     return true;
   }
@@ -1669,34 +1750,36 @@ export class AppStore {
       return;
     }
 
-    if (stored.user) {
+    const { state, isLegacy } = stored;
+
+    if (state.user) {
       this._user.set({
-        role: stored.user.role ?? 'Без роли',
-        goals: stored.user.goals ?? [],
-        startDate: stored.user.startDate ?? new Date().toISOString().slice(0, 10),
-        isProfileComplete: stored.user.isProfileComplete ?? false,
+        role: state.user.role ?? 'Без роли',
+        goals: state.user.goals ?? [],
+        startDate: state.user.startDate ?? new Date().toISOString().slice(0, 10),
+        isProfileComplete: state.user.isProfileComplete ?? false,
       });
     }
-    if (stored.progress) {
-      this._progress.set(this.mergeProgressDefaults(stored.progress));
+    if (state.progress) {
+      this._progress.set(this.mergeProgressDefaults(state.progress));
     }
-    if (stored.company) {
-      this._company.set(this.mergeCompanyDefaults(stored.company));
+    if (state.company) {
+      this._company.set(this.mergeCompanyDefaults(state.company));
     }
-    if (stored.inventory) {
-      this._inventory.set(this.mergeInventoryDefaults(stored.inventory));
+    if (state.inventory) {
+      this._inventory.set(this.mergeInventoryDefaults(state.inventory));
     }
-    if (stored.featureFlags) {
+    if (state.featureFlags) {
       this._featureFlags.set({
         ...DEFAULT_FEATURE_FLAGS,
-        ...stored.featureFlags,
+        ...state.featureFlags,
       });
     }
-    if (typeof stored.xp === 'number') {
-      this._xp.set(this.normalizeXp(stored.xp));
+    if (typeof state.xp === 'number') {
+      this._xp.set(this.normalizeXp(state.xp));
     }
-    if (stored.auth) {
-      const auth = this.parseAuth(stored.auth);
+    if (state.auth) {
+      const auth = this.parseAuth(state.auth);
       if (auth) {
         this._auth.set(auth);
         if (auth.isRegistered && !this._user().isProfileComplete) {
@@ -1708,6 +1791,8 @@ export class AppStore {
         }
       }
     }
+
+    this.checkAndUnlockCompany({ allowLegacy: isLegacy });
   }
 
   private resetState(): void {
@@ -1769,7 +1854,7 @@ export class AppStore {
     }
   }
 
-  private readStorage(): PersistedStateLatest | null {
+  private readStorage(): StorageReadResult | null {
     if (!this.isStorageAvailable()) {
       return null;
     }
@@ -1788,6 +1873,7 @@ export class AppStore {
       return null;
     }
 
+    const rawVersion = this.resolvePersistedVersion(parsed);
     const migrated = migratePersistedState(parsed);
     if (!migrated) {
       this.handleStorageError(new Error('Unsupported save version'), 'migrate');
@@ -1795,11 +1881,13 @@ export class AppStore {
       return null;
     }
 
+    const isLegacy =
+      rawVersion !== AppStore.STORAGE_VERSION || rawEntry.key !== AppStore.STORAGE_KEY;
     if (rawEntry.key !== AppStore.STORAGE_KEY) {
       this.persistMigratedState(rawEntry.key, migrated);
     }
 
-    return migrated;
+    return { state: migrated, isLegacy };
   }
 
   private readRawStorage(): { key: string; raw: string } | null {
@@ -1900,6 +1988,7 @@ export class AppStore {
       cash: this.normalizeCash(company.cash ?? 0),
       unlocked: typeof company.unlocked === 'boolean' ? company.unlocked : false,
       level: this.normalizeCompanyLevel(company.level),
+      onboardingSeen: typeof company.onboardingSeen === 'boolean' ? company.onboardingSeen : false,
     };
   }
 
@@ -1915,6 +2004,14 @@ export class AppStore {
 
   private isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private resolvePersistedVersion(value: unknown): number | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const version = value['version'];
+    return typeof version === 'number' && Number.isFinite(version) ? version : null;
   }
 
   private parseUser(value: unknown): User | null {
@@ -2012,6 +2109,7 @@ export class AppStore {
     const cash = value['cash'];
     const unlocked = value['unlocked'];
     const level = value['level'];
+    const onboardingSeen = value['onboardingSeen'];
     if (cash !== undefined && typeof cash !== 'number') {
       return null;
     }
@@ -2019,6 +2117,7 @@ export class AppStore {
       cash: this.normalizeCash(typeof cash === 'number' ? cash : 0),
       unlocked: typeof unlocked === 'boolean' ? unlocked : false,
       level: this.normalizeCompanyLevel(level),
+      onboardingSeen: typeof onboardingSeen === 'boolean' ? onboardingSeen : false,
     };
   }
 
@@ -2634,14 +2733,7 @@ export class AppStore {
   }
 
   private isCompanyUnlocked(): boolean {
-    const company = this._company();
-    if (company?.unlocked) {
-      return true;
-    }
-    if (!company || !Number.isFinite(company.cash)) {
-      return false;
-    }
-    return this.careerStage() === 'senior';
+    return Boolean(this._company().unlocked);
   }
 
   private normalizeCareerStage(value: unknown): SkillStageId {
@@ -2694,6 +2786,13 @@ export class AppStore {
     const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
     if (isDev) {
       console.warn(`[store] ${message}`, payload);
+    }
+  }
+
+  private logDevInfo(message: string, payload: unknown): void {
+    const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
+    if (isDev) {
+      console.info(`[store] ${message}`, payload);
     }
   }
 

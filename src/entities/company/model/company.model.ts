@@ -6,4 +6,5 @@ export interface Company {
   cash: number;
   unlocked: boolean;
   level: CompanyLevel;
+  onboardingSeen: boolean;
 }
