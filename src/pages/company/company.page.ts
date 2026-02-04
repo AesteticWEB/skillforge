@@ -7,6 +7,7 @@ import type {
   ContractType,
 } from '@/entities/contracts';
 import { HiringCandidatesPanelComponent } from '@/features/hiring';
+import type { CandidateRole } from '@/features/hiring';
 import { BALANCE } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
@@ -19,6 +20,12 @@ const OBJECTIVE_LABELS: Record<ContractType, string> = {
   exam: 'экзаменов',
   purchase: 'покупок',
   debt: 'техдолга',
+};
+
+const ROLE_LABELS: Record<CandidateRole, string> = {
+  junior: 'Джуниор',
+  middle: 'Миддл',
+  senior: 'Сеньор',
 };
 
 @Component({
@@ -35,15 +42,21 @@ export class CompanyPage implements OnInit {
   protected readonly availableContracts = this.store.availableContracts;
   protected readonly activeContracts = this.store.activeContracts;
   protected readonly candidatesPool = this.store.candidatesPool;
+  protected readonly company = this.store.company;
   protected readonly companyUnlocked = this.store.companyUnlocked;
   protected readonly companyOnboardingSeen = this.store.companyOnboardingSeen;
   protected readonly stageLabel = this.store.stageLabel;
+  protected readonly companyCash = this.store.companyCash;
   protected readonly coins = this.store.coins;
   protected readonly hiringRefreshCost = BALANCE.hiring?.refreshCostCoins ?? 200;
   protected readonly maxActiveContracts = MAX_ACTIVE_CONTRACTS;
   protected readonly activeCount = computed(() => this.activeContracts().length);
   protected readonly canAcceptMore = computed(
     () => this.activeContracts().length < MAX_ACTIVE_CONTRACTS,
+  );
+  protected readonly employees = computed(() => this.company().employees ?? []);
+  protected readonly hiredCandidateIds = computed(() =>
+    this.employees().map((employee) => employee.id),
   );
 
   ngOnInit(): void {
@@ -75,6 +88,10 @@ export class CompanyPage implements OnInit {
     this.store.refreshCandidates();
   }
 
+  protected hireCandidate(candidateId: string): void {
+    this.store.hireCandidate(candidateId);
+  }
+
   protected dismissOnboarding(): void {
     this.store.setCompanyOnboardingSeen(true);
   }
@@ -97,6 +114,10 @@ export class CompanyPage implements OnInit {
       .join(', ');
   }
 
+  protected formatRole(role: CandidateRole): string {
+    return ROLE_LABELS[role] ?? role;
+  }
+
   private formatObjectiveTargetItem(objective: ContractObjective): string {
     const label = OBJECTIVE_LABELS[objective.type] ?? objective.type;
     return `${objective.targetValue} ${label}`;
@@ -107,7 +128,7 @@ export class CompanyPage implements OnInit {
     return `${objective.currentValue}/${objective.targetValue} ${label}`;
   }
 
-  private formatNumber(value: number): string {
+  protected formatNumber(value: number): string {
     if (!Number.isFinite(value)) {
       return '0';
     }

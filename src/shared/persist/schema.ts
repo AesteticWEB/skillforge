@@ -129,6 +129,7 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
       : 'none';
   const unlocked = typeof base.unlocked === 'boolean' ? base.unlocked : false;
   const onboardingSeen = typeof base.onboardingSeen === 'boolean' ? base.onboardingSeen : false;
+  const employees = Array.isArray(base.employees) ? base.employees : [];
 
   return {
     ...base,
@@ -136,6 +137,7 @@ const normalizeCompany = (company: Partial<Company> | undefined): Partial<Compan
     level,
     unlocked,
     onboardingSeen,
+    employees,
   };
 };
 

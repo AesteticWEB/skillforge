@@ -24,7 +24,14 @@ import {
   getSkillUpgradeMeta as resolveSkillUpgradeMeta,
   Skill,
 } from '@/entities/skill';
-import { Company, CompanyLevel, COMPANY_LEVELS } from '@/entities/company';
+import {
+  Company,
+  CompanyLevel,
+  COMPANY_LEVELS,
+  Employee,
+  createEmployeeFromCandidate,
+  resolveHireCostForCandidate,
+} from '@/entities/company';
 import {
   CompletedContractEntry,
   Contract,
@@ -171,6 +178,7 @@ const createEmptyCompany = (): Company => ({
   unlocked: false,
   level: 'none',
   onboardingSeen: false,
+  employees: [],
 });
 
 const createEmptyInventory = (): Inventory => ({
@@ -574,6 +582,52 @@ export class AppStore {
       candidatesRefreshIndex: nextIndex,
     }));
     this.notificationsStore.success(`Кандидаты обновлены (-${cost} coins)`);
+  }
+
+  hireCandidate(candidateId: string): { ok: boolean; reason?: string } {
+    if (!this.isCompanyUnlocked()) {
+      return { ok: false, reason: 'Компания закрыта' };
+    }
+    const trimmedId = candidateId?.trim();
+    if (!trimmedId) {
+      this.logDevError('candidate-missing-id', { candidateId });
+      return { ok: false, reason: 'Кандидат не найден' };
+    }
+    const progress = this._progress();
+    const candidate = progress.candidatesPool.find((entry) => entry.id === trimmedId);
+    if (!candidate) {
+      this.logDevError('candidate-not-found', { candidateId: trimmedId });
+      return { ok: false, reason: 'Кандидат не найден' };
+    }
+
+    const company = this._company();
+    if (company.employees.some((employee) => employee.id === candidate.id)) {
+      return { ok: false, reason: 'Кандидат уже нанят' };
+    }
+
+    const hireCost = resolveHireCostForCandidate(candidate);
+    if (company.cash < hireCost) {
+      return { ok: false, reason: 'Не хватает cash' };
+    }
+
+    const hiredAtIso = new Date().toISOString();
+    const employee = createEmployeeFromCandidate(candidate, hiredAtIso);
+
+    this._company.update((current) => ({
+      ...current,
+      cash: this.normalizeCash(current.cash - hireCost),
+      employees: [...current.employees, employee],
+    }));
+    this._progress.update((current) => ({
+      ...current,
+      candidatesPool: current.candidatesPool.filter((entry) => entry.id !== candidate.id),
+    }));
+
+    this.notificationsStore.success(
+      `Нанят сотрудник: ${candidate.name} (-${this.formatNumber(hireCost)} cash)`,
+    );
+
+    return { ok: true };
   }
 
   ensureSessionQuests(force = false): void {
@@ -2037,6 +2091,7 @@ export class AppStore {
       unlocked: typeof company.unlocked === 'boolean' ? company.unlocked : false,
       level: this.normalizeCompanyLevel(company.level),
       onboardingSeen: typeof company.onboardingSeen === 'boolean' ? company.onboardingSeen : false,
+      employees: this.normalizeEmployees(company.employees),
     };
   }
 
@@ -2164,6 +2219,7 @@ export class AppStore {
     const unlocked = value['unlocked'];
     const level = value['level'];
     const onboardingSeen = value['onboardingSeen'];
+    const employees = this.normalizeEmployees(value['employees']);
     if (cash !== undefined && typeof cash !== 'number') {
       return null;
     }
@@ -2172,6 +2228,7 @@ export class AppStore {
       unlocked: typeof unlocked === 'boolean' ? unlocked : false,
       level: this.normalizeCompanyLevel(level),
       onboardingSeen: typeof onboardingSeen === 'boolean' ? onboardingSeen : false,
+      employees,
     };
   }
 
@@ -2603,6 +2660,13 @@ export class AppStore {
     return normalized.length > 0 ? normalized : null;
   }
 
+  private normalizeEmployees(value: unknown): Employee[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is Employee => this.isValidEmployee(entry));
+  }
+
   private normalizeCandidatesPool(value: unknown): Candidate[] {
     if (!Array.isArray(value)) {
       return [];
@@ -2662,6 +2726,37 @@ export class AppStore {
       return false;
     }
     if (typeof value['seed'] !== 'string') {
+      return false;
+    }
+    return true;
+  }
+
+  private isValidEmployee(value: unknown): value is Employee {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string') {
+      return false;
+    }
+    if (typeof value['name'] !== 'string') {
+      return false;
+    }
+    if (typeof value['role'] !== 'string') {
+      return false;
+    }
+    if (typeof value['quality'] !== 'number') {
+      return false;
+    }
+    if (typeof value['morale'] !== 'number') {
+      return false;
+    }
+    if (!Array.isArray(value['traits'])) {
+      return false;
+    }
+    if (typeof value['hiredAtIso'] !== 'string') {
+      return false;
+    }
+    if (typeof value['salaryCash'] !== 'number') {
       return false;
     }
     return true;

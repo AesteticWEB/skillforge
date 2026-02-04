@@ -26,6 +26,13 @@ export const BALANCE = {
   company: {
     startCash: 5000,
     startLevel: 'lead',
+    hiringBaseCostCashByRole: {
+      junior: 1000,
+      middle: 2500,
+      senior: 6000,
+    },
+    moraleStartMin: 80,
+    moraleStartMax: 100,
   },
   hiring: {
     refreshCostCoins: 200,
