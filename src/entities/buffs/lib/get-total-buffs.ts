@@ -70,6 +70,8 @@ export const getTotalBuffs = (
   }
 
   const caps = BALANCE.caps;
+  const incidentCap =
+    BALANCE.company?.tick?.incident?.reduceCapPct ?? caps.incidentReducePctMax ?? 0.8;
 
   return {
     coinMultiplier: clampNumber(coinMultiplier, 0, caps.coinsBonusPctMax),
@@ -82,7 +84,7 @@ export const getTotalBuffs = (
       caps.techDebtReduceFlatMaxAbs,
     ),
     cashIncomeBonusPct: clampNumber(cashIncomeBonusPct, 0, caps.cashIncomeBonusPctMax),
-    incidentReducePct: clampNumber(incidentReducePct, 0, caps.incidentReducePctMax),
+    incidentReducePct: clampNumber(incidentReducePct, 0, incidentCap),
     candidateQualityBonusPct,
   };
 };

@@ -52,7 +52,7 @@ describe('getTotalBuffs', () => {
     expect(result.coinMultiplier).toBeLessThanOrEqual(0.3);
     expect(result.xpBonusPct).toBeLessThanOrEqual(0.3);
     expect(result.cashIncomeBonusPct).toBeLessThanOrEqual(0.3);
-    expect(result.incidentReducePct).toBeLessThanOrEqual(0.5);
+    expect(result.incidentReducePct).toBeLessThanOrEqual(0.8);
     expect(Math.abs(result.techDebtReduceFlat)).toBeLessThanOrEqual(5);
   });
 });

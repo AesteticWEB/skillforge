@@ -260,6 +260,14 @@
               <div>Репутация: {{ formatSignedValue(entry.delta.reputationDelta) }}</div>
               <div>Cash после: {{ formatNumber(entry.balanceAfter.cash) }}</div>
             </div>
+
+            @if (entry.lines?.length) {
+              <div class="mt-3 grid gap-1 text-[11px] text-slate-500">
+                @for (line of entry.lines; track line) {
+                  <div>{{ line }}</div>
+                }
+              </div>
+            }
           </div>
         } @empty {
           <sf-empty-state

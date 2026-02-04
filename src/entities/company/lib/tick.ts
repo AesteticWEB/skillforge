@@ -211,7 +211,10 @@ export const runCompanyTick = ({
   );
 
   const incidentReduceCap =
-    incidentBalance?.chanceReduceCapPct ?? BALANCE.caps?.incidentReducePctMax ?? 0.5;
+    incidentBalance?.reduceCapPct ??
+    incidentBalance?.chanceReduceCapPct ??
+    BALANCE.caps?.incidentReducePctMax ??
+    0.8;
   const totalIncidentReducePct = clamp(
     assignmentModifiers.incidentReducePctTotal +
       totalBuffs.incidentReducePct +
@@ -229,7 +232,7 @@ export const runCompanyTick = ({
   );
 
   const cashDelta = round(income - salaries);
-  const nextCash = company.cash + cashDelta;
+  let nextCash = company.cash + cashDelta;
 
   let reputationDelta = round(assignmentModifiers.repDeltaTotal);
   const techDebtDelta = round(assignmentModifiers.debtDeltaTotal + traitTechDebtDelta);
@@ -241,17 +244,33 @@ export const runCompanyTick = ({
 
   const incidentChanceBase = incidentBalance?.baseChance ?? 0;
   const incidentChanceFromDebt = incidentBalance?.chanceFromTechDebtPct ?? 0;
-  let incidentChance = incidentChanceBase + state.techDebt * incidentChanceFromDebt;
-  incidentChance = clamp(incidentChance - totalIncidentReducePct, 0, 0.95);
+  const rawIncidentChance = clamp(
+    incidentChanceBase + state.techDebt * incidentChanceFromDebt,
+    0,
+    0.95,
+  );
+  const mitigatedIncidentChance = clamp(rawIncidentChance * (1 - totalIncidentReducePct), 0, 0.95);
 
   const incidentRoll = rng();
   let incident: IncidentResult | undefined;
-  if (incidentRoll < incidentChance) {
+  const rawIncidentCostCash = round(incidentBalance?.baseCostCash ?? 0);
+  const rawIncidentRepPenalty = round(incidentBalance?.baseRepPenalty ?? 0);
+  const rawIncidentMoralePenalty = round(incidentBalance?.moralePenalty ?? 0);
+  const mitigatedIncidentCostCash = round(rawIncidentCostCash * (1 - totalIncidentReducePct));
+  const mitigatedIncidentRepPenalty = round(rawIncidentRepPenalty * (1 - totalIncidentReducePct));
+  const mitigatedIncidentMoralePenalty = round(
+    rawIncidentMoralePenalty * (1 - totalIncidentReducePct),
+  );
+
+  if (incidentRoll < mitigatedIncidentChance) {
+    nextCash -= mitigatedIncidentCostCash;
+    reputationDelta -= mitigatedIncidentRepPenalty;
+    moraleDelta -= mitigatedIncidentMoralePenalty;
     incident = {
       happened: true,
       kind: 'Инцидент в проде',
-      costCash: 0,
-      repPenalty: 0,
+      costCash: mitigatedIncidentCostCash,
+      repPenalty: mitigatedIncidentRepPenalty,
     };
   }
 
@@ -282,13 +301,21 @@ export const runCompanyTick = ({
   };
 
   const netCash = round(income - salaries - (incident?.costCash ?? 0));
+  const formatPercent = (value: number): string => `${Math.round(value * 100)}%`;
   const ledgerLines = clampLedgerLines([
     `Доход: +${round(income)} cash`,
     `Зарплаты: -${round(salaries)} cash`,
     `Итог: ${formatSigned(netCash)} cash`,
-    incident?.happened ? 'Инцидент: требуется решение' : '',
-    `Репутация: ${formatSigned(reputationDelta)}`,
-    `Cash после: ${round(nextCompany.cash)}`,
+    `Шанс инцидента: ${formatPercent(rawIncidentChance)} → ${formatPercent(
+      mitigatedIncidentChance,
+    )} (защита: -${formatPercent(totalIncidentReducePct)})`,
+    incident?.happened
+      ? `Урон инцидента: cash ${formatSigned(-rawIncidentCostCash)} → ${formatSigned(
+          -mitigatedIncidentCostCash,
+        )}, репутация ${formatSigned(-rawIncidentRepPenalty)} → ${formatSigned(
+          -mitigatedIncidentRepPenalty,
+        )}`
+      : 'Инцидент не произошёл.',
     isCrisis ? 'Кризис: cash ниже нуля — штраф репутации/морали' : '',
   ]);
 

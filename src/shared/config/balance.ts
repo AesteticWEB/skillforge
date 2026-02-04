@@ -52,7 +52,8 @@ export const BALANCE = {
       incident: {
         baseChance: 0.12,
         chanceFromTechDebtPct: 0.01,
-        chanceReduceCapPct: 0.5,
+        chanceReduceCapPct: 0.8,
+        reduceCapPct: 0.8,
         baseCostCash: 260,
         baseRepPenalty: 2,
         moralePenalty: 6,
@@ -128,7 +129,7 @@ export const BALANCE = {
   caps: {
     coinsBonusPctMax: 0.3,
     xpBonusPctMax: 0.3,
-    incidentReducePctMax: 0.5,
+    incidentReducePctMax: 0.8,
     cashIncomeBonusPctMax: 0.3,
     techDebtReduceFlatMaxAbs: 5,
   },

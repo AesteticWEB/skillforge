@@ -90,4 +90,36 @@ describe('runCompanyTick', () => {
     expect(result.reputationDelta).toBeLessThan(0);
     expect(result.nextCompany.employees[0]?.morale).toBeLessThan(90);
   });
+
+  it('reduces incident chance based on mitigation buffs', () => {
+    const company = createCompany({ employees: [] });
+    const state = {
+      company,
+      reputation: 0,
+      techDebt: 0,
+      totalBuffs: { ...EMPTY_BUFFS, incidentReducePct: 0.5 },
+    };
+
+    const result = runCompanyTick({ reason: 'scenario', state, seed: 'seed', tickIndex: 1 });
+    const line = result.ledgerEntry.lines?.find((entry) => entry.includes('Шанс инцидента'));
+
+    expect(line).toContain('12%');
+    expect(line).toContain('6%');
+  });
+
+  it('clamps incident mitigation to cap', () => {
+    const company = createCompany({ employees: [] });
+    const state = {
+      company,
+      reputation: 0,
+      techDebt: 0,
+      totalBuffs: { ...EMPTY_BUFFS, incidentReducePct: 2 },
+    };
+
+    const result = runCompanyTick({ reason: 'scenario', state, seed: 'seed', tickIndex: 2 });
+    const line = result.ledgerEntry.lines?.find((entry) => entry.includes('Шанс инцидента'));
+
+    expect(line).toContain('12%');
+    expect(line).toContain('2%');
+  });
 });
