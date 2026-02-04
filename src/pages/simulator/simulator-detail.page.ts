@@ -2,7 +2,7 @@ import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
-import { calcScenarioReward } from '@/entities/rewards';
+import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
 import { Scenario } from '@/entities/scenario';
 import { NotificationsStore } from '@/features/notifications';
 import { BALANCE } from '@/shared/config';
@@ -53,7 +53,9 @@ export class SimulatorDetailPage {
   });
   protected readonly lockReasons = computed(() => this.scenarioAccess()?.reasons ?? []);
   protected readonly decisionCards = computed(() => this.scenario()?.decisions ?? []);
-  protected readonly rewardXp = computed(() => BALANCE.rewards.scenarioXp);
+  protected readonly rewardXp = computed(() =>
+    calcScenarioXp({ baseXp: BALANCE.rewards.scenarioXp, buffs: this.store.totalBuffs() }),
+  );
   protected readonly errorText = this.errorMessage.asReadonly();
   protected readonly wrongOption = this.wrongOptionId.asReadonly();
   protected readonly isRewardModalOpen = this.rewardModalOpen.asReadonly();
@@ -112,11 +114,14 @@ export class SimulatorDetailPage {
     const reputation = Number.isFinite(progress.reputation) ? progress.reputation : 0;
     const techDebt = Number.isFinite(progress.techDebt) ? progress.techDebt : 0;
     const baseCoins = rewards.scenarioCoins;
+    const buffs = this.store.totalBuffs();
     const rewardCoins = calcScenarioReward({
       reputation,
       techDebt,
       baseCoins,
+      buffs,
     });
+    const rewardXp = calcScenarioXp({ baseXp: rewards.scenarioXp, buffs });
 
     const repMultiplier = this.clampNumber(
       1 + reputation * rewards.reputation.perPoint,
@@ -128,17 +133,21 @@ export class SimulatorDetailPage {
       Math.max(0, techDebt) * rewards.techDebt.perPoint,
     );
     const debtMultiplier = Math.max(0, 1 - debtPenalty);
-    const buffMultiplier = 1;
+    const buffMultiplier = 1 + buffs.coinMultiplier;
 
     const reputationDelta = decision.effects['reputation'] ?? 0;
     const techDebtDelta = decision.effects['techDebt'] ?? 0;
+    const adjustedReputationDelta =
+      reputationDelta > 0 ? reputationDelta + buffs.repBonusFlat : reputationDelta;
+    const adjustedTechDebtDelta =
+      techDebtDelta > 0 ? Math.max(0, techDebtDelta - buffs.techDebtReduceFlat) : techDebtDelta;
     const coinsDelta = decision.effects['coins'] ?? 0;
 
     const totals: RewardBreakdownLine[] = [
-      { label: 'XP', value: `+${rewards.scenarioXp}`, tone: 'positive' },
+      { label: 'XP', value: `+${rewardXp}`, tone: 'positive' },
       { label: 'Coins', value: `+${rewardCoins}`, tone: 'positive' },
-      { label: 'Репутация', value: this.formatDelta(reputationDelta) },
-      { label: 'Техдолг', value: this.formatDelta(techDebtDelta) },
+      { label: 'Репутация', value: this.formatDelta(adjustedReputationDelta) },
+      { label: 'Техдолг', value: this.formatDelta(adjustedTechDebtDelta) },
     ];
 
     if (coinsDelta !== 0) {
@@ -169,7 +178,7 @@ export class SimulatorDetailPage {
       {
         label: 'Баффы',
         value: `x${buffMultiplier.toFixed(2)}`,
-        hint: 'Нет активных баффов.',
+        hint: buffMultiplier > 1 ? 'Бонусы от перков и предметов.' : 'Нет активных баффов.',
       },
       {
         label: 'Итог',
@@ -178,7 +187,7 @@ export class SimulatorDetailPage {
       },
     ];
 
-    const toastMessage = `Награды: +${rewards.scenarioXp} XP, +${rewardCoins} coins.`;
+    const toastMessage = `Награды: +${rewardXp} XP, +${rewardCoins} coins.`;
 
     return {
       title: 'Награды за сценарий',

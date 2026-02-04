@@ -41,6 +41,13 @@ export const BALANCE = {
       gain: 1,
     },
   },
+  caps: {
+    coinsBonusPctMax: 0.3,
+    xpBonusPctMax: 0.3,
+    incidentReducePctMax: 0.5,
+    cashIncomeBonusPctMax: 0.3,
+    techDebtReduceFlatMaxAbs: 5,
+  },
   sandbox: {
     steps: 50,
     starting: {

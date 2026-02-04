@@ -9,7 +9,7 @@ import {
 } from '@/entities/progress';
 import type { ExamAnswer, ExamAttempt, ExamRun, ExamSession } from '@/entities/exam';
 import type { Certificate } from '@/entities/certificates';
-import { makeCertificateId, upsertCertificate } from '@/entities/certificates';
+import { hasCertificate, makeCertificateId, upsertCertificate } from '@/entities/certificates';
 import {
   applyScenarioAvailabilityEffects,
   createScenarioGateContext,
@@ -27,7 +27,8 @@ import {
 import { Company } from '@/entities/company';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
-import { calcScenarioReward } from '@/entities/rewards';
+import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
+import type { DecisionEffects } from '@/entities/decision';
 import { User } from '@/entities/user';
 import {
   BALANCE,
@@ -35,6 +36,7 @@ import {
   DEMO_PROFILE,
   FeatureFlagKey,
   FeatureFlags,
+  PROFESSION_OPTIONS,
   PROFESSION_STAGE_SKILLS,
   PROFESSION_STAGE_SCENARIOS,
   SKILL_STAGE_LABELS,
@@ -42,6 +44,7 @@ import {
   SHOP_ITEMS,
   ShopItemId,
   SkillStageId,
+  SPECIALIZATIONS,
 } from '@/shared/config';
 import { NotificationsStore } from '@/features/notifications';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
@@ -78,6 +81,15 @@ type ScenarioAccess = {
   status: 'active' | 'completed';
 };
 
+type StagePromotionGate = {
+  ok: boolean;
+  reason?: string;
+  requiredCert?: {
+    professionId: string;
+    stage: SkillStageId;
+  };
+};
+
 type AuthState = {
   login: string;
   profession: string;
@@ -99,6 +111,28 @@ type AppStateExport = {
 type ImportResult = {
   ok: boolean;
   error?: string;
+};
+
+const EXAM_PROFESSION_IDS = [
+  'frontend',
+  'backend',
+  'fullstack',
+  'mobile',
+  'qa',
+  'devops',
+  'data-engineer',
+  'data-scientist-ml',
+  'security',
+  'gamedev',
+] as const;
+
+type ExamProfessionId = (typeof EXAM_PROFESSION_IDS)[number];
+
+const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
+  internship: 'Стажировка',
+  junior: 'Джуниор',
+  middle: 'Миддл',
+  senior: 'Сеньор',
 };
 
 const createEmptyAuth = (): AuthState => ({
@@ -128,6 +162,7 @@ const createEmptyProgress = (): Progress => ({
   examHistory: [],
   activeExamRun: null,
   certificates: [],
+  specializationId: null,
   reputation: 0,
   techDebt: 0,
   coins: 0,
@@ -183,6 +218,7 @@ export class AppStore {
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
   );
   readonly professionId = computed(() => this._auth().profession || this._user().role);
+  readonly examProfessionId = computed(() => this.resolveExamProfessionId());
   readonly careerStage = computed(() => this._progress().careerStage);
   readonly stageLabel = computed(() => SKILL_STAGE_LABELS[this.careerStage()]);
   readonly stageSkillIds = computed(() => {
@@ -242,6 +278,7 @@ export class AppStore {
     return next ? SKILL_STAGE_LABELS[next] : null;
   });
   readonly canAdvanceSkillStage = computed(() => this.stagePromotion().canPromote);
+  readonly stagePromotionGate = computed(() => this.canPromoteStage());
   readonly stagePromotionReasons = computed(() => {
     const status = this.stagePromotion();
     if (!status.nextStage || status.canPromote) {
@@ -265,6 +302,7 @@ export class AppStore {
   readonly examHistory = computed(() => this._progress().examHistory);
   readonly activeExamRun = computed(() => this._progress().activeExamRun);
   readonly certificates = computed(() => this._progress().certificates);
+  readonly specializationId = computed(() => this._progress().specializationId);
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
@@ -278,7 +316,11 @@ export class AppStore {
             : 0,
       },
     }));
-    return getTotalBuffs(sources);
+    return getTotalBuffs(
+      sources,
+      this.resolveExamProfessionId(),
+      this.normalizeSpecializationId(this._progress().specializationId),
+    );
   });
   readonly companyCash = computed(() => this._company().cash);
   readonly companyUnlocked = computed(() => {
@@ -516,6 +558,7 @@ export class AppStore {
       examHistory: [],
       activeExamRun: null,
       certificates: [],
+      specializationId: null,
       reputation: 0,
       techDebt: 0,
       coins: 0,
@@ -695,14 +738,16 @@ export class AppStore {
       return;
     }
 
-    const reputationDelta = decision.effects['reputation'] ?? 0;
-    const techDebtDelta = decision.effects['techDebt'] ?? 0;
-    const coinsEffectDelta = decision.effects['coins'] ?? 0;
-    const rewardXp = BALANCE.rewards.scenarioXp;
+    const buffs = this.totalBuffs();
+    const adjustedEffects = this.applyBuffsToDecisionEffects(decision.effects, buffs);
+    const reputationDelta = adjustedEffects['reputation'] ?? 0;
+    const techDebtDelta = adjustedEffects['techDebt'] ?? 0;
+    const coinsEffectDelta = adjustedEffects['coins'] ?? 0;
+    const rewardXp = calcScenarioXp({ baseXp: BALANCE.rewards.scenarioXp, buffs });
     const snapshot = createProgressSnapshot(this._progress());
     const beforeSkills = this._skills();
     this.recordDecision(scenarioId, decisionId, snapshot);
-    const result = applyDecisionEffects(beforeSkills, this._progress(), decision.effects);
+    const result = applyDecisionEffects(beforeSkills, this._progress(), adjustedEffects);
     const progressWithAvailability = applyScenarioAvailabilityEffects(
       result.progress,
       scenario.availabilityEffects ?? [],
@@ -710,6 +755,7 @@ export class AppStore {
     const rewardCoins = calcScenarioReward({
       reputation: progressWithAvailability.reputation,
       techDebt: progressWithAvailability.techDebt,
+      buffs,
     });
     const progressWithRewards = {
       ...progressWithAvailability,
@@ -729,6 +775,29 @@ export class AppStore {
         coinsDelta,
       }),
     );
+  }
+
+  private applyBuffsToDecisionEffects(
+    effects: DecisionEffects,
+    buffs: ReturnType<typeof getTotalBuffs>,
+  ): DecisionEffects {
+    const adjusted: DecisionEffects = { ...effects };
+    const repDelta = typeof adjusted['reputation'] === 'number' ? adjusted['reputation'] : 0;
+    const debtDelta = typeof adjusted['techDebt'] === 'number' ? adjusted['techDebt'] : 0;
+
+    if (repDelta > 0 && buffs.repBonusFlat !== 0) {
+      adjusted['reputation'] = repDelta + buffs.repBonusFlat;
+    }
+
+    if (debtDelta !== 0 && buffs.techDebtReduceFlat !== 0) {
+      if (debtDelta > 0) {
+        adjusted['techDebt'] = Math.max(0, debtDelta - buffs.techDebtReduceFlat);
+      } else {
+        adjusted['techDebt'] = debtDelta;
+      }
+    }
+
+    return adjusted;
   }
 
   setActiveExamRun(run: ExamRun | null): void {
@@ -759,6 +828,18 @@ export class AppStore {
       coins: this.normalizeCoins(progress.coins + rewardCoins),
       examHistory: [...progress.examHistory, attempt],
       activeExamRun: null,
+    }));
+  }
+
+  setSpecialization(specId: string): void {
+    const normalized = this.normalizeSpecializationId(specId);
+    if (!normalized) {
+      this.logDevError('specialization-invalid', { specId });
+      return;
+    }
+    this._progress.update((progress) => ({
+      ...progress,
+      specializationId: normalized,
     }));
   }
 
@@ -1014,6 +1095,10 @@ export class AppStore {
   }
 
   advanceSkillStage(): boolean {
+    const gate = this.canPromoteStage();
+    if (!gate.ok) {
+      return false;
+    }
     const status = this.stagePromotion();
     const nextStage = status.nextStage;
     if (!nextStage || !status.canPromote) {
@@ -1036,6 +1121,48 @@ export class AppStore {
     }));
     this.eventBus.publish(createStagePromotedEvent(status.stage, nextStage));
     return true;
+  }
+
+  canPromoteStage(): StagePromotionGate {
+    const professionId = this.resolveExamProfessionId();
+    const stage = this.careerStage();
+    if (!professionId || !this.isValidStage(stage)) {
+      this.logDevError('certificate-missing-profession-or-stage', {
+        professionId,
+        stage,
+      });
+      return {
+        ok: false,
+        reason: 'Нужно выбрать профессию, чтобы повысить стадию.',
+      };
+    }
+
+    const stageIndex = SKILL_STAGE_ORDER.indexOf(stage);
+    const certificates = this._progress().certificates ?? [];
+    const missingStage = SKILL_STAGE_ORDER.slice(0, stageIndex + 1).find(
+      (stageId) => !hasCertificate(certificates, professionId, stageId),
+    );
+
+    if (missingStage) {
+      const label = CERT_STAGE_LABELS[missingStage] ?? missingStage;
+      const isRetro = missingStage !== stage;
+      const nextStage = this.nextSkillStage();
+      const nextStageLabel = nextStage
+        ? (CERT_STAGE_LABELS[nextStage] ?? nextStage)
+        : 'следующего этапа';
+      return {
+        ok: false,
+        reason: isRetro
+          ? `Для дальнейшего роста нужно сдать ретро-экзамен за этап: ${label}`
+          : `Чтобы повыситься до ${nextStageLabel}, нужно сдать экзамен: ${label}`,
+        requiredCert: {
+          professionId,
+          stage: missingStage,
+        },
+      };
+    }
+
+    return { ok: true };
   }
 
   private emitSkillUpgrades(before: Skill[], after: Skill[]): void {
@@ -1283,6 +1410,7 @@ export class AppStore {
       examHistory: progress.examHistory ?? [],
       activeExamRun: progress.activeExamRun ?? null,
       certificates: progress.certificates ?? [],
+      specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
       coins: this.normalizeCoins(progress.coins ?? 0),
@@ -1350,6 +1478,7 @@ export class AppStore {
     const examHistory = this.parseExamHistory(value['examHistory']) ?? [];
     const activeExamRun = this.parseExamRun(value['activeExamRun']);
     const certificates = this.parseCertificates(value['certificates']) ?? [];
+    const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
     const coins = value['coins'];
@@ -1377,6 +1506,7 @@ export class AppStore {
       examHistory,
       activeExamRun,
       certificates,
+      specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
       coins: this.normalizeCoins(typeof coins === 'number' ? coins : 0),
@@ -1731,6 +1861,53 @@ export class AppStore {
     return this._progress().careerStage ?? 'internship';
   }
 
+  private resolveExamProfessionId(): ExamProfessionId | null {
+    const raw = this.professionId();
+    const index = PROFESSION_OPTIONS.indexOf(raw as (typeof PROFESSION_OPTIONS)[number]);
+    if (index === -1) {
+      return null;
+    }
+    return EXAM_PROFESSION_IDS[index] ?? null;
+  }
+
+  private normalizeSpecializationId(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+      return null;
+    }
+    const professionId = this.resolveExamProfessionId();
+    if (!professionId) {
+      return null;
+    }
+    const specs = SPECIALIZATIONS[professionId] ?? [];
+    if (specs.some((spec) => spec.id === normalized)) {
+      return normalized;
+    }
+    const owner = this.findSpecializationOwner(normalized);
+    if (owner && owner !== professionId) {
+      this.logDevWarn('specialization-wrong-profession', {
+        specializationId: normalized,
+        owner,
+        professionId,
+      });
+    } else {
+      this.logDevError('specialization-not-found', { specializationId: normalized });
+    }
+    return null;
+  }
+
+  private findSpecializationOwner(specId: string): string | null {
+    for (const [key, list] of Object.entries(SPECIALIZATIONS)) {
+      if (list.some((spec) => spec.id === specId)) {
+        return key;
+      }
+    }
+    return null;
+  }
+
   private matchesScenarioProfession(scenario: Scenario, profession: string): boolean {
     return scenario.profession === 'all' || scenario.profession === profession;
   }
@@ -1781,7 +1958,14 @@ export class AppStore {
   private logDevError(message: string, payload: unknown): void {
     const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
     if (isDev) {
-      console.error(`[certificates] ${message}`, payload);
+      console.error(`[store] ${message}`, payload);
+    }
+  }
+
+  private logDevWarn(message: string, payload: unknown): void {
+    const isDev = typeof ngDevMode !== 'undefined' && ngDevMode;
+    if (isDev) {
+      console.warn(`[store] ${message}`, payload);
     }
   }
 

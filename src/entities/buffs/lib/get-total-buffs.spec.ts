@@ -27,6 +27,32 @@ describe('getTotalBuffs', () => {
     expect(result).toEqual({
       coinBonus: 0,
       coinMultiplier: 0,
+      xpBonusPct: 0,
+      repBonusFlat: 0,
+      techDebtReduceFlat: 0,
+      cashIncomeBonusPct: 0,
+      incidentReducePct: 0,
+      candidateQualityBonusPct: 0,
     });
+  });
+
+  it('clamps percentage bonuses by caps', () => {
+    const result = getTotalBuffs([
+      {
+        effects: {
+          coinsBonusPct: 1,
+          xpBonusPct: 2,
+          cashIncomeBonusPct: 5,
+          incidentReducePct: 2,
+          techDebtReduceFlat: 10,
+        },
+      },
+    ]);
+
+    expect(result.coinMultiplier).toBeLessThanOrEqual(0.3);
+    expect(result.xpBonusPct).toBeLessThanOrEqual(0.3);
+    expect(result.cashIncomeBonusPct).toBeLessThanOrEqual(0.3);
+    expect(result.incidentReducePct).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(result.techDebtReduceFlat)).toBeLessThanOrEqual(5);
   });
 });

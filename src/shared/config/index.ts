@@ -4,5 +4,7 @@ export * from './professions';
 export * from './balance';
 export * from './shop-items';
 export * from './xp';
+export * from './profession-perks';
+export * from './specializations';
 export * from './exams/exams';
 export * from './exams/questions';

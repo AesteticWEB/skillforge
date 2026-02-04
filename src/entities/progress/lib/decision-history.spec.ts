@@ -21,6 +21,7 @@ describe('decision history undo', () => {
       examHistory: [],
       activeExamRun: null,
       certificates: [],
+      specializationId: null,
       reputation: reputationGain,
       techDebt: techDebtGain * 2,
       coins: 5,

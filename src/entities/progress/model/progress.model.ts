@@ -27,6 +27,7 @@ export interface Progress {
   examHistory: ExamAttempt[];
   activeExamRun: ExamRun | null;
   certificates: Certificate[];
+  specializationId: string | null;
   reputation: number;
   techDebt: number;
   coins: number;

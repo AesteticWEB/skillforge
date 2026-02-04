@@ -11,7 +11,9 @@ import {
   PROFESSION_STAGE_SKILLS,
   SKILL_STAGE_LABELS,
   SKILL_STAGE_ORDER,
+  SPECIALIZATIONS,
 } from '@/shared/config';
+import type { PerkEffects } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -31,6 +33,13 @@ type CertificateRow = {
   stageLabel: string;
   score: number;
   issuedAt: string;
+};
+
+type SpecializationCard = {
+  id: string;
+  title: string;
+  desc: string;
+  effects: PerkEffects;
 };
 
 const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
@@ -60,9 +69,25 @@ export class ProfilePage {
   protected readonly careerProgress = this.store.careerProgress;
   protected readonly nextStageLabel = this.store.nextStageLabel;
   protected readonly canAdvanceStage = this.store.canAdvanceSkillStage;
+  protected readonly stagePromotionGate = this.store.stagePromotionGate;
   protected readonly stagePromotionReasons = this.store.stagePromotionReasons;
   protected readonly certificates = this.store.certificates;
   protected readonly hasCertificates = computed(() => this.certificates().length > 0);
+  protected readonly specializationId = this.store.specializationId;
+  protected readonly specializationOptions = computed<SpecializationCard[]>(() => {
+    const professionId = this.store.examProfessionId();
+    if (!professionId) {
+      return [];
+    }
+    const list = SPECIALIZATIONS[professionId] ?? [];
+    return list.map((spec) => ({
+      id: spec.id,
+      title: spec.title,
+      desc: spec.desc,
+      effects: spec.effects,
+    }));
+  });
+  protected readonly hasSpecializations = computed(() => this.specializationOptions().length > 0);
   protected readonly certificateRows = computed<CertificateRow[]>(() => {
     return this.certificates()
       .slice()
@@ -147,6 +172,46 @@ export class ProfilePage {
     void this.router.navigateByUrl('/');
   }
 
+  protected goToExam(): void {
+    void this.router.navigateByUrl('/exam');
+  }
+
+  protected selectSpecialization(specId: string): void {
+    this.store.setSpecialization(specId);
+  }
+
+  protected formatSpecializationEffects(effects: PerkEffects): string {
+    const parts: string[] = [];
+
+    if (this.isNonZero(effects.coinsBonusPct)) {
+      parts.push(`Монеты ${this.formatSignedPercent(effects.coinsBonusPct ?? 0)}`);
+    }
+    if (this.isNonZero(effects.xpBonusPct)) {
+      parts.push(`XP ${this.formatSignedPercent(effects.xpBonusPct ?? 0)}`);
+    }
+    if (this.isNonZero(effects.repBonusFlat)) {
+      parts.push(`Репутация ${this.formatSigned(effects.repBonusFlat ?? 0)}`);
+    }
+    if (this.isNonZero(effects.techDebtReduceFlat)) {
+      const delta = -(effects.techDebtReduceFlat ?? 0);
+      parts.push(`Техдолг ${this.formatSigned(delta)}`);
+    }
+    if (this.isNonZero(effects.cashIncomeBonusPct)) {
+      parts.push(`Доход ${this.formatSignedPercent(effects.cashIncomeBonusPct ?? 0)}`);
+    }
+    if (this.isNonZero(effects.incidentReducePct)) {
+      const delta = -(effects.incidentReducePct ?? 0);
+      parts.push(`Инциденты ${this.formatSignedPercent(delta)}`);
+    }
+    if (this.isNonZero(effects.candidateQualityBonusPct)) {
+      parts.push(
+        `Качество кандидатов ${this.formatSignedPercent(effects.candidateQualityBonusPct ?? 0)}`,
+      );
+    }
+
+    return parts.length > 0 ? parts.join(' • ') : 'Без бонусов';
+  }
+
   protected createNewAccount(): void {
     const confirmed = window.confirm('Это удалит прогресс, XP, историю и достижения. Продолжить?');
     if (!confirmed) {
@@ -165,6 +230,23 @@ export class ProfilePage {
       return title.split(separator)[0]?.trim() || title;
     }
     return title;
+  }
+
+  private isNonZero(value?: number): boolean {
+    return typeof value === 'number' && Number.isFinite(value) && value !== 0;
+  }
+
+  private formatSigned(value: number): string {
+    const sign = value >= 0 ? '+' : '-';
+    const abs = Math.abs(value);
+    const formatted = Number.isInteger(abs) ? abs.toFixed(0) : abs.toFixed(1);
+    return `${sign}${formatted}`;
+  }
+
+  private formatSignedPercent(value: number): string {
+    const sign = value >= 0 ? '+' : '-';
+    const abs = Math.round(Math.abs(value) * 100);
+    return `${sign}${abs}%`;
   }
 
   private formatCertificateDate(value: string): string {
