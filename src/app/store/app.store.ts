@@ -25,7 +25,13 @@ import {
   Skill,
 } from '@/entities/skill';
 import { Company, CompanyLevel, COMPANY_LEVELS } from '@/entities/company';
-import { Contract, generateAvailableContracts } from '@/entities/contracts';
+import {
+  CompletedContractEntry,
+  Contract,
+  ContractProgressEvent,
+  RewardSummary,
+  generateAvailableContracts,
+} from '@/entities/contracts';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
@@ -55,6 +61,7 @@ import {
   createPurchaseMadeEvent,
   createProfileCreatedEvent,
   createScenarioCompletedEvent,
+  createExamPassedEvent,
   createStagePromotedEvent,
   createSkillUpgradedEvent,
   DomainEventBus,
@@ -168,6 +175,7 @@ const createEmptyProgress = (): Progress => ({
   activeExamRun: null,
   certificates: [],
   activeContracts: [],
+  completedContractsHistory: [],
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -190,6 +198,7 @@ export class AppStore {
   private readonly eventBus = inject(DomainEventBus);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly errorLogStore = inject(ErrorLogStore);
+  private readonly numberFormatter = new Intl.NumberFormat('ru-RU');
 
   private hasHydrated = false;
   private readonly _user = signal<User>(createEmptyUser());
@@ -428,6 +437,26 @@ export class AppStore {
       }
       this.persistToStorage();
     });
+    this.eventBus.subscribe('ScenarioCompleted', (event) => {
+      this.applyEventToContracts({
+        type: 'ScenarioCompleted',
+        scenarioId: event.payload.scenarioId,
+      });
+    });
+    this.eventBus.subscribe('PurchaseMade', (event) => {
+      this.applyEventToContracts({
+        type: 'PurchaseMade',
+        itemId: event.payload.itemId,
+        currency: event.payload.currency,
+      });
+    });
+    this.eventBus.subscribe('ExamPassed', (event) => {
+      this.applyEventToContracts({
+        type: 'ExamPassed',
+        examId: event.payload.examId,
+        stage: event.payload.stage,
+      });
+    });
   }
 
   load(): void {
@@ -521,6 +550,123 @@ export class AppStore {
       ...progress,
       activeContracts: progress.activeContracts.filter((contract) => contract.id !== contractId),
     }));
+  }
+
+  applyEventToContracts(event: ContractProgressEvent): {
+    completed: Contract[];
+    totalReward: RewardSummary;
+  } {
+    const active = this._progress().activeContracts;
+    if (active.length === 0) {
+      return { completed: [], totalReward: this.createEmptyRewardSummary() };
+    }
+
+    const objectiveType = this.resolveObjectiveTypeForEvent(event);
+    if (!objectiveType) {
+      return { completed: [], totalReward: this.createEmptyRewardSummary() };
+    }
+
+    let didUpdate = false;
+    const completed: Contract[] = [];
+    const updatedActive = active.map((contract) => {
+      if (!Array.isArray(contract.objectives) || contract.objectives.length === 0) {
+        this.logDevError('contract-empty-objectives', { contractId: contract.id });
+        return contract;
+      }
+
+      const hasMatchingObjective = contract.objectives.some(
+        (objective) => objective.type === objectiveType,
+      );
+      const updatedObjectives = contract.objectives.map((objective) => {
+        if (objective.type !== objectiveType) {
+          return objective;
+        }
+        const current = Number.isFinite(objective.currentValue) ? objective.currentValue : 0;
+        const target = Number.isFinite(objective.targetValue) ? objective.targetValue : 0;
+        const next = Math.min(target, current + 1);
+        if (next !== current) {
+          didUpdate = true;
+        }
+        return {
+          ...objective,
+          currentValue: next,
+        };
+      });
+
+      const isCompleted = updatedObjectives.every((objective) => {
+        const current = Number.isFinite(objective.currentValue) ? objective.currentValue : 0;
+        const target = Number.isFinite(objective.targetValue) ? objective.targetValue : 0;
+        return current >= target;
+      });
+
+      const updatedContract =
+        updatedObjectives === contract.objectives
+          ? contract
+          : { ...contract, objectives: updatedObjectives };
+      if (hasMatchingObjective && isCompleted) {
+        completed.push(updatedContract);
+      }
+      return updatedContract;
+    });
+
+    if (!didUpdate && completed.length === 0) {
+      return { completed: [], totalReward: this.createEmptyRewardSummary() };
+    }
+
+    const completedIds = new Set(completed.map((contract) => contract.id));
+    const remaining =
+      completed.length > 0
+        ? updatedActive.filter((contract) => !completedIds.has(contract.id))
+        : updatedActive;
+    const totalReward = this.sumContractRewards(completed);
+    const completedAtIso = new Date().toISOString();
+
+    this._progress.update((progress) => ({
+      ...progress,
+      activeContracts: remaining,
+      completedContractsHistory:
+        completed.length > 0
+          ? [
+              ...progress.completedContractsHistory,
+              ...completed.map((contract) => ({
+                id: contract.id,
+                title: contract.title,
+                completedAtIso,
+                reward: contract.reward,
+              })),
+            ]
+          : progress.completedContractsHistory,
+      coins:
+        completed.length > 0
+          ? this.normalizeCoins(progress.coins + totalReward.coins)
+          : progress.coins,
+      reputation:
+        completed.length > 0
+          ? this.normalizeReputation(progress.reputation + totalReward.reputationDelta)
+          : progress.reputation,
+      techDebt:
+        completed.length > 0
+          ? this.normalizeTechDebt(progress.techDebt + totalReward.techDebtDelta)
+          : progress.techDebt,
+    }));
+
+    if (completed.length > 0 && totalReward.cash !== 0) {
+      this._company.update((company) => ({
+        ...company,
+        cash: this.normalizeCash(company.cash + totalReward.cash),
+      }));
+    }
+
+    if (completed.length > 0) {
+      const rewardLabel = this.formatRewardSummary(totalReward);
+      const message =
+        completed.length === 1
+          ? `Контракт выполнен: ${completed[0].title}. Награда: ${rewardLabel}`
+          : `Выполнено контрактов: ${completed.length}. Награда: ${rewardLabel}`;
+      this.notificationsStore.success(message);
+    }
+
+    return { completed, totalReward };
   }
 
   setUser(user: User): void {
@@ -732,6 +878,7 @@ export class AppStore {
       activeExamRun: null,
       certificates: [],
       activeContracts: [],
+      completedContractsHistory: [],
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -1005,6 +1152,18 @@ export class AppStore {
       examHistory: [...progress.examHistory, attempt],
       activeExamRun: null,
     }));
+  }
+
+  notifyExamPassed(examId: string, stage?: SkillStageId, score?: number): void {
+    if (typeof examId !== 'string' || examId.trim().length === 0) {
+      return;
+    }
+    this.eventBus.publish(
+      createExamPassedEvent(examId, {
+        stage: stage && this.isValidStage(stage) ? stage : undefined,
+        score: typeof score === 'number' ? score : undefined,
+      }),
+    );
   }
 
   setSpecialization(specId: string): void {
@@ -1588,6 +1747,9 @@ export class AppStore {
       activeExamRun: progress.activeExamRun ?? null,
       certificates: progress.certificates ?? [],
       activeContracts: this.normalizeActiveContracts(progress.activeContracts),
+      completedContractsHistory: this.normalizeCompletedContractsHistory(
+        progress.completedContractsHistory,
+      ),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -1659,6 +1821,9 @@ export class AppStore {
     const activeExamRun = this.parseExamRun(value['activeExamRun']);
     const certificates = this.parseCertificates(value['certificates']) ?? [];
     const activeContracts = this.normalizeActiveContracts(value['activeContracts']);
+    const completedContractsHistory = this.normalizeCompletedContractsHistory(
+      value['completedContractsHistory'],
+    );
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -1688,6 +1853,7 @@ export class AppStore {
       activeExamRun,
       certificates,
       activeContracts,
+      completedContractsHistory,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -2034,11 +2200,79 @@ export class AppStore {
     };
   }
 
+  private resolveObjectiveTypeForEvent(
+    event: ContractProgressEvent,
+  ): Contract['objectives'][number]['type'] | null {
+    switch (event.type) {
+      case 'ScenarioCompleted':
+        return 'scenario';
+      case 'ExamPassed':
+        return 'exam';
+      case 'PurchaseMade':
+        return 'purchase';
+      default:
+        return null;
+    }
+  }
+
+  private createEmptyRewardSummary(): RewardSummary {
+    return {
+      coins: 0,
+      cash: 0,
+      reputationDelta: 0,
+      techDebtDelta: 0,
+    };
+  }
+
+  private sumContractRewards(contracts: Contract[]): RewardSummary {
+    const summary = this.createEmptyRewardSummary();
+    for (const contract of contracts) {
+      const reward = contract.reward ?? { coins: 0 };
+      if (Number.isFinite(reward.coins)) {
+        summary.coins += reward.coins;
+      }
+      if (Number.isFinite(reward.cash)) {
+        summary.cash += reward.cash as number;
+      }
+      if (Number.isFinite(reward.reputationDelta)) {
+        summary.reputationDelta += reward.reputationDelta as number;
+      }
+      if (Number.isFinite(reward.techDebtDelta)) {
+        summary.techDebtDelta += reward.techDebtDelta as number;
+      }
+    }
+    return summary;
+  }
+
+  private formatRewardSummary(summary: RewardSummary): string {
+    const coins = this.normalizeCoins(summary.coins);
+    const cash = this.normalizeCash(summary.cash);
+    const coinsLabel = `+${this.formatNumber(coins)} монет`;
+    const cashLabel = cash > 0 ? ` (+${this.formatNumber(cash)} кэш)` : '';
+    return `${coinsLabel}${cashLabel}`;
+  }
+
+  private formatNumber(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '0';
+    }
+    return this.numberFormatter.format(Math.max(0, Math.floor(value)));
+  }
+
   private normalizeActiveContracts(value: unknown): Contract[] {
     if (!Array.isArray(value)) {
       return [];
     }
     return value.filter((entry): entry is Contract => this.isValidContract(entry));
+  }
+
+  private normalizeCompletedContractsHistory(value: unknown): CompletedContractEntry[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value.filter((entry): entry is CompletedContractEntry =>
+      this.isValidCompletedContractEntry(entry),
+    );
   }
 
   private isValidContract(value: unknown): value is Contract {
@@ -2058,6 +2292,26 @@ export class AppStore {
       return false;
     }
     if (typeof value['seed'] !== 'string') {
+      return false;
+    }
+    return true;
+  }
+
+  private isValidCompletedContractEntry(value: unknown): value is CompletedContractEntry {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+    if (typeof value['id'] !== 'string' || typeof value['title'] !== 'string') {
+      return false;
+    }
+    if (typeof value['completedAtIso'] !== 'string') {
+      return false;
+    }
+    const reward = value['reward'];
+    if (!this.isRecord(reward)) {
+      return false;
+    }
+    if (typeof reward['coins'] !== 'number') {
       return false;
     }
     return true;

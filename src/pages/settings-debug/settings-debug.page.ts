@@ -344,6 +344,10 @@ export class SettingsDebugPage {
       const currency = event.payload.currency ?? 'coins';
       return `purchase=${event.payload.itemId}, price=${event.payload.price} ${currency}`;
     }
+    if (event.type === 'ExamPassed') {
+      const stage = event.payload.stage ?? '—';
+      return `exam=${event.payload.examId}, stage=${stage}`;
+    }
     return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
   }
 

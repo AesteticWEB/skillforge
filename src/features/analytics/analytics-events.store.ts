@@ -13,6 +13,7 @@ export class AnalyticsEventsStore {
       profileCreated: log.filter((event) => event.type === 'ProfileCreated').length,
       skillUpgraded: log.filter((event) => event.type === 'SkillUpgraded').length,
       scenarioCompleted: log.filter((event) => event.type === 'ScenarioCompleted').length,
+      examPassed: log.filter((event) => event.type === 'ExamPassed').length,
     };
   });
 
@@ -21,6 +22,7 @@ export class AnalyticsEventsStore {
     this.eventBus.subscribe('SkillUpgraded', (event) => this.push(event));
     this.eventBus.subscribe('ScenarioCompleted', (event) => this.push(event));
     this.eventBus.subscribe('PurchaseMade', (event) => this.push(event));
+    this.eventBus.subscribe('ExamPassed', (event) => this.push(event));
   }
 
   clear(): void {

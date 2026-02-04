@@ -54,6 +54,15 @@ export type PurchaseMadeEvent = DomainEventBase<
   }
 >;
 
+export type ExamPassedEvent = DomainEventBase<
+  'ExamPassed',
+  {
+    examId: string;
+    stage?: SkillStageId;
+    score?: number;
+  }
+>;
+
 export type StagePromotedEvent = DomainEventBase<
   'StagePromoted',
   {
@@ -67,6 +76,7 @@ export type DomainEvent =
   | SkillUpgradedEvent
   | ScenarioCompletedEvent
   | PurchaseMadeEvent
+  | ExamPassedEvent
   | StagePromotedEvent;
 export type DomainEventType = DomainEvent['type'];
 
@@ -119,6 +129,14 @@ export const createPurchaseMadeEvent = (
     cashAfter?: number;
   } = {},
 ): PurchaseMadeEvent => createEvent('PurchaseMade', { itemId, price, ...meta });
+
+export const createExamPassedEvent = (
+  examId: string,
+  meta: {
+    stage?: SkillStageId;
+    score?: number;
+  } = {},
+): ExamPassedEvent => createEvent('ExamPassed', { examId, ...meta });
 
 export const createStagePromotedEvent = (
   fromStage: SkillStageId,

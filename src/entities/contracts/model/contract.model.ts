@@ -40,3 +40,22 @@ export interface Contract {
   requirements?: ContractRequirements;
   seed: string;
 }
+
+export type CompletedContractEntry = {
+  id: string;
+  title: string;
+  completedAtIso: string;
+  reward: ContractReward;
+};
+
+export type RewardSummary = {
+  coins: number;
+  cash: number;
+  reputationDelta: number;
+  techDebtDelta: number;
+};
+
+export type ContractProgressEvent =
+  | { type: 'ScenarioCompleted'; scenarioId?: string; category?: string }
+  | { type: 'ExamPassed'; examId?: string; stage?: string }
+  | { type: 'PurchaseMade'; itemId?: string; currency?: 'coins' | 'cash' };

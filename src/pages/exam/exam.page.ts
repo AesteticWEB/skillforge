@@ -467,6 +467,7 @@ export class ExamPage implements OnDestroy {
         score: grade.score,
         issuedAt: finishedAt,
       });
+      this.store.notifyExamPassed(exam.id, exam.stage, grade.score);
     }
     this.result.set({
       score: grade.score,

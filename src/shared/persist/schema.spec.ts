@@ -40,6 +40,7 @@ describe('persist schema migration', () => {
         ...v1.progress,
         coins: 0,
         activeContracts: [],
+        completedContractsHistory: [],
       },
       company: {
         cash: 0,
@@ -90,6 +91,7 @@ describe('persist schema migration', () => {
       progress: {
         ...v4.progress,
         activeContracts: [],
+        completedContractsHistory: [],
       },
       company: {
         ...v4.company,

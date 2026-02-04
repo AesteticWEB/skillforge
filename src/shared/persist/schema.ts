@@ -93,11 +93,15 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
       ? Math.max(0, Math.floor(base.coins))
       : 0;
   const activeContracts = Array.isArray(base.activeContracts) ? base.activeContracts : [];
+  const completedContractsHistory = Array.isArray(base.completedContractsHistory)
+    ? base.completedContractsHistory
+    : [];
 
   return {
     ...base,
     coins,
     activeContracts,
+    completedContractsHistory,
   };
 };
 

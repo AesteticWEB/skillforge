@@ -15,6 +15,7 @@ describe('decision effects', () => {
       activeExamRun: null,
       certificates: [],
       activeContracts: [],
+      completedContractsHistory: [],
       specializationId: null,
       reputation: 0,
       techDebt: 0,
