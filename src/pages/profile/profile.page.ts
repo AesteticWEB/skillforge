@@ -203,22 +203,29 @@ export class ProfilePage {
   });
   protected readonly recentAchievements = computed<AchievementCard[]>(() => {
     const unlocked = this.achievements()?.unlocked ?? {};
-    return Object.values(unlocked)
-      .filter((entry) => entry && typeof entry.unlockedAt === 'string')
-      .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt))
-      .slice(0, 5)
-      .map((entry) => {
-        const definition = ACHIEVEMENTS_BY_ID.get(entry.id as AchievementDefinition['id']);
-        if (!definition) {
-          return null;
-        }
-        return {
-          ...definition,
-          unlocked: true,
-          unlockedAt: entry.unlockedAt,
-        };
-      })
-      .filter((entry): entry is AchievementCard => Boolean(entry));
+    const entries = Object.values(unlocked)
+      .filter((entry): entry is { id: string; unlockedAt: string } =>
+        Boolean(entry && typeof entry.unlockedAt === 'string'),
+      )
+      .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt));
+
+    const cards: AchievementCard[] = [];
+    for (const entry of entries) {
+      const definition = ACHIEVEMENTS_BY_ID.get(entry.id as AchievementDefinition['id']);
+      if (!definition) {
+        continue;
+      }
+      cards.push({
+        ...definition,
+        unlocked: true,
+        unlockedAt: entry.unlockedAt,
+      });
+      if (cards.length >= 5) {
+        break;
+      }
+    }
+
+    return cards;
   });
 
   protected readonly skillMasteries = this.achievementsStore.skillMasteries;

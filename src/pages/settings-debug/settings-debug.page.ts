@@ -331,24 +331,40 @@ export class SettingsDebugPage {
   }
 
   private formatEvent(event: DomainEvent): string {
-    if (event.type === 'ProfileCreated') {
-      return `role=${event.payload.user.role}`;
+    switch (event.type) {
+      case 'ProfileCreated':
+        return `role=${event.payload.user.role}`;
+      case 'SkillUpgraded':
+        return `skill=${event.payload.skillId}, level=${event.payload.level}/${event.payload.maxLevel}`;
+      case 'ScenarioCompleted':
+        return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
+      case 'PurchaseMade': {
+        const currency = event.payload.currency ?? 'coins';
+        return `purchase=${event.payload.itemId}, price=${event.payload.price} ${currency}`;
+      }
+      case 'ExamPassed': {
+        const stage = event.payload.stage ?? '—';
+        return `exam=${event.payload.examId}, stage=${stage}`;
+      }
+      case 'ExamFailed': {
+        const stage = event.payload.stage ?? '—';
+        return `exam_failed=${event.payload.examId}, stage=${stage}`;
+      }
+      case 'StagePromoted':
+        return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
+      case 'CompanyTicked':
+        return `company_tick=${event.payload.reason}`;
+      case 'EmployeeHired':
+        return `hire=${event.payload.employeeId}`;
+      case 'EndingResolved':
+        return `ending=${event.payload.endingId}`;
+      case 'IncidentDeferred':
+        return `incident_deferred=${event.payload.templateId ?? event.payload.incidentId ?? '—'}`;
+      case 'ProgressReset':
+        return `reset=${event.payload.reason ?? '—'}`;
+      default:
+        return event.type;
     }
-    if (event.type === 'SkillUpgraded') {
-      return `skill=${event.payload.skillId}, level=${event.payload.level}/${event.payload.maxLevel}`;
-    }
-    if (event.type === 'ScenarioCompleted') {
-      return `scenario=${event.payload.scenarioId}, decision=${event.payload.decisionId}`;
-    }
-    if (event.type === 'PurchaseMade') {
-      const currency = event.payload.currency ?? 'coins';
-      return `purchase=${event.payload.itemId}, price=${event.payload.price} ${currency}`;
-    }
-    if (event.type === 'ExamPassed') {
-      const stage = event.payload.stage ?? '—';
-      return `exam=${event.payload.examId}, stage=${stage}`;
-    }
-    return `stage=${event.payload.fromStage} -> ${event.payload.toStage}`;
   }
 
   protected formatDate(value: string): string {
