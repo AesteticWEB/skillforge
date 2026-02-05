@@ -444,6 +444,7 @@ export class ExamPage implements OnDestroy {
       maxScore: 100,
       baseCoins: BALANCE.rewards.examCoins,
       buffs: this.store.totalBuffs(),
+      difficultyMultiplier: this.store.difficultyMultiplier(),
     });
     const speedBonus = this.calcSpeedBonus(rewardCoins, durationSeconds);
     const totalCoins = rewardCoins + speedBonus;

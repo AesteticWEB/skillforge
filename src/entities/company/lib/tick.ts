@@ -17,6 +17,7 @@ type RunCompanyTickParams = {
     reputation: number;
     techDebt: number;
     totalBuffs?: TotalBuffs;
+    difficultyMultiplier?: number;
   };
   seed: string;
   tickIndex: number;
@@ -170,6 +171,10 @@ export const runCompanyTick = ({
   const crisisBalance = tickBalance?.crisis;
   const salaryByRole = tickBalance?.salaryByRole ?? { junior: 0, middle: 0, senior: 0 };
   const rng = mulberry32(hashStringToInt(`${seed}:tick:${tickIndex}:${reason}`));
+  const difficultyMultiplier =
+    typeof state.difficultyMultiplier === 'number' && Number.isFinite(state.difficultyMultiplier)
+      ? clamp(state.difficultyMultiplier, 0.5, 3)
+      : 1;
 
   const traitCaps = resolveTraitCaps();
   let traitCashIncomeBonusPct = 0;
@@ -245,7 +250,7 @@ export const runCompanyTick = ({
   const incidentChanceBase = incidentBalance?.baseChance ?? 0;
   const incidentChanceFromDebt = incidentBalance?.chanceFromTechDebtPct ?? 0;
   const rawIncidentChance = clamp(
-    incidentChanceBase + state.techDebt * incidentChanceFromDebt,
+    (incidentChanceBase + state.techDebt * incidentChanceFromDebt) * difficultyMultiplier,
     0,
     0.95,
   );
@@ -253,9 +258,13 @@ export const runCompanyTick = ({
 
   const incidentRoll = rng();
   let incident: IncidentResult | undefined;
-  const rawIncidentCostCash = round(incidentBalance?.baseCostCash ?? 0);
-  const rawIncidentRepPenalty = round(incidentBalance?.baseRepPenalty ?? 0);
-  const rawIncidentMoralePenalty = round(incidentBalance?.moralePenalty ?? 0);
+  const rawIncidentCostCash = round((incidentBalance?.baseCostCash ?? 0) * difficultyMultiplier);
+  const rawIncidentRepPenalty = round(
+    (incidentBalance?.baseRepPenalty ?? 0) * difficultyMultiplier,
+  );
+  const rawIncidentMoralePenalty = round(
+    (incidentBalance?.moralePenalty ?? 0) * difficultyMultiplier,
+  );
   const mitigatedIncidentCostCash = round(rawIncidentCostCash * (1 - totalIncidentReducePct));
   const mitigatedIncidentRepPenalty = round(rawIncidentRepPenalty * (1 - totalIncidentReducePct));
   const mitigatedIncidentMoralePenalty = round(

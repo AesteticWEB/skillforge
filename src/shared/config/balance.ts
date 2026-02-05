@@ -1,4 +1,17 @@
 export const BALANCE = {
+  newGame: {
+    startCoins: 100,
+    startReputation: 0,
+    startTechDebt: 0,
+  },
+  ngPlus: {
+    startCoinsBonusPct: 0.2,
+    difficultyMultiplier: 1.2,
+    carryOver: {
+      luxuryOnly: true,
+      badges: true,
+    },
+  },
   rewards: {
     scenarioXp: 5,
     scenarioCoins: 6,

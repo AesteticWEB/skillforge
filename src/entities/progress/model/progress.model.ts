@@ -19,6 +19,15 @@ export interface ProgressSnapshot {
   spentXpOnSkills: number;
 }
 
+export type ProgressMeta = {
+  isNewGamePlus: boolean;
+  ngPlusCount: number;
+};
+
+export type DifficultySettings = {
+  multiplier: number;
+};
+
 export interface DecisionHistoryEntry {
   scenarioId: string;
   decisionId: string;
@@ -39,6 +48,8 @@ export interface Progress {
   candidatesPool: Candidate[];
   candidatesRefreshIndex: number;
   companyTickIndex: number;
+  meta: ProgressMeta;
+  difficulty: DifficultySettings;
   finale: FinaleState;
   ending: EndingState;
   specializationId: string | null;

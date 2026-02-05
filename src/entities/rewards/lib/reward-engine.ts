@@ -17,6 +17,7 @@ export type ScenarioRewardInput = {
   techDebt: number;
   buffs?: RewardBuffs;
   baseCoins?: number;
+  difficultyMultiplier?: number;
 };
 
 export type ExamRewardInput = ScenarioRewardInput & {
@@ -74,6 +75,7 @@ const calcRewardCoins = (
   techDebt: number,
   buffs: RewardBuffs | undefined,
   scoreMultiplier: number,
+  difficultyMultiplier: number,
 ): number => {
   const { rewards } = BALANCE;
   const repConfig = rewards.reputation;
@@ -96,13 +98,23 @@ const calcRewardCoins = (
     safeBase * repMultiplier * debtMultiplier * scoreMultiplier * buffMultiplier +
     resolvedBuffs.coinBonus;
 
-  return Math.max(rewards.minCoins, Math.floor(rawCoins));
+  const difficulty =
+    Number.isFinite(difficultyMultiplier) && difficultyMultiplier > 0 ? difficultyMultiplier : 1;
+
+  return Math.max(rewards.minCoins, Math.floor(rawCoins / difficulty));
 };
 
 export const calcScenarioReward = (input: ScenarioRewardInput): number => {
   const { rewards } = BALANCE;
   const baseCoins = resolveBaseCoins(input.baseCoins, rewards.scenarioCoins);
-  return calcRewardCoins(baseCoins, input.reputation, input.techDebt, input.buffs, 1);
+  return calcRewardCoins(
+    baseCoins,
+    input.reputation,
+    input.techDebt,
+    input.buffs,
+    1,
+    input.difficultyMultiplier ?? 1,
+  );
 };
 
 export const calcScenarioXp = (input: ScenarioXpInput): number => {
@@ -127,5 +139,12 @@ export const calcExamReward = (input: ExamRewardInput): number => {
     rewards.exam.minScoreMultiplier +
     (rewards.exam.maxScoreMultiplier - rewards.exam.minScoreMultiplier) * scoreRatio;
 
-  return calcRewardCoins(baseCoins, input.reputation, input.techDebt, input.buffs, scoreMultiplier);
+  return calcRewardCoins(
+    baseCoins,
+    input.reputation,
+    input.techDebt,
+    input.buffs,
+    scoreMultiplier,
+    input.difficultyMultiplier ?? 1,
+  );
 };

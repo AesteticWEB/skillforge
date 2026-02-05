@@ -115,11 +115,13 @@ export class SimulatorDetailPage {
     const techDebt = Number.isFinite(progress.techDebt) ? progress.techDebt : 0;
     const baseCoins = rewards.scenarioCoins;
     const buffs = this.store.totalBuffs();
+    const difficultyMultiplier = this.store.difficultyMultiplier();
     const rewardCoins = calcScenarioReward({
       reputation,
       techDebt,
       baseCoins,
       buffs,
+      difficultyMultiplier,
     });
     const rewardXp = calcScenarioXp({ baseXp: rewards.scenarioXp, buffs });
 
@@ -180,6 +182,16 @@ export class SimulatorDetailPage {
         value: `x${buffMultiplier.toFixed(2)}`,
         hint: buffMultiplier > 1 ? 'Бонусы от перков и предметов.' : 'Нет активных баффов.',
       },
+      ...(difficultyMultiplier !== 1
+        ? [
+            {
+              label: 'Сложность',
+              value: `/${difficultyMultiplier.toFixed(2)}`,
+              hint: 'Повышенная сложность снижает награду.',
+              tone: 'negative' as const,
+            },
+          ]
+        : []),
       {
         label: 'Итог',
         value: `${rewardCoins} coins`,

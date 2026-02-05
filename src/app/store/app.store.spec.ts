@@ -9,6 +9,8 @@ import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { BALANCE, SHOP_ITEMS } from '@/shared/config';
 import { AppStore } from './app.store';
 
+const START_COINS = BALANCE.newGame?.startCoins ?? 0;
+
 const createStore = (skills: Skill[], scenarios: Scenario[]): AppStore => {
   TestBed.configureTestingModule({
     providers: [
@@ -108,7 +110,7 @@ describe('AppStore', () => {
 
     expect(store.reputation()).toBe(reputationDelta);
     expect(store.techDebt()).toBe(techDebtDelta);
-    expect(store.coins()).toBe(coinsDelta + expectedRewardCoins);
+    expect(store.coins()).toBe(START_COINS + coinsDelta + expectedRewardCoins);
     expect(store.skills().find((skill) => skill.id === 'core')?.level).toBe(0);
     expect(store.progress().decisionHistory).toHaveLength(1);
     expect(store.progress().decisionHistory[0]?.scenarioId).toBe('scenario-1');
@@ -220,7 +222,7 @@ describe('AppStore', () => {
 
     expect(result).toBe(false);
     expect(store.inventory().ownedItemIds).toHaveLength(0);
-    expect(store.coins()).toBe(0);
+    expect(store.coins()).toBe(START_COINS);
     expect(errorSpy).toHaveBeenCalled();
   });
 
@@ -233,7 +235,7 @@ describe('AppStore', () => {
 
     expect(result).toBe(false);
     expect(store.inventory().ownedItemIds).toHaveLength(0);
-    expect(store.coins()).toBe(0);
+    expect(store.coins()).toBe(START_COINS);
     expect(errorSpy).toHaveBeenCalled();
   });
 

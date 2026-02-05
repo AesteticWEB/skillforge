@@ -110,6 +110,25 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     typeof base.companyTickIndex === 'number' && Number.isFinite(base.companyTickIndex)
       ? Math.max(0, Math.floor(base.companyTickIndex))
       : 0;
+  const meta = isRecord(base.meta)
+    ? {
+        isNewGamePlus:
+          typeof base.meta.isNewGamePlus === 'boolean' ? base.meta.isNewGamePlus : false,
+        ngPlusCount:
+          typeof base.meta.ngPlusCount === 'number' && Number.isFinite(base.meta.ngPlusCount)
+            ? Math.max(0, Math.floor(base.meta.ngPlusCount))
+            : 0,
+      }
+    : { isNewGamePlus: false, ngPlusCount: 0 };
+  const difficulty = isRecord(base.difficulty)
+    ? {
+        multiplier:
+          typeof base.difficulty.multiplier === 'number' &&
+          Number.isFinite(base.difficulty.multiplier)
+            ? Math.max(0.5, Math.min(3, base.difficulty.multiplier))
+            : 1,
+      }
+    : { multiplier: 1 };
   const finale = createEmptyFinaleState();
   const ending = createEmptyEndingState();
 
@@ -123,6 +142,8 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     candidatesPool,
     candidatesRefreshIndex,
     companyTickIndex,
+    meta,
+    difficulty,
     finale: base.finale ?? finale,
     ending: base.ending ?? ending,
   };

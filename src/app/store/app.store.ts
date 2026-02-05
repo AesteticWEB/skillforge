@@ -100,6 +100,7 @@ import {
   SKILL_STAGE_ORDER,
   SHOP_ITEMS,
   ShopItemId,
+  ShopItem,
   SkillStageId,
   SPECIALIZATIONS,
 } from '@/shared/config';
@@ -242,12 +243,19 @@ const createEmptyProgress = (): Progress => ({
   candidatesPool: [],
   candidatesRefreshIndex: 0,
   companyTickIndex: 0,
+  meta: {
+    isNewGamePlus: false,
+    ngPlusCount: 0,
+  },
+  difficulty: {
+    multiplier: 1,
+  },
   finale: createEmptyFinaleState(),
   ending: createEmptyEndingState(),
   specializationId: null,
-  reputation: 0,
-  techDebt: 0,
-  coins: 0,
+  reputation: BALANCE.newGame?.startReputation ?? 0,
+  techDebt: BALANCE.newGame?.startTechDebt ?? 0,
+  coins: BALANCE.newGame?.startCoins ?? 0,
   scenarioOverrides: {},
   spentXpOnSkills: 0,
   careerStage: 'internship',
@@ -398,6 +406,7 @@ export class AppStore {
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
+  readonly difficultyMultiplier = computed(() => this._progress().difficulty?.multiplier ?? 1);
   readonly totalBuffs = computed(() => {
     const owned = new Set(this._inventory().ownedItemIds);
     const sources = SHOP_ITEMS.filter((item) => owned.has(item.id)).map((item) => ({
@@ -990,6 +999,7 @@ export class AppStore {
         reputation: this.reputation(),
         techDebt: this.techDebt(),
         totalBuffs: this.totalBuffs(),
+        difficultyMultiplier: this.difficultyMultiplier(),
       },
       seed,
       tickIndex,
@@ -1706,7 +1716,21 @@ export class AppStore {
 
   startNewGamePlus(): void {
     const progress = this._progress();
-    const company = this._company();
+    const startConfig = BALANCE.newGame ?? { startCoins: 0, startReputation: 0, startTechDebt: 0 };
+    const ngPlusConfig = BALANCE.ngPlus ?? { startCoinsBonusPct: 0.2, difficultyMultiplier: 1.2 };
+    const startCoins = Math.floor(
+      (startConfig.startCoins ?? 0) * (1 + (ngPlusConfig.startCoinsBonusPct ?? 0)),
+    );
+
+    const resetSkills = this._skills().map((skill) => ({
+      ...skill,
+      level: 0,
+    }));
+    const resetLevels = resetSkills.reduce<Record<string, number>>((acc, skill) => {
+      acc[skill.id] = 0;
+      return acc;
+    }, {});
+
     const endingState = progress.ending ?? createEmptyEndingState();
     const nextEnding: EndingState = {
       ...endingState,
@@ -1714,14 +1738,22 @@ export class AppStore {
       finishedAtIso: null,
       isEndingUnlocked: false,
       history: endingState.history ?? [],
-      ngPlusCount: (endingState.ngPlusCount ?? 0) + 1,
     };
 
+    const nextMeta = {
+      isNewGamePlus: true,
+      ngPlusCount: (progress.meta?.ngPlusCount ?? 0) + 1,
+    };
+
+    this._skills.set(resetSkills);
+    this._xp.set(0);
     this._progress.set({
       ...progress,
+      skillLevels: resetLevels,
       decisionHistory: [],
       examHistory: [],
       activeExamRun: null,
+      certificates: [],
       activeContracts: [],
       completedContractsHistory: [],
       sessionQuests: [],
@@ -1729,32 +1761,33 @@ export class AppStore {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
+      meta: nextMeta,
+      difficulty: {
+        multiplier: ngPlusConfig.difficultyMultiplier ?? 1,
+      },
       finale: createEmptyFinaleState(),
       ending: nextEnding,
-      reputation: 0,
-      techDebt: 0,
-      coins: 0,
+      specializationId: null,
+      reputation: startConfig.startReputation ?? 0,
+      techDebt: startConfig.startTechDebt ?? 0,
+      coins: startCoins,
       scenarioOverrides: {},
-      careerStage: 'senior',
+      spentXpOnSkills: 0,
+      careerStage: 'internship',
     });
+
+    const luxuryOwnedIds = this.resolveLuxuryOwnedItems(this._inventory().ownedItemIds ?? []);
+    this._inventory.set({
+      ownedItemIds: normalizeOwnedItemIds(luxuryOwnedIds),
+    });
+
     this._availableContracts.set([]);
-
-    const startCash = BALANCE.company?.startCash ?? 0;
-    const startLevel = BALANCE.company?.startLevel ?? 'lead';
-
-    this._company.set({
-      ...company,
-      cash: this.normalizeCash(startCash),
-      unlocked: true,
-      level: this.normalizeCompanyLevel(startLevel),
-      employees: [],
-      ledger: [],
-      activeIncident: null,
-      incidentsHistory: [],
-    });
+    this._company.set(createEmptyCompany());
 
     this.ensureSessionQuests(true);
-    this.notificationsStore.success('Новая игра+ начата');
+    this.notificationsStore.success(
+      'New Game+ начата: сохранены luxury и бейджи, сложность повышена',
+    );
   }
 
   createProfile(role: string, goal: string, selectedSkillIds: string[]): void {
@@ -1762,6 +1795,7 @@ export class AppStore {
     const normalizedRole = role.trim();
     const normalizedGoal = goal.trim();
     const selected = new Set(selectedSkillIds);
+    const startConfig = BALANCE.newGame ?? { startCoins: 0, startReputation: 0, startTechDebt: 0 };
 
     const profile: User = {
       role: normalizedRole.length > 0 ? normalizedRole : 'Без роли',
@@ -1799,12 +1833,19 @@ export class AppStore {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
+      meta: {
+        isNewGamePlus: false,
+        ngPlusCount: 0,
+      },
+      difficulty: {
+        multiplier: 1,
+      },
       finale: createEmptyFinaleState(),
       ending: createEmptyEndingState(),
       specializationId: null,
-      reputation: 0,
-      techDebt: 0,
-      coins: 0,
+      reputation: startConfig.startReputation ?? 0,
+      techDebt: startConfig.startTechDebt ?? 0,
+      coins: startConfig.startCoins ?? 0,
       scenarioOverrides: {},
       spentXpOnSkills: 0,
       careerStage: 'internship',
@@ -2012,6 +2053,7 @@ export class AppStore {
       reputation: progressWithAvailability.reputation,
       techDebt: progressWithAvailability.techDebt,
       buffs,
+      difficultyMultiplier: this.difficultyMultiplier(),
     });
     const progressWithRewards = {
       ...progressWithAvailability,
@@ -2682,6 +2724,7 @@ export class AppStore {
   }
 
   private mergeProgressDefaults(progress: Partial<Progress>): Progress {
+    const startConfig = BALANCE.newGame ?? { startCoins: 0, startReputation: 0, startTechDebt: 0 };
     return {
       skillLevels: progress.skillLevels ?? {},
       decisionHistory: progress.decisionHistory ?? [],
@@ -2697,12 +2740,14 @@ export class AppStore {
       candidatesPool: this.normalizeCandidatesPool(progress.candidatesPool),
       candidatesRefreshIndex: this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex),
       companyTickIndex: this.normalizeCompanyTickIndex(progress.companyTickIndex),
+      meta: this.normalizeProgressMeta(progress.meta),
+      difficulty: this.normalizeDifficulty(progress.difficulty),
       finale: this.normalizeFinaleState(progress.finale),
       ending: this.normalizeEndingState(progress.ending),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
-      reputation: progress.reputation ?? 0,
-      techDebt: progress.techDebt ?? 0,
-      coins: this.normalizeCoins(progress.coins ?? 0),
+      reputation: progress.reputation ?? startConfig.startReputation ?? 0,
+      techDebt: progress.techDebt ?? startConfig.startTechDebt ?? 0,
+      coins: this.normalizeCoins(progress.coins ?? startConfig.startCoins ?? 0),
       scenarioOverrides: progress.scenarioOverrides ?? {},
       spentXpOnSkills: progress.spentXpOnSkills ?? 0,
       careerStage: this.normalizeCareerStage(
@@ -2795,6 +2840,8 @@ export class AppStore {
       value['candidatesRefreshIndex'],
     );
     const companyTickIndex = value['companyTickIndex'];
+    const meta = this.normalizeProgressMeta(value['meta']);
+    const difficulty = this.normalizeDifficulty(value['difficulty']);
     const finale = this.normalizeFinaleState(value['finale']);
     const ending = this.normalizeEndingState(value['ending']);
     const specializationId = value['specializationId'];
@@ -2835,6 +2882,8 @@ export class AppStore {
       candidatesPool,
       candidatesRefreshIndex,
       companyTickIndex: this.normalizeCompanyTickIndex(companyTickIndex),
+      meta,
+      difficulty,
       finale,
       ending,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
@@ -3542,6 +3591,29 @@ export class AppStore {
     return Math.max(0, Math.floor(value));
   }
 
+  private normalizeProgressMeta(value: unknown): Progress['meta'] {
+    if (!this.isRecord(value)) {
+      return { isNewGamePlus: false, ngPlusCount: 0 };
+    }
+    const isNewGamePlus =
+      typeof value['isNewGamePlus'] === 'boolean' ? value['isNewGamePlus'] : false;
+    const ngPlusCount =
+      typeof value['ngPlusCount'] === 'number' && Number.isFinite(value['ngPlusCount'])
+        ? Math.max(0, Math.floor(value['ngPlusCount']))
+        : 0;
+    return { isNewGamePlus, ngPlusCount };
+  }
+
+  private normalizeDifficulty(value: unknown): Progress['difficulty'] {
+    if (!this.isRecord(value)) {
+      return { multiplier: 1 };
+    }
+    const raw = value['multiplier'];
+    const multiplier =
+      typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0.5, Math.min(3, raw)) : 1;
+    return { multiplier };
+  }
+
   private normalizeFinaleState(value: unknown): FinaleState {
     if (!this.isRecord(value)) {
       return createEmptyFinaleState();
@@ -4212,6 +4284,20 @@ export class AppStore {
       return 0;
     }
     return Math.min(100, Math.max(0, Math.floor(value)));
+  }
+
+  private resolveLuxuryOwnedItems(ownedItemIds: ShopItemId[]): ShopItemId[] {
+    const carryLuxuryOnly = BALANCE.ngPlus?.carryOver?.luxuryOnly ?? true;
+    if (!carryLuxuryOnly) {
+      return ownedItemIds;
+    }
+    const items = SHOP_ITEMS as readonly ShopItem[];
+    const luxuryIds = new Set<ShopItemId>(
+      items
+        .filter((item) => item.currency === 'cash' || item.category === 'luxury')
+        .map((item) => item.id as ShopItemId),
+    );
+    return ownedItemIds.filter((id) => luxuryIds.has(id));
   }
 
   private resolveAverageMorale(employees: Employee[]): number {
