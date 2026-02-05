@@ -7,6 +7,7 @@ import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 import type { FinaleState } from '@/entities/finale';
 import type { EndingState } from '@/entities/ending';
+import type { CosmeticsState } from '@/entities/cosmetics';
 
 export type MetricKey = 'reputation' | 'techDebt' | 'coins';
 
@@ -26,6 +27,12 @@ export type ProgressMeta = {
 
 export type DifficultySettings = {
   multiplier: number;
+};
+
+export type ActivityStreak = {
+  lastActiveDate: string | null;
+  current: number;
+  best: number;
 };
 
 export interface DecisionHistoryEntry {
@@ -50,6 +57,8 @@ export interface Progress {
   companyTickIndex: number;
   meta: ProgressMeta;
   difficulty: DifficultySettings;
+  cosmetics: CosmeticsState;
+  streak: ActivityStreak;
   finale: FinaleState;
   ending: EndingState;
   specializationId: string | null;

@@ -25,6 +25,8 @@ describe('decision effects', () => {
       companyTickIndex: 0,
       meta: { isNewGamePlus: false, ngPlusCount: 0 },
       difficulty: { multiplier: 1 },
+      cosmetics: { earnedBadges: [] },
+      streak: { lastActiveDate: null, current: 0, best: 0 },
       finale: createEmptyFinaleState(),
       ending: createEmptyEndingState(),
       specializationId: null,

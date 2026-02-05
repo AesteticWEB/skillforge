@@ -80,6 +80,7 @@ import {
   RewardSummary,
   generateAvailableContracts,
 } from '@/entities/contracts';
+import { EarnedBadge, getBadgeById, grantBadgeOnce } from '@/entities/cosmetics';
 import { Quest, QuestProgressEvent, generateSessionQuests } from '@/entities/quests';
 import { Candidate, generateCandidates } from '@/features/hiring';
 import { getTotalBuffs } from '@/entities/buffs';
@@ -250,6 +251,14 @@ const createEmptyProgress = (): Progress => ({
   difficulty: {
     multiplier: 1,
   },
+  cosmetics: {
+    earnedBadges: [],
+  },
+  streak: {
+    lastActiveDate: null,
+    current: 0,
+    best: 0,
+  },
   finale: createEmptyFinaleState(),
   ending: createEmptyEndingState(),
   specializationId: null,
@@ -407,6 +416,8 @@ export class AppStore {
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
   readonly difficultyMultiplier = computed(() => this._progress().difficulty?.multiplier ?? 1);
+  readonly cosmetics = computed(() => this._progress().cosmetics);
+  readonly earnedBadges = computed(() => this._progress().cosmetics.earnedBadges);
   readonly totalBuffs = computed(() => {
     const owned = new Set(this._inventory().ownedItemIds);
     const sources = SHOP_ITEMS.filter((item) => owned.has(item.id)).map((item) => ({
@@ -517,6 +528,7 @@ export class AppStore {
       this.persistToStorage();
     });
     this.eventBus.subscribe('ScenarioCompleted', (event) => {
+      this.updateDailyStreak();
       const progressEvent: ContractProgressEvent = {
         type: 'ScenarioCompleted',
         scenarioId: event.payload.scenarioId,
@@ -535,6 +547,7 @@ export class AppStore {
       this.applyEventToSessionQuests(progressEvent);
     });
     this.eventBus.subscribe('ExamPassed', (event) => {
+      this.updateDailyStreak();
       const progressEvent: ContractProgressEvent = {
         type: 'ExamPassed',
         examId: event.payload.examId,
@@ -980,6 +993,40 @@ export class AppStore {
     }
 
     return { claimed, earnedCoins: totalCoins, earnedBadges: uniqueBadges };
+  }
+
+  getBadgeTitle(badgeId: string): string {
+    const badge = getBadgeById(badgeId);
+    return badge?.title ?? badgeId;
+  }
+
+  grantBadge(badgeId: string, source: EarnedBadge['source']): void {
+    const badge = getBadgeById(badgeId);
+    if (!badge) {
+      this.logDevError('badge-not-found', { badgeId });
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    let added = false;
+    this._progress.update((current) => {
+      const cosmetics = current.cosmetics ?? { earnedBadges: [] };
+      const nextEarned = grantBadgeOnce(cosmetics.earnedBadges, badge.id, source, nowIso);
+      if (nextEarned === cosmetics.earnedBadges) {
+        return current;
+      }
+      added = true;
+      return {
+        ...current,
+        cosmetics: {
+          ...cosmetics,
+          earnedBadges: nextEarned,
+        },
+      };
+    });
+
+    if (added) {
+      this.notificationsStore.success(`Получен бейдж: ${badge.title}`);
+    }
   }
 
   applyCompanyTick(reason: CompanyTickReason): void {
@@ -1604,6 +1651,8 @@ export class AppStore {
       },
     }));
 
+    this.grantEndingBadge(resolved.endingId);
+
     return resolved;
   }
 
@@ -1721,6 +1770,10 @@ export class AppStore {
     const startCoins = Math.floor(
       (startConfig.startCoins ?? 0) * (1 + (ngPlusConfig.startCoinsBonusPct ?? 0)),
     );
+    const carryBadges = ngPlusConfig.carryOver?.badges ?? true;
+    const cosmetics = carryBadges
+      ? this.normalizeCosmeticsState(progress.cosmetics)
+      : { earnedBadges: [] };
 
     const resetSkills = this._skills().map((skill) => ({
       ...skill,
@@ -1764,6 +1817,12 @@ export class AppStore {
       meta: nextMeta,
       difficulty: {
         multiplier: ngPlusConfig.difficultyMultiplier ?? 1,
+      },
+      cosmetics,
+      streak: {
+        lastActiveDate: null,
+        current: 0,
+        best: 0,
       },
       finale: createEmptyFinaleState(),
       ending: nextEnding,
@@ -1839,6 +1898,14 @@ export class AppStore {
       },
       difficulty: {
         multiplier: 1,
+      },
+      cosmetics: {
+        earnedBadges: [],
+      },
+      streak: {
+        lastActiveDate: null,
+        current: 0,
+        best: 0,
       },
       finale: createEmptyFinaleState(),
       ending: createEmptyEndingState(),
@@ -2742,6 +2809,8 @@ export class AppStore {
       companyTickIndex: this.normalizeCompanyTickIndex(progress.companyTickIndex),
       meta: this.normalizeProgressMeta(progress.meta),
       difficulty: this.normalizeDifficulty(progress.difficulty),
+      cosmetics: this.normalizeCosmeticsState(progress.cosmetics),
+      streak: this.normalizeStreakState(progress.streak),
       finale: this.normalizeFinaleState(progress.finale),
       ending: this.normalizeEndingState(progress.ending),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
@@ -2842,6 +2911,8 @@ export class AppStore {
     const companyTickIndex = value['companyTickIndex'];
     const meta = this.normalizeProgressMeta(value['meta']);
     const difficulty = this.normalizeDifficulty(value['difficulty']);
+    const cosmetics = this.normalizeCosmeticsState(value['cosmetics']);
+    const streak = this.normalizeStreakState(value['streak']);
     const finale = this.normalizeFinaleState(value['finale']);
     const ending = this.normalizeEndingState(value['ending']);
     const specializationId = value['specializationId'];
@@ -2884,6 +2955,8 @@ export class AppStore {
       companyTickIndex: this.normalizeCompanyTickIndex(companyTickIndex),
       meta,
       difficulty,
+      cosmetics,
+      streak,
       finale,
       ending,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
@@ -3323,11 +3396,73 @@ export class AppStore {
     return `${sign}${this.formatNumber(Math.abs(rounded))}`;
   }
 
+  private updateDailyStreak(): void {
+    const progress = this._progress();
+    const streak = progress.streak ?? { lastActiveDate: null, current: 0, best: 0 };
+    const today = new Date().toISOString().slice(0, 10);
+    if (streak.lastActiveDate === today) {
+      return;
+    }
+    const yesterday = this.resolveYesterdayDate(today);
+    const nextCurrent = streak.lastActiveDate === yesterday ? streak.current + 1 : 1;
+    const nextBest = Math.max(streak.best, nextCurrent);
+
+    this._progress.update((current) => ({
+      ...current,
+      streak: {
+        lastActiveDate: today,
+        current: nextCurrent,
+        best: nextBest,
+      },
+    }));
+
+    this.grantStreakBadges(nextCurrent);
+  }
+
+  private resolveYesterdayDate(today: string): string {
+    const parsed = new Date(`${today}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) {
+      return new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    }
+    parsed.setUTCDate(parsed.getUTCDate() - 1);
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  private grantStreakBadges(current: number): void {
+    const thresholds = Array.isArray(BALANCE.streaks) ? BALANCE.streaks : [3, 7, 14];
+    const map: Record<number, string> = {
+      3: 'badge_streak_3',
+      7: 'badge_streak_7',
+      14: 'badge_streak_14',
+    };
+    for (const threshold of thresholds) {
+      const badgeId = map[threshold];
+      if (badgeId && current >= threshold) {
+        this.grantBadge(badgeId, 'streak');
+      }
+    }
+  }
+
+  private grantEndingBadge(endingId: EndingResult['endingId']): void {
+    const map: Record<EndingResult['endingId'], string> = {
+      ipo: 'badge_ending_ipo',
+      acq: 'badge_ending_acq',
+      oss: 'badge_ending_oss',
+      scandal: 'badge_ending_scandal',
+      bankrupt: 'badge_ending_bankrupt',
+    };
+    const badgeId = map[endingId];
+    if (badgeId) {
+      this.grantBadge(badgeId, 'ending');
+    }
+  }
+
   private grantQuestBadge(badgeId: string): void {
     const normalized = badgeId?.trim();
     if (!normalized) {
       return;
     }
+    this.grantBadge(normalized, 'quest');
     this.achievementsStore.grantAchievement(normalized);
   }
 
@@ -3612,6 +3747,63 @@ export class AppStore {
     const multiplier =
       typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0.5, Math.min(3, raw)) : 1;
     return { multiplier };
+  }
+
+  private normalizeCosmeticsState(value: unknown): Progress['cosmetics'] {
+    if (!this.isRecord(value)) {
+      return { earnedBadges: [] };
+    }
+    const earnedBadges = this.normalizeEarnedBadges(value['earnedBadges']);
+    return { earnedBadges };
+  }
+
+  private normalizeEarnedBadges(value: unknown): EarnedBadge[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: EarnedBadge[] = [];
+    const seen = new Set<string>();
+    for (const entry of value) {
+      if (!this.isRecord(entry)) {
+        continue;
+      }
+      const id = entry['id'];
+      const earnedAtIso = entry['earnedAtIso'];
+      const source = entry['source'];
+      if (typeof id !== 'string' || typeof earnedAtIso !== 'string') {
+        continue;
+      }
+      if (!this.isEarnedBadgeSource(source)) {
+        continue;
+      }
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      normalized.push({
+        id,
+        earnedAtIso,
+        source,
+      });
+    }
+    return normalized.slice(0, 200);
+  }
+
+  private normalizeStreakState(value: unknown): Progress['streak'] {
+    if (!this.isRecord(value)) {
+      return { lastActiveDate: null, current: 0, best: 0 };
+    }
+    const lastActiveDate =
+      typeof value['lastActiveDate'] === 'string' ? value['lastActiveDate'] : null;
+    const current =
+      typeof value['current'] === 'number' && Number.isFinite(value['current'])
+        ? Math.max(0, Math.floor(value['current']))
+        : 0;
+    const best =
+      typeof value['best'] === 'number' && Number.isFinite(value['best'])
+        ? Math.max(current, Math.floor(value['best']))
+        : current;
+    return { lastActiveDate, current, best };
   }
 
   private normalizeFinaleState(value: unknown): FinaleState {
@@ -4334,6 +4526,10 @@ export class AppStore {
 
   private isIncidentSource(value: unknown): value is 'tick' {
     return typeof value === 'string' && (INCIDENT_SOURCES as readonly string[]).includes(value);
+  }
+
+  private isEarnedBadgeSource(value: unknown): value is EarnedBadge['source'] {
+    return value === 'quest' || value === 'ending' || value === 'streak' || value === 'admin';
   }
 
   private isFinaleChainId(value: unknown): value is FinaleState['chainId'] {

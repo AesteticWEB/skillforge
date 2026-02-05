@@ -12,6 +12,7 @@ export const BALANCE = {
       badges: true,
     },
   },
+  streaks: [3, 7, 14],
   rewards: {
     scenarioXp: 5,
     scenarioCoins: 6,

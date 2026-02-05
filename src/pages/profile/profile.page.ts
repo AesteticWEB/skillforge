@@ -5,6 +5,8 @@ import { AppStore } from '@/app/store/app.store';
 import { AnalyticsEventsStore } from '@/features/analytics';
 import { AchievementsStore, SkillMasteryAchievement } from '@/features/achievements';
 import { NotificationsStore } from '@/features/notifications';
+import type { Badge, BadgeRarity, EarnedBadge } from '@/entities/cosmetics';
+import { BADGES_CATALOG } from '@/entities/cosmetics';
 import type { SkillStageId } from '@/shared/config';
 import {
   EXAMS_BY_ID,
@@ -42,11 +44,24 @@ type SpecializationCard = {
   effects: PerkEffects;
 };
 
+type BadgeCard = Badge & {
+  earned: boolean;
+  earnedAtIso?: string;
+  source?: EarnedBadge['source'];
+};
+
 const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
   internship: 'Стажировка',
   junior: 'Джуниор',
   middle: 'Миддл',
   senior: 'Сеньор',
+};
+
+const BADGE_RARITY_LABELS: Record<BadgeRarity, string> = {
+  common: 'Обычный',
+  rare: 'Редкий',
+  epic: 'Эпический',
+  legendary: 'Легендарный',
 };
 
 @Component({
@@ -110,6 +125,23 @@ export class ProfilePage {
     const value = this.user().startDate?.trim() ?? '';
     return value.length > 0 ? value : null;
   });
+
+  protected readonly earnedBadges = this.store.earnedBadges;
+  protected readonly badgeCatalog = BADGES_CATALOG;
+  protected readonly earnedBadgesCount = computed(() => this.earnedBadges().length);
+  protected readonly badgeCards = computed<BadgeCard[]>(() => {
+    const earnedMap = new Map(this.earnedBadges().map((badge) => [badge.id, badge]));
+    return BADGES_CATALOG.map((badge) => {
+      const earned = earnedMap.get(badge.id);
+      return {
+        ...badge,
+        earned: Boolean(earned),
+        earnedAtIso: earned?.earnedAtIso,
+        source: earned?.source,
+      };
+    });
+  });
+  protected readonly recentBadges = computed(() => this.earnedBadges().slice(0, 5));
 
   protected readonly skillMasteries = this.achievementsStore.skillMasteries;
   protected readonly hasMasteries = computed(() => this.skillMasteries().length > 0);
@@ -178,6 +210,10 @@ export class ProfilePage {
 
   protected selectSpecialization(specId: string): void {
     this.store.setSpecialization(specId);
+  }
+
+  protected getBadgeTitle(badgeId: string): string {
+    return this.store.getBadgeTitle(badgeId);
   }
 
   protected formatSpecializationEffects(effects: PerkEffects): string {
@@ -258,5 +294,20 @@ export class ProfilePage {
       return value;
     }
     return parsed.toLocaleString();
+  }
+
+  protected formatBadgeDate(value?: string): string {
+    if (!value) {
+      return '—';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString();
+  }
+
+  protected formatBadgeRarity(rarity: BadgeRarity): string {
+    return BADGE_RARITY_LABELS[rarity] ?? rarity;
   }
 }

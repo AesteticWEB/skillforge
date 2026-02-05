@@ -129,6 +129,25 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
             : 1,
       }
     : { multiplier: 1 };
+  const cosmetics = isRecord(base.cosmetics)
+    ? {
+        earnedBadges: Array.isArray(base.cosmetics.earnedBadges) ? base.cosmetics.earnedBadges : [],
+      }
+    : { earnedBadges: [] };
+  const streak = isRecord(base.streak)
+    ? {
+        lastActiveDate:
+          typeof base.streak.lastActiveDate === 'string' ? base.streak.lastActiveDate : null,
+        current:
+          typeof base.streak.current === 'number' && Number.isFinite(base.streak.current)
+            ? Math.max(0, Math.floor(base.streak.current))
+            : 0,
+        best:
+          typeof base.streak.best === 'number' && Number.isFinite(base.streak.best)
+            ? Math.max(0, Math.floor(base.streak.best))
+            : 0,
+      }
+    : { lastActiveDate: null, current: 0, best: 0 };
   const finale = createEmptyFinaleState();
   const ending = createEmptyEndingState();
 
@@ -144,6 +163,8 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     companyTickIndex,
     meta,
     difficulty,
+    cosmetics,
+    streak,
     finale: base.finale ?? finale,
     ending: base.ending ?? ending,
   };
