@@ -7,6 +7,7 @@ import { CardComponent } from '@/shared/ui/card';
 import { InputComponent } from '@/shared/ui/input';
 import { PROFESSION_OPTIONS, SKILL_STAGE_LABELS, SKILL_STAGE_ORDER } from '@/shared/config';
 import { SESSION_QUEST_BADGE_LABELS, type Quest } from '@/entities/quests';
+import { getNextBestAction, type NextAction } from './next-action';
 
 @Component({
   selector: 'app-home-page',
@@ -42,6 +43,23 @@ export class HomePage {
   );
   protected readonly careerProgress = this.store.careerProgress;
   protected readonly stageLabel = this.store.stageLabel;
+  protected readonly nextAction = computed<NextAction>(() => {
+    const meta = this.store.progress().meta ?? { isNewGamePlus: false, ngPlusCount: 0 };
+    return getNextBestAction({
+      isRegistered: this.isRegistered(),
+      onboardingCompleted: this.store.onboardingCompleted(),
+      stageScenarioProgress: this.store.stageScenarioProgress(),
+      stageSkillProgress: this.store.stageSkillProgress(),
+      promotionGate: this.store.stagePromotionGate(),
+      canAdvanceStage: this.store.canAdvanceSkillStage(),
+      companyUnlocked: this.store.companyUnlocked(),
+      availableContractsCount: this.store.availableContracts().length,
+      careerStage: this.store.careerStage(),
+      endingResolved: Boolean(this.store.ending().last),
+      isNewGamePlus: meta.isNewGamePlus ?? false,
+      ngPlusCount: meta.ngPlusCount ?? 0,
+    });
+  });
   protected readonly careerStages = computed(() => {
     const currentStage = this.store.careerStage();
     const currentIndex = SKILL_STAGE_ORDER.indexOf(currentStage);
@@ -88,6 +106,14 @@ export class HomePage {
 
   protected startOnboarding(): void {
     void this.router.navigateByUrl('/onboarding');
+  }
+
+  protected goToNextAction(): void {
+    const action = this.nextAction();
+    if (!this.isRegistered() && action.id === 'create-profile') {
+      this.openLogin();
+    }
+    void this.router.navigate([action.route]);
   }
 
   protected setProfession(event: Event): void {
