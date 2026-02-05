@@ -4,6 +4,7 @@ import type { Inventory } from '@/entities/inventory';
 import { normalizeOwnedItemIds } from '@/entities/inventory';
 import type { Progress } from '@/entities/progress';
 import { createEmptyFinaleState } from '@/entities/finale';
+import { createEmptyEndingState } from '@/entities/ending';
 import type { User } from '@/entities/user';
 import type { FeatureFlags } from '@/shared/config';
 
@@ -110,6 +111,7 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
       ? Math.max(0, Math.floor(base.companyTickIndex))
       : 0;
   const finale = createEmptyFinaleState();
+  const ending = createEmptyEndingState();
 
   return {
     ...base,
@@ -122,6 +124,7 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     candidatesRefreshIndex,
     companyTickIndex,
     finale: base.finale ?? finale,
+    ending: base.ending ?? ending,
   };
 };
 

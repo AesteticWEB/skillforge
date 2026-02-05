@@ -21,6 +21,21 @@ export type EndingResult = {
   stats: EndingStats;
 };
 
+export type EndingHistoryEntry = {
+  endingId: EndingId;
+  title: string;
+  finishedAtIso: string;
+  stats: EndingStats;
+};
+
+export type EndingState = {
+  last: EndingResult | null;
+  finishedAtIso: string | null;
+  history: EndingHistoryEntry[];
+  isEndingUnlocked: boolean;
+  ngPlusCount: number;
+};
+
 export type ResolveEndingInput = {
   cash: number;
   reputation: number;

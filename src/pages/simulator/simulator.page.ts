@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
 import type {
   FinaleChoiceId,
@@ -30,6 +30,7 @@ import { SkeletonComponent } from '@/shared/ui/skeleton';
 })
 export class SimulatorPage {
   private readonly store = inject(AppStore);
+  private readonly router = inject(Router);
   protected readonly scenariosError = this.store.scenariosError;
   protected readonly scenariosLoading = this.store.scenariosLoading;
   protected readonly search = signal('');
@@ -88,7 +89,10 @@ export class SimulatorPage {
   }
 
   protected chooseFinaleChoice(choiceId: FinaleChoiceId): void {
-    this.store.chooseFinaleOption(choiceId);
+    const result = this.store.chooseFinaleOption(choiceId);
+    if (result) {
+      void this.router.navigateByUrl('/ending');
+    }
   }
 
   protected formatFinaleNarrative(step: FinaleStep | null): string {

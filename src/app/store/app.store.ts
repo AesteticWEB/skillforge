@@ -65,6 +65,15 @@ import {
   resolveFinaleStep,
 } from '@/entities/finale';
 import {
+  EndingHistoryEntry,
+  EndingResult,
+  EndingState,
+  ResolveEndingInput,
+  ENDING_IDS,
+  createEmptyEndingState,
+  resolveEnding,
+} from '@/entities/ending';
+import {
   CompletedContractEntry,
   Contract,
   ContractProgressEvent,
@@ -234,6 +243,7 @@ const createEmptyProgress = (): Progress => ({
   candidatesRefreshIndex: 0,
   companyTickIndex: 0,
   finale: createEmptyFinaleState(),
+  ending: createEmptyEndingState(),
   specializationId: null,
   reputation: 0,
   techDebt: 0,
@@ -294,6 +304,7 @@ export class AppStore {
   readonly sessionQuests = computed(() => this._progress().sessionQuests);
   readonly candidatesPool = computed(() => this._progress().candidatesPool);
   readonly finale = computed(() => this._progress().finale);
+  readonly ending = computed(() => this._progress().ending);
   readonly spentXpOnSkills = computed(() => this._progress().spentXpOnSkills);
   readonly availableXpForSkills = computed(() =>
     Math.max(0, this._xp() - this._progress().spentXpOnSkills),
@@ -1404,11 +1415,11 @@ export class AppStore {
     }));
   }
 
-  chooseFinaleOption(choiceId: FinaleChoiceId): void {
+  chooseFinaleOption(choiceId: FinaleChoiceId): EndingResult | null {
     const progress = this._progress();
     const finale = progress.finale;
     if (!finale.active || finale.finished) {
-      return;
+      return null;
     }
 
     const step = resolveFinaleStep(finale.chainId, finale.currentStepId, finale.branchFlags);
@@ -1424,7 +1435,7 @@ export class AppStore {
           active: false,
         },
       }));
-      return;
+      return null;
     }
 
     const choice = step.choices.find((entry) => entry.id === choiceId);
@@ -1433,7 +1444,7 @@ export class AppStore {
         stepId: step.id,
         choiceId,
       });
-      return;
+      return null;
     }
 
     const updatedFlags = this.applyFinaleBranchFlags(step.id, choice.id, finale.branchFlags);
@@ -1457,7 +1468,7 @@ export class AppStore {
           active: false,
         },
       }));
-      return;
+      return null;
     }
     const nextStep = nextInfo.nextStep;
     if (nextStep && !resolveFinaleStep(finale.chainId, nextStep, updatedFlags)) {
@@ -1472,7 +1483,7 @@ export class AppStore {
           active: false,
         },
       }));
-      return;
+      return null;
     }
 
     const effects = choice.effects ?? {};
@@ -1524,6 +1535,76 @@ export class AppStore {
         active: !isFinished,
         finished: isFinished ? true : current.finale.finished,
         endingId: endingId ?? current.finale.endingId,
+      },
+    }));
+
+    if (isFinished) {
+      return this.computeAndStoreEnding();
+    }
+
+    return null;
+  }
+
+  computeAndStoreEnding(): EndingResult | null {
+    const progress = this._progress();
+    if (!progress.finale.finished) {
+      return null;
+    }
+    if (progress.ending.last) {
+      return progress.ending.last;
+    }
+
+    const company = this._company();
+    const avgMorale = this.resolveAverageMorale(company.employees);
+    const input: ResolveEndingInput = {
+      cash: company.cash,
+      reputation: progress.reputation,
+      techDebt: progress.techDebt,
+      avgMorale,
+      companyLevel: company.level,
+      finale: {
+        finished: progress.finale.finished,
+        endingHint: progress.finale.endingId,
+        branchFlags: progress.finale.branchFlags,
+      },
+      counters: {
+        completedContracts: progress.completedContractsHistory.length,
+        incidents: company.incidentsHistory.length,
+        incidentsResolved: company.incidentsHistory.length,
+      },
+    };
+
+    const resolved = resolveEnding(input);
+    const finishedAtIso = new Date().toISOString();
+    const historyEntry: EndingHistoryEntry = {
+      endingId: resolved.endingId,
+      title: resolved.title,
+      finishedAtIso,
+      stats: resolved.stats,
+    };
+
+    this._progress.update((current) => ({
+      ...current,
+      ending: {
+        ...current.ending,
+        last: resolved,
+        finishedAtIso,
+        history: [historyEntry, ...(current.ending.history ?? [])].slice(0, 20),
+        isEndingUnlocked: true,
+      },
+    }));
+
+    return resolved;
+  }
+
+  clearLastEnding(): void {
+    this._progress.update((current) => ({
+      ...current,
+      ending: {
+        ...current.ending,
+        last: null,
+        finishedAtIso: null,
+        isEndingUnlocked: false,
       },
     }));
   }
@@ -1623,6 +1704,59 @@ export class AppStore {
     this.resetState();
   }
 
+  startNewGamePlus(): void {
+    const progress = this._progress();
+    const company = this._company();
+    const endingState = progress.ending ?? createEmptyEndingState();
+    const nextEnding: EndingState = {
+      ...endingState,
+      last: null,
+      finishedAtIso: null,
+      isEndingUnlocked: false,
+      history: endingState.history ?? [],
+      ngPlusCount: (endingState.ngPlusCount ?? 0) + 1,
+    };
+
+    this._progress.set({
+      ...progress,
+      decisionHistory: [],
+      examHistory: [],
+      activeExamRun: null,
+      activeContracts: [],
+      completedContractsHistory: [],
+      sessionQuests: [],
+      sessionQuestSessionId: null,
+      candidatesPool: [],
+      candidatesRefreshIndex: 0,
+      companyTickIndex: 0,
+      finale: createEmptyFinaleState(),
+      ending: nextEnding,
+      reputation: 0,
+      techDebt: 0,
+      coins: 0,
+      scenarioOverrides: {},
+      careerStage: 'senior',
+    });
+    this._availableContracts.set([]);
+
+    const startCash = BALANCE.company?.startCash ?? 0;
+    const startLevel = BALANCE.company?.startLevel ?? 'lead';
+
+    this._company.set({
+      ...company,
+      cash: this.normalizeCash(startCash),
+      unlocked: true,
+      level: this.normalizeCompanyLevel(startLevel),
+      employees: [],
+      ledger: [],
+      activeIncident: null,
+      incidentsHistory: [],
+    });
+
+    this.ensureSessionQuests(true);
+    this.notificationsStore.success('Новая игра+ начата');
+  }
+
   createProfile(role: string, goal: string, selectedSkillIds: string[]): void {
     const startDate = new Date().toISOString().slice(0, 10);
     const normalizedRole = role.trim();
@@ -1666,6 +1800,7 @@ export class AppStore {
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
       finale: createEmptyFinaleState(),
+      ending: createEmptyEndingState(),
       specializationId: null,
       reputation: 0,
       techDebt: 0,
@@ -2563,6 +2698,7 @@ export class AppStore {
       candidatesRefreshIndex: this.normalizeCandidatesRefreshIndex(progress.candidatesRefreshIndex),
       companyTickIndex: this.normalizeCompanyTickIndex(progress.companyTickIndex),
       finale: this.normalizeFinaleState(progress.finale),
+      ending: this.normalizeEndingState(progress.ending),
       specializationId: this.normalizeSpecializationId(progress.specializationId ?? null),
       reputation: progress.reputation ?? 0,
       techDebt: progress.techDebt ?? 0,
@@ -2660,6 +2796,7 @@ export class AppStore {
     );
     const companyTickIndex = value['companyTickIndex'];
     const finale = this.normalizeFinaleState(value['finale']);
+    const ending = this.normalizeEndingState(value['ending']);
     const specializationId = value['specializationId'];
     const reputation = value['reputation'];
     const techDebt = value['techDebt'];
@@ -2699,6 +2836,7 @@ export class AppStore {
       candidatesRefreshIndex,
       companyTickIndex: this.normalizeCompanyTickIndex(companyTickIndex),
       finale,
+      ending,
       specializationId: this.normalizeSpecializationId(specializationId ?? null),
       reputation,
       techDebt,
@@ -3486,6 +3624,116 @@ export class AppStore {
     return normalized;
   }
 
+  private normalizeEndingState(value: unknown): EndingState {
+    if (!this.isRecord(value)) {
+      return createEmptyEndingState();
+    }
+    const last = this.normalizeEndingResult(value['last']);
+    const finishedAtIso =
+      typeof value['finishedAtIso'] === 'string' ? value['finishedAtIso'] : null;
+    const history = this.normalizeEndingHistory(value['history']);
+    const isEndingUnlocked =
+      typeof value['isEndingUnlocked'] === 'boolean' ? value['isEndingUnlocked'] : false;
+    const ngPlusCount =
+      typeof value['ngPlusCount'] === 'number' && Number.isFinite(value['ngPlusCount'])
+        ? Math.max(0, Math.floor(value['ngPlusCount']))
+        : 0;
+
+    return {
+      ...createEmptyEndingState(),
+      last,
+      finishedAtIso,
+      history,
+      isEndingUnlocked,
+      ngPlusCount,
+    };
+  }
+
+  private normalizeEndingResult(value: unknown): EndingResult | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const endingId = value['endingId'];
+    const title = value['title'];
+    const summary = value['summary'];
+    if (!this.isEndingId(endingId) || typeof title !== 'string' || typeof summary !== 'string') {
+      return null;
+    }
+    const stats = this.normalizeEndingStats(value['stats']);
+    if (!stats) {
+      return null;
+    }
+    return {
+      endingId,
+      title,
+      summary,
+      stats,
+    };
+  }
+
+  private normalizeEndingHistory(value: unknown): EndingHistoryEntry[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    const normalized: EndingHistoryEntry[] = [];
+    for (const entry of value) {
+      if (!this.isRecord(entry)) {
+        continue;
+      }
+      const endingId = entry['endingId'];
+      const title = entry['title'];
+      const finishedAtIso = entry['finishedAtIso'];
+      if (!this.isEndingId(endingId) || typeof title !== 'string') {
+        continue;
+      }
+      if (typeof finishedAtIso !== 'string') {
+        continue;
+      }
+      const stats = this.normalizeEndingStats(entry['stats']);
+      if (!stats) {
+        continue;
+      }
+      normalized.push({
+        endingId,
+        title,
+        finishedAtIso,
+        stats,
+      });
+    }
+    return normalized.slice(0, 20);
+  }
+
+  private normalizeEndingStats(value: unknown): EndingResult['stats'] | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const cash = value['cash'];
+    const reputation = value['reputation'];
+    const techDebt = value['techDebt'];
+    if (
+      typeof cash !== 'number' ||
+      typeof reputation !== 'number' ||
+      typeof techDebt !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      cash,
+      reputation,
+      techDebt,
+      avgMorale: typeof value['avgMorale'] === 'number' ? value['avgMorale'] : undefined,
+      companyLevel: typeof value['companyLevel'] === 'string' ? value['companyLevel'] : undefined,
+      completedContracts:
+        typeof value['completedContracts'] === 'number' ? value['completedContracts'] : undefined,
+      incidentsResolved:
+        typeof value['incidentsResolved'] === 'number' ? value['incidentsResolved'] : undefined,
+      finaleFlags: this.isRecord(value['finaleFlags'])
+        ? (value['finaleFlags'] as Record<string, boolean>)
+        : undefined,
+      score: typeof value['score'] === 'number' ? value['score'] : undefined,
+    };
+  }
+
   private normalizeEmployee(value: unknown): Employee | null {
     if (!this.isRecord(value)) {
       return null;
@@ -3966,6 +4214,14 @@ export class AppStore {
     return Math.min(100, Math.max(0, Math.floor(value)));
   }
 
+  private resolveAverageMorale(employees: Employee[]): number {
+    if (!employees.length) {
+      return 0;
+    }
+    const total = employees.reduce((sum, employee) => sum + (employee.morale ?? 0), 0);
+    return total / employees.length;
+  }
+
   private isValidStage(value: string): value is SkillStageId {
     return (SKILL_STAGE_ORDER as readonly string[]).includes(value);
   }
@@ -4004,6 +4260,10 @@ export class AppStore {
 
   private isFinaleChoiceId(value: unknown): value is FinaleChoiceId {
     return typeof value === 'string' && (FINALE_CHOICE_IDS as readonly string[]).includes(value);
+  }
+
+  private isEndingId(value: unknown): value is EndingResult['endingId'] {
+    return typeof value === 'string' && (ENDING_IDS as readonly string[]).includes(value);
   }
 
   private logDevError(message: string, payload: unknown): void {

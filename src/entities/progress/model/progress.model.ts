@@ -6,6 +6,7 @@ import type { Candidate } from '@/features/hiring';
 import { IsoDateString } from '@/entities/user';
 import type { SkillStageId } from '@/shared/config';
 import type { FinaleState } from '@/entities/finale';
+import type { EndingState } from '@/entities/ending';
 
 export type MetricKey = 'reputation' | 'techDebt' | 'coins';
 
@@ -39,6 +40,7 @@ export interface Progress {
   candidatesRefreshIndex: number;
   companyTickIndex: number;
   finale: FinaleState;
+  ending: EndingState;
   specializationId: string | null;
   reputation: number;
   techDebt: number;
