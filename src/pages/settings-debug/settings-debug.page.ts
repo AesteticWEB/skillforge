@@ -362,9 +362,8 @@ export class SettingsDebugPage {
         return `incident_deferred=${event.payload.templateId ?? event.payload.incidentId ?? '—'}`;
       case 'ProgressReset':
         return `reset=${event.payload.reason ?? '—'}`;
-      default:
-        return event.type;
     }
+    return 'unknown_event';
   }
 
   protected formatDate(value: string): string {
