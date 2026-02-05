@@ -8,6 +8,8 @@ import type { SkillStageId } from '@/shared/config';
 import type { FinaleState } from '@/entities/finale';
 import type { EndingState } from '@/entities/ending';
 import type { CosmeticsState } from '@/entities/cosmetics';
+import type { AchievementsState } from '@/entities/achievements';
+import type { StreakState } from '@/entities/streak';
 
 export type MetricKey = 'reputation' | 'techDebt' | 'coins';
 
@@ -58,6 +60,8 @@ export interface Progress {
   meta: ProgressMeta;
   difficulty: DifficultySettings;
   cosmetics: CosmeticsState;
+  achievements: AchievementsState;
+  comboStreak: StreakState;
   streak: ActivityStreak;
   finale: FinaleState;
   ending: EndingState;

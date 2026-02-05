@@ -18,6 +18,7 @@ import {
   isOrderingCorrect,
 } from '@/entities/exam';
 import { calcExamReward } from '@/entities/rewards';
+import { calcStreakMultiplier } from '@/entities/streak';
 import {
   BALANCE,
   EXAM_QUESTIONS_BY_ID,
@@ -437,6 +438,9 @@ export class ExamPage implements OnDestroy {
       Number.isFinite(startedMs) && Number.isFinite(finishedMs)
         ? Math.max(0, Math.floor((finishedMs - startedMs) / 1000))
         : 0;
+    const comboMultiplier = grade.passed
+      ? calcStreakMultiplier(this.store.comboStreakCount() + 1)
+      : 1;
     const rewardCoins = calcExamReward({
       reputation: this.store.reputation(),
       techDebt: this.store.techDebt(),
@@ -444,6 +448,7 @@ export class ExamPage implements OnDestroy {
       maxScore: 100,
       baseCoins: BALANCE.rewards.examCoins,
       buffs: this.store.totalBuffs(),
+      comboMultiplier,
       difficultyMultiplier: this.store.difficultyMultiplier(),
     });
     const speedBonus = this.calcSpeedBonus(rewardCoins, durationSeconds);
@@ -469,6 +474,8 @@ export class ExamPage implements OnDestroy {
         issuedAt: finishedAt,
       });
       this.store.notifyExamPassed(exam.id, exam.stage, grade.score);
+    } else {
+      this.store.notifyExamFailed(exam.id, exam.stage, grade.score);
     }
     this.result.set({
       score: grade.score,
@@ -484,6 +491,7 @@ export class ExamPage implements OnDestroy {
         rewardCoins,
         totalCoins,
         speedBonus,
+        comboMultiplier,
       }),
     });
     this.reviewing.set(false);
@@ -605,11 +613,13 @@ export class ExamPage implements OnDestroy {
     rewardCoins: number;
     totalCoins: number;
     speedBonus: number;
+    comboMultiplier: number;
   }): ExamRewardBreakdown {
     const rewards = BALANCE.rewards;
     const reputation = this.store.reputation();
     const techDebt = this.store.techDebt();
     const buffs = this.store.totalBuffs();
+    const comboMultiplier = input.comboMultiplier;
 
     const scoreRatio = Math.max(0, Math.min(1, input.score / 100));
     const scoreMultiplier =
@@ -670,6 +680,16 @@ export class ExamPage implements OnDestroy {
         value: `x${buffMultiplier.toFixed(2)} +${buffBonus}`,
         hint: 'Активные усиления.',
       },
+      ...(comboMultiplier > 1
+        ? [
+            {
+              label: 'Combo',
+              value: `x${comboMultiplier.toFixed(2)}`,
+              hint: 'Серия успешных действий.',
+              tone: 'positive' as const,
+            },
+          ]
+        : []),
       {
         label: 'Бонус за скорость',
         value: `+${input.speedBonus}`,

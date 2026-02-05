@@ -1,5 +1,7 @@
 import { createEmptyFinaleState } from '@/entities/finale';
 import { createEmptyEndingState } from '@/entities/ending';
+import { createEmptyAchievementsState } from '@/entities/achievements';
+import { createEmptyStreakState } from '@/entities/streak';
 import { migratePersistedState, PERSIST_SCHEMA_VERSION } from '@/shared/persist/schema';
 
 describe('persist schema migration', () => {
@@ -51,6 +53,8 @@ describe('persist schema migration', () => {
         meta: { isNewGamePlus: false, ngPlusCount: 0 },
         difficulty: { multiplier: 1 },
         cosmetics: { earnedBadges: [] },
+        achievements: createEmptyAchievementsState(),
+        comboStreak: createEmptyStreakState(),
         streak: { lastActiveDate: null, current: 0, best: 0 },
         finale: createEmptyFinaleState(),
         ending: createEmptyEndingState(),
@@ -118,6 +122,8 @@ describe('persist schema migration', () => {
         meta: { isNewGamePlus: false, ngPlusCount: 0 },
         difficulty: { multiplier: 1 },
         cosmetics: { earnedBadges: [] },
+        achievements: createEmptyAchievementsState(),
+        comboStreak: createEmptyStreakState(),
         streak: { lastActiveDate: null, current: 0, best: 0 },
         finale: createEmptyFinaleState(),
         ending: createEmptyEndingState(),

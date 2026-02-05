@@ -7,6 +7,12 @@ import { AchievementsStore, SkillMasteryAchievement } from '@/features/achieveme
 import { NotificationsStore } from '@/features/notifications';
 import type { Badge, BadgeRarity, EarnedBadge } from '@/entities/cosmetics';
 import { BADGES_CATALOG } from '@/entities/cosmetics';
+import {
+  ACHIEVEMENTS_BY_ID,
+  ACHIEVEMENTS_CATALOG,
+  AchievementCategory,
+  AchievementDefinition,
+} from '@/entities/achievements';
 import type { SkillStageId } from '@/shared/config';
 import {
   EXAMS_BY_ID,
@@ -50,12 +56,39 @@ type BadgeCard = Badge & {
   source?: EarnedBadge['source'];
 };
 
+type AchievementCard = AchievementDefinition & {
+  unlocked: boolean;
+  unlockedAt?: string;
+};
+
+type AchievementGroup = {
+  id: AchievementCategory;
+  title: string;
+  achievements: AchievementCard[];
+};
+
 const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
   internship: 'Стажировка',
   junior: 'Джуниор',
   middle: 'Миддл',
   senior: 'Сеньор',
 };
+
+const ACHIEVEMENT_CATEGORY_LABELS: Record<AchievementCategory, string> = {
+  shop: 'Магазин',
+  company: 'Компания',
+  debt: 'Техдолг',
+  streak: 'Серия',
+  ending: 'Концовки',
+};
+
+const ACHIEVEMENT_CATEGORY_ORDER: AchievementCategory[] = [
+  'shop',
+  'company',
+  'debt',
+  'streak',
+  'ending',
+];
 
 const BADGE_RARITY_LABELS: Record<BadgeRarity, string> = {
   common: 'Обычный',
@@ -142,6 +175,51 @@ export class ProfilePage {
     });
   });
   protected readonly recentBadges = computed(() => this.earnedBadges().slice(0, 5));
+
+  protected readonly achievements = this.store.achievements;
+  protected readonly achievementGroups = computed<AchievementGroup[]>(() => {
+    const unlocked = this.achievements()?.unlocked ?? {};
+    const grouped = new Map<AchievementCategory, AchievementCard[]>();
+
+    for (const definition of ACHIEVEMENTS_CATALOG) {
+      const entry = unlocked[definition.id];
+      const card: AchievementCard = {
+        ...definition,
+        unlocked: Boolean(entry),
+        unlockedAt: entry?.unlockedAt,
+      };
+      const list = grouped.get(definition.category) ?? [];
+      list.push(card);
+      grouped.set(definition.category, list);
+    }
+
+    return ACHIEVEMENT_CATEGORY_ORDER.filter((category) => grouped.has(category)).map(
+      (category) => ({
+        id: category,
+        title: ACHIEVEMENT_CATEGORY_LABELS[category] ?? category,
+        achievements: grouped.get(category) ?? [],
+      }),
+    );
+  });
+  protected readonly recentAchievements = computed<AchievementCard[]>(() => {
+    const unlocked = this.achievements()?.unlocked ?? {};
+    return Object.values(unlocked)
+      .filter((entry) => entry && typeof entry.unlockedAt === 'string')
+      .sort((a, b) => b.unlockedAt.localeCompare(a.unlockedAt))
+      .slice(0, 5)
+      .map((entry) => {
+        const definition = ACHIEVEMENTS_BY_ID.get(entry.id as AchievementDefinition['id']);
+        if (!definition) {
+          return null;
+        }
+        return {
+          ...definition,
+          unlocked: true,
+          unlockedAt: entry.unlockedAt,
+        };
+      })
+      .filter((entry): entry is AchievementCard => Boolean(entry));
+  });
 
   protected readonly skillMasteries = this.achievementsStore.skillMasteries;
   protected readonly hasMasteries = computed(() => this.skillMasteries().length > 0);
@@ -297,6 +375,17 @@ export class ProfilePage {
   }
 
   protected formatBadgeDate(value?: string): string {
+    if (!value) {
+      return '—';
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString();
+  }
+
+  protected formatAchievementDate(value?: string): string {
     if (!value) {
       return '—';
     }

@@ -37,6 +37,17 @@ describe('reward engine', () => {
     expect(reward).toBe(7);
   });
 
+  it('applies combo multiplier to coins', () => {
+    const reward = calcScenarioReward({
+      reputation: 0,
+      techDebt: 0,
+      baseCoins: 20,
+      comboMultiplier: 1.25,
+    });
+
+    expect(reward).toBe(25);
+  });
+
   it('scales exam reward with score ratio', () => {
     const reward = calcExamReward({
       reputation: 0,

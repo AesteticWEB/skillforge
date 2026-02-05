@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AppStore } from '@/app/store/app.store';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
+import { calcStreakMultiplier } from '@/entities/streak';
 import { Scenario } from '@/entities/scenario';
 import { NotificationsStore } from '@/features/notifications';
 import { BALANCE } from '@/shared/config';
@@ -116,11 +117,13 @@ export class SimulatorDetailPage {
     const baseCoins = rewards.scenarioCoins;
     const buffs = this.store.totalBuffs();
     const difficultyMultiplier = this.store.difficultyMultiplier();
+    const comboMultiplier = calcStreakMultiplier(progress.comboStreak?.count ?? 0);
     const rewardCoins = calcScenarioReward({
       reputation,
       techDebt,
       baseCoins,
       buffs,
+      comboMultiplier,
       difficultyMultiplier,
     });
     const rewardXp = calcScenarioXp({ baseXp: rewards.scenarioXp, buffs });
@@ -182,6 +185,16 @@ export class SimulatorDetailPage {
         value: `x${buffMultiplier.toFixed(2)}`,
         hint: buffMultiplier > 1 ? 'Бонусы от перков и предметов.' : 'Нет активных баффов.',
       },
+      ...(comboMultiplier > 1
+        ? [
+            {
+              label: 'Combo',
+              value: `x${comboMultiplier.toFixed(2)}`,
+              hint: 'Серия успешных действий.',
+              tone: 'positive' as const,
+            },
+          ]
+        : []),
       ...(difficultyMultiplier !== 1
         ? [
             {

@@ -3,6 +3,7 @@ import { of } from 'rxjs';
 import { Scenario } from '@/entities/scenario';
 import { Skill } from '@/entities/skill';
 import { calcScenarioReward } from '@/entities/rewards';
+import { calcStreakMultiplier } from '@/entities/streak';
 import { NotificationsStore } from '@/features/notifications';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
@@ -80,6 +81,7 @@ describe('AppStore', () => {
     const expectedRewardCoins = calcScenarioReward({
       reputation: reputationDelta,
       techDebt: techDebtDelta,
+      comboMultiplier: calcStreakMultiplier(1),
     });
     const scenarios: Scenario[] = [
       {

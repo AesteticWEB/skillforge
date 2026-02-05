@@ -1,4 +1,5 @@
 import { BALANCE } from '@/shared/config';
+import { STREAK_CAP_MULT } from '@/entities/streak';
 
 export type RewardBuffs = {
   coinMultiplier?: number;
@@ -18,6 +19,7 @@ export type ScenarioRewardInput = {
   buffs?: RewardBuffs;
   baseCoins?: number;
   difficultyMultiplier?: number;
+  comboMultiplier?: number;
 };
 
 export type ExamRewardInput = ScenarioRewardInput & {
@@ -69,12 +71,20 @@ const resolveBuffs = (buffs?: RewardBuffs): Required<RewardBuffs> => {
   };
 };
 
+const resolveComboMultiplier = (value: number | undefined): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 1;
+  }
+  return clampNumber(value, 1, STREAK_CAP_MULT);
+};
+
 const calcRewardCoins = (
   baseCoins: number,
   reputation: number,
   techDebt: number,
   buffs: RewardBuffs | undefined,
   scoreMultiplier: number,
+  comboMultiplier: number,
   difficultyMultiplier: number,
 ): number => {
   const { rewards } = BALANCE;
@@ -94,8 +104,9 @@ const calcRewardCoins = (
   const debtPenalty = Math.min(debtConfig.maxPenalty, safeDebt * debtConfig.perPoint);
   const debtMultiplier = Math.max(0, 1 - debtPenalty);
   const buffMultiplier = 1 + resolvedBuffs.coinMultiplier + resolvedBuffs.coinsBonusPct;
+  const combo = resolveComboMultiplier(comboMultiplier);
   const rawCoins =
-    safeBase * repMultiplier * debtMultiplier * scoreMultiplier * buffMultiplier +
+    safeBase * repMultiplier * debtMultiplier * scoreMultiplier * buffMultiplier * combo +
     resolvedBuffs.coinBonus;
 
   const difficulty =
@@ -113,6 +124,7 @@ export const calcScenarioReward = (input: ScenarioRewardInput): number => {
     input.techDebt,
     input.buffs,
     1,
+    input.comboMultiplier ?? 1,
     input.difficultyMultiplier ?? 1,
   );
 };
@@ -145,6 +157,7 @@ export const calcExamReward = (input: ExamRewardInput): number => {
     input.techDebt,
     input.buffs,
     scoreMultiplier,
+    input.comboMultiplier ?? 1,
     input.difficultyMultiplier ?? 1,
   );
 };

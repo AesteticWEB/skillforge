@@ -87,6 +87,16 @@ import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
 import type { DecisionEffects } from '@/entities/decision';
+import {
+  AchievementRuleState,
+  applyAchievementRules,
+  createEmptyAchievementsState,
+} from '@/entities/achievements';
+import {
+  applyComboStreakEvent,
+  calcStreakMultiplier,
+  createEmptyStreakState,
+} from '@/entities/streak';
 import { User } from '@/entities/user';
 import {
   BALANCE,
@@ -112,11 +122,18 @@ import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { ErrorLogStore } from '@/shared/lib/errors';
 import {
   createPurchaseMadeEvent,
+  createCompanyTickedEvent,
+  createEmployeeHiredEvent,
+  createEndingResolvedEvent,
   createProfileCreatedEvent,
   createScenarioCompletedEvent,
   createExamPassedEvent,
+  createExamFailedEvent,
+  createIncidentDeferredEvent,
+  createProgressResetEvent,
   createStagePromotedEvent,
   createSkillUpgradedEvent,
+  DomainEvent,
   DomainEventBus,
 } from '@/shared/lib/events';
 import {
@@ -254,6 +271,8 @@ const createEmptyProgress = (): Progress => ({
   cosmetics: {
     earnedBadges: [],
   },
+  achievements: createEmptyAchievementsState(),
+  comboStreak: createEmptyStreakState(),
   streak: {
     lastActiveDate: null,
     current: 0,
@@ -313,6 +332,7 @@ export class AppStore {
   readonly company = this._company.asReadonly();
   readonly inventory = this._inventory.asReadonly();
   readonly availableContracts = this._availableContracts.asReadonly();
+  readonly achievements = computed(() => this._progress().achievements);
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
   readonly xp = this._xp.asReadonly();
@@ -415,6 +435,8 @@ export class AppStore {
   readonly reputation = computed(() => this._progress().reputation);
   readonly techDebt = computed(() => this._progress().techDebt);
   readonly coins = computed(() => this._progress().coins);
+  readonly comboStreakCount = computed(() => this._progress().comboStreak?.count ?? 0);
+  readonly comboStreakMultiplier = computed(() => this._progress().comboStreak?.multiplier ?? 1);
   readonly difficultyMultiplier = computed(() => this._progress().difficulty?.multiplier ?? 1);
   readonly cosmetics = computed(() => this._progress().cosmetics);
   readonly earnedBadges = computed(() => this._progress().cosmetics.earnedBadges);
@@ -698,6 +720,14 @@ export class AppStore {
 
     this.notificationsStore.success(
       `Нанят сотрудник: ${candidate.name} (-${this.formatNumber(hireCost)} cash)`,
+    );
+
+    this.publishEvent(
+      createEmployeeHiredEvent({
+        employeeId: employee.id,
+        name: employee.name,
+        role: employee.role,
+      }),
     );
 
     return { ok: true };
@@ -1071,6 +1101,15 @@ export class AppStore {
       companyTickIndex: tickIndex + 1,
     }));
 
+    this.publishEvent(
+      createCompanyTickedEvent({
+        reason,
+        tickIndex,
+        reputationDelta: result.reputationDelta,
+        techDebtDelta: result.techDebtDelta ?? 0,
+      }),
+    );
+
     if (result.incident?.happened) {
       this.tryStartIncidentFromTick({ ...result, tickIndex, reason });
       this.notificationsStore.error('Инцидент! Требуется решение.');
@@ -1168,6 +1207,16 @@ export class AppStore {
     this.notificationsStore.success(
       `Инцидент решён: ${incident.title}. Итог: ${cashLabel} cash, репутация ${repLabel}`,
     );
+
+    if (this.isIncidentDeferredDecision(decision)) {
+      this.publishEvent(
+        createIncidentDeferredEvent({
+          incidentId: incident.instanceId,
+          templateId: incident.templateId,
+          decisionId: decision.id,
+        }),
+      );
+    }
   }
 
   setUser(user: User): void {
@@ -1208,7 +1257,7 @@ export class AppStore {
     this.setFeatureFlag('demoMode', false);
     this.load();
     this.ensureSessionQuests(true);
-    this.eventBus.publish(createProfileCreatedEvent(profile));
+    this.publishEvent(createProfileCreatedEvent(profile));
     return true;
   }
 
@@ -1652,6 +1701,7 @@ export class AppStore {
     }));
 
     this.grantEndingBadge(resolved.endingId);
+    this.publishEvent(createEndingResolvedEvent(resolved.endingId));
 
     return resolved;
   }
@@ -1761,6 +1811,7 @@ export class AppStore {
   resetAll(): void {
     this.clearStorage();
     this.resetState();
+    this.publishEvent(createProgressResetEvent('reset_all'));
   }
 
   startNewGamePlus(): void {
@@ -1819,6 +1870,7 @@ export class AppStore {
         multiplier: ngPlusConfig.difficultyMultiplier ?? 1,
       },
       cosmetics,
+      comboStreak: createEmptyStreakState(),
       streak: {
         lastActiveDate: null,
         current: 0,
@@ -1844,6 +1896,7 @@ export class AppStore {
     this._company.set(createEmptyCompany());
 
     this.ensureSessionQuests(true);
+    this.publishEvent(createProgressResetEvent('new_game_plus'));
     this.notificationsStore.success(
       'New Game+ начата: сохранены luxury и бейджи, сложность повышена',
     );
@@ -1902,6 +1955,8 @@ export class AppStore {
       cosmetics: {
         earnedBadges: [],
       },
+      achievements: createEmptyAchievementsState(),
+      comboStreak: createEmptyStreakState(),
       streak: {
         lastActiveDate: null,
         current: 0,
@@ -1923,7 +1978,7 @@ export class AppStore {
     this._xp.set(0);
 
     this.setFeatureFlag('demoMode', false);
-    this.eventBus.publish(createProfileCreatedEvent(profile));
+    this.publishEvent(createProfileCreatedEvent(profile));
     this.ensureSessionQuests(true);
   }
 
@@ -2109,6 +2164,7 @@ export class AppStore {
     const coinsEffectDelta = adjustedEffects['coins'] ?? 0;
     const rewardXp = calcScenarioXp({ baseXp: BALANCE.rewards.scenarioXp, buffs });
     const snapshot = createProgressSnapshot(this._progress());
+    const comboMultiplier = calcStreakMultiplier((this._progress().comboStreak?.count ?? 0) + 1);
     const beforeSkills = this._skills();
     this.recordDecision(scenarioId, decisionId, snapshot);
     const result = applyDecisionEffects(beforeSkills, this._progress(), adjustedEffects);
@@ -2120,6 +2176,7 @@ export class AppStore {
       reputation: progressWithAvailability.reputation,
       techDebt: progressWithAvailability.techDebt,
       buffs,
+      comboMultiplier,
       difficultyMultiplier: this.difficultyMultiplier(),
     });
     const progressWithRewards = {
@@ -2132,7 +2189,7 @@ export class AppStore {
 
     const coinsDelta = coinsEffectDelta + rewardCoins;
     this.emitSkillUpgrades(beforeSkills, result.skills);
-    this.eventBus.publish(
+    this.publishEvent(
       createScenarioCompletedEvent(scenarioId, decisionId, {
         rewardXp,
         reputationDelta,
@@ -2200,8 +2257,20 @@ export class AppStore {
     if (typeof examId !== 'string' || examId.trim().length === 0) {
       return;
     }
-    this.eventBus.publish(
+    this.publishEvent(
       createExamPassedEvent(examId, {
+        stage: stage && this.isValidStage(stage) ? stage : undefined,
+        score: typeof score === 'number' ? score : undefined,
+      }),
+    );
+  }
+
+  notifyExamFailed(examId: string, stage?: SkillStageId, score?: number): void {
+    if (typeof examId !== 'string' || examId.trim().length === 0) {
+      return;
+    }
+    this.publishEvent(
+      createExamFailedEvent(examId, {
         stage: stage && this.isValidStage(stage) ? stage : undefined,
         score: typeof score === 'number' ? score : undefined,
       }),
@@ -2319,7 +2388,7 @@ export class AppStore {
       }));
       this._inventory.update((current) => addItem(current, item.id as ShopItemId));
       this.notificationsStore.success(`Куплено: ${item.name}.`);
-      this.eventBus.publish(
+      this.publishEvent(
         createPurchaseMadeEvent(item.id, item.price, {
           itemName: item.name,
           currency: 'cash',
@@ -2343,7 +2412,7 @@ export class AppStore {
     }));
     this._inventory.update((current) => addItem(current, item.id as ShopItemId));
     this.notificationsStore.success(`Куплено: ${item.name}.`);
-    this.eventBus.publish(
+    this.publishEvent(
       createPurchaseMadeEvent(item.id, item.price, {
         itemName: item.name,
         currency: 'coins',
@@ -2387,7 +2456,7 @@ export class AppStore {
       const skillName = result.skills.find((skill) => skill.id === skillId)?.name ?? skillId;
       const skillStage = this.resolveSkillStageForSkill(skillId);
       const profession = this._auth().profession || this._user().role;
-      this.eventBus.publish(
+      this.publishEvent(
         createSkillUpgradedEvent(skillId, previousLevel, result.nextLevel, maxLevel, {
           skillName,
           cost: upgradeCost,
@@ -2498,7 +2567,7 @@ export class AppStore {
       skillLevels: resetLevels,
     }));
     this.checkAndUnlockCompany();
-    this.eventBus.publish(createStagePromotedEvent(status.stage, nextStage));
+    this.publishEvent(createStagePromotedEvent(status.stage, nextStage));
     return true;
   }
 
@@ -2549,7 +2618,7 @@ export class AppStore {
     for (const skill of after) {
       const previousLevel = beforeById.get(skill.id)?.level ?? 0;
       if (skill.level > previousLevel) {
-        this.eventBus.publish(
+        this.publishEvent(
           createSkillUpgradedEvent(skill.id, previousLevel, skill.level, skill.maxLevel, {
             skillName: skill.name,
             cost: null,
@@ -2810,6 +2879,8 @@ export class AppStore {
       meta: this.normalizeProgressMeta(progress.meta),
       difficulty: this.normalizeDifficulty(progress.difficulty),
       cosmetics: this.normalizeCosmeticsState(progress.cosmetics),
+      achievements: this.normalizeAchievementsState(progress.achievements),
+      comboStreak: this.normalizeComboStreakState(progress.comboStreak),
       streak: this.normalizeStreakState(progress.streak),
       finale: this.normalizeFinaleState(progress.finale),
       ending: this.normalizeEndingState(progress.ending),
@@ -2912,6 +2983,8 @@ export class AppStore {
     const meta = this.normalizeProgressMeta(value['meta']);
     const difficulty = this.normalizeDifficulty(value['difficulty']);
     const cosmetics = this.normalizeCosmeticsState(value['cosmetics']);
+    const achievements = this.normalizeAchievementsState(value['achievements']);
+    const comboStreak = this.normalizeComboStreakState(value['comboStreak']);
     const streak = this.normalizeStreakState(value['streak']);
     const finale = this.normalizeFinaleState(value['finale']);
     const ending = this.normalizeEndingState(value['ending']);
@@ -2956,6 +3029,8 @@ export class AppStore {
       meta,
       difficulty,
       cosmetics,
+      achievements,
+      comboStreak,
       streak,
       finale,
       ending,
@@ -3396,6 +3471,11 @@ export class AppStore {
     return `${sign}${this.formatNumber(Math.abs(rounded))}`;
   }
 
+  private isIncidentDeferredDecision(decision: IncidentDecision): boolean {
+    const label = `${decision.title} ${decision.description}`.toLowerCase();
+    return label.includes('отлож');
+  }
+
   private updateDailyStreak(): void {
     const progress = this._progress();
     const streak = progress.streak ?? { lastActiveDate: null, current: 0, best: 0 };
@@ -3464,6 +3544,81 @@ export class AppStore {
     }
     this.grantBadge(normalized, 'quest');
     this.achievementsStore.grantAchievement(normalized);
+  }
+
+  private publishEvent(event: DomainEvent): void {
+    this.eventBus.publish(event);
+    this.applyComboStreakForEvent(event);
+    this.applyAchievementRulesForEvent(event);
+  }
+
+  private applyComboStreakForEvent(event: DomainEvent): void {
+    this._progress.update((current) => {
+      const currentStreak = current.comboStreak ?? createEmptyStreakState();
+      const nextStreak = applyComboStreakEvent(currentStreak, event);
+      if (
+        nextStreak.count === currentStreak.count &&
+        nextStreak.multiplier === currentStreak.multiplier &&
+        nextStreak.lastUpdatedAt === currentStreak.lastUpdatedAt
+      ) {
+        return current;
+      }
+      return {
+        ...current,
+        comboStreak: nextStreak,
+      };
+    });
+  }
+
+  private applyAchievementRulesForEvent(event: DomainEvent): void {
+    const unlocks = applyAchievementRules(this.buildAchievementRuleState(), event);
+    if (unlocks.length === 0) {
+      return;
+    }
+
+    let didUpdate = false;
+    this._progress.update((current) => {
+      const currentAchievements = current.achievements ?? createEmptyAchievementsState();
+      const unlocked = { ...currentAchievements.unlocked };
+
+      for (const entry of unlocks) {
+        if (unlocked[entry.id]) {
+          continue;
+        }
+        unlocked[entry.id] = entry;
+        didUpdate = true;
+      }
+
+      if (!didUpdate) {
+        return current;
+      }
+
+      return {
+        ...current,
+        achievements: {
+          ...currentAchievements,
+          unlocked,
+        },
+      };
+    });
+
+    if (didUpdate) {
+      this.notificationsStore.success('Достижение получено');
+    }
+  }
+
+  private buildAchievementRuleState(): AchievementRuleState {
+    const progress = this._progress();
+    const inventory = this._inventory();
+    const company = this._company();
+
+    return {
+      unlocked: progress.achievements?.unlocked ?? {},
+      inventoryOwnedCount: inventory.ownedItemIds.length,
+      employeesCount: company.employees.length,
+      techDebt: progress.techDebt,
+      streakCurrent: progress.streak?.current ?? 0,
+    };
   }
 
   private normalizeActiveContracts(value: unknown): Contract[] {
@@ -3757,6 +3912,35 @@ export class AppStore {
     return { earnedBadges };
   }
 
+  private normalizeAchievementsState(value: unknown): Progress['achievements'] {
+    if (!this.isRecord(value)) {
+      return createEmptyAchievementsState();
+    }
+    const unlockedRaw = value['unlocked'];
+    if (!this.isRecord(unlockedRaw)) {
+      return createEmptyAchievementsState();
+    }
+    const unlocked: Progress['achievements']['unlocked'] = {};
+    for (const [id, entry] of Object.entries(unlockedRaw)) {
+      if (!this.isRecord(entry)) {
+        continue;
+      }
+      const unlockedAt = typeof entry['unlockedAt'] === 'string' ? entry['unlockedAt'] : null;
+      if (!unlockedAt) {
+        continue;
+      }
+      const meta = this.isRecord(entry['meta'])
+        ? (entry['meta'] as Record<string, unknown>)
+        : undefined;
+      unlocked[id] = {
+        id,
+        unlockedAt,
+        meta,
+      };
+    }
+    return { unlocked };
+  }
+
   private normalizeEarnedBadges(value: unknown): EarnedBadge[] {
     if (!Array.isArray(value)) {
       return [];
@@ -3804,6 +3988,20 @@ export class AppStore {
         ? Math.max(current, Math.floor(value['best']))
         : current;
     return { lastActiveDate, current, best };
+  }
+
+  private normalizeComboStreakState(value: unknown): Progress['comboStreak'] {
+    if (!this.isRecord(value)) {
+      return createEmptyStreakState();
+    }
+    const count =
+      typeof value['count'] === 'number' && Number.isFinite(value['count'])
+        ? Math.max(0, Math.floor(value['count']))
+        : 0;
+    const lastUpdatedAt =
+      typeof value['lastUpdatedAt'] === 'string' ? value['lastUpdatedAt'] : undefined;
+    const multiplier = calcStreakMultiplier(count);
+    return lastUpdatedAt ? { count, multiplier, lastUpdatedAt } : { count, multiplier };
   }
 
   private normalizeFinaleState(value: unknown): FinaleState {

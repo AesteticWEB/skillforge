@@ -72,9 +72,25 @@
         class="flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950/70 px-6 backdrop-blur"
       >
         <div class="text-sm font-medium text-slate-200">Панель SkillForge</div>
-        <div class="flex items-center gap-3 text-xs text-slate-400">
-          <span class="hidden sm:inline">Senior пет-проект на Angular</span>
-          <span class="rounded-full bg-emerald-400/10 px-2 py-1 text-emerald-300"> v1.0.0 </span>
+        <div class="flex items-center gap-4 text-xs text-slate-400">
+          <div
+            class="combo-indicator flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/70 px-3 py-1 text-xs"
+            [class.combo-pulse]="comboPulse()"
+          >
+            <span class="font-semibold text-slate-300">Combo:</span>
+            @if (comboStreakCount() > 0) {
+              <span class="font-semibold text-slate-100">{{ comboStreakCount() }}</span>
+              <span class="font-semibold text-emerald-300">
+                x{{ formatComboMultiplier(comboStreakMultiplier()) }}
+              </span>
+            } @else {
+              <span class="text-slate-500">—</span>
+            }
+          </div>
+          <div class="flex items-center gap-3 text-xs text-slate-400">
+            <span class="hidden sm:inline">Senior пет-проект на Angular</span>
+            <span class="rounded-full bg-emerald-400/10 px-2 py-1 text-emerald-300"> v1.0.0 </span>
+          </div>
         </div>
       </header>
 

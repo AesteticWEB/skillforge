@@ -5,6 +5,8 @@ import { normalizeOwnedItemIds } from '@/entities/inventory';
 import type { Progress } from '@/entities/progress';
 import { createEmptyFinaleState } from '@/entities/finale';
 import { createEmptyEndingState } from '@/entities/ending';
+import { createEmptyAchievementsState } from '@/entities/achievements';
+import { calcStreakMultiplier, createEmptyStreakState } from '@/entities/streak';
 import type { User } from '@/entities/user';
 import type { FeatureFlags } from '@/shared/config';
 
@@ -88,6 +90,47 @@ export type PersistedState =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const normalizeAchievements = (value: unknown): Progress['achievements'] => {
+  if (!isRecord(value)) {
+    return createEmptyAchievementsState();
+  }
+  const unlockedRaw = value['unlocked'];
+  if (!isRecord(unlockedRaw)) {
+    return createEmptyAchievementsState();
+  }
+  const unlocked: Progress['achievements']['unlocked'] = {};
+  for (const [id, entry] of Object.entries(unlockedRaw)) {
+    if (!isRecord(entry)) {
+      continue;
+    }
+    const unlockedAt = typeof entry['unlockedAt'] === 'string' ? entry['unlockedAt'] : null;
+    if (!unlockedAt) {
+      continue;
+    }
+    const meta = isRecord(entry['meta']) ? entry['meta'] : undefined;
+    unlocked[id] = {
+      id,
+      unlockedAt,
+      meta,
+    };
+  }
+  return { unlocked };
+};
+
+const normalizeComboStreak = (value: unknown): Progress['comboStreak'] => {
+  if (!isRecord(value)) {
+    return createEmptyStreakState();
+  }
+  const count =
+    typeof value['count'] === 'number' && Number.isFinite(value['count'])
+      ? Math.max(0, Math.floor(value['count']))
+      : 0;
+  const lastUpdatedAt =
+    typeof value['lastUpdatedAt'] === 'string' ? value['lastUpdatedAt'] : undefined;
+  const multiplier = calcStreakMultiplier(count);
+  return lastUpdatedAt ? { count, multiplier, lastUpdatedAt } : { count, multiplier };
+};
+
 const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Progress> => {
   const base = progress ?? {};
   const coins =
@@ -134,6 +177,8 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
         earnedBadges: Array.isArray(base.cosmetics.earnedBadges) ? base.cosmetics.earnedBadges : [],
       }
     : { earnedBadges: [] };
+  const achievements = normalizeAchievements(base.achievements);
+  const comboStreak = normalizeComboStreak(base.comboStreak);
   const streak = isRecord(base.streak)
     ? {
         lastActiveDate:
@@ -164,6 +209,8 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
     meta,
     difficulty,
     cosmetics,
+    achievements,
+    comboStreak,
     streak,
     finale: base.finale ?? finale,
     ending: base.ending ?? ending,

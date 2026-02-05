@@ -2,8 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  effect,
   inject,
   QueryList,
+  signal,
   ViewChildren,
 } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -56,8 +58,23 @@ export class AppShellWidget {
   protected readonly fatalError = this.errorLog.fatalError;
   protected readonly errorLogEntries = this.errorLog.lastFive;
   protected readonly isRegistered = this.store.isRegistered;
+  protected readonly comboStreakCount = this.store.comboStreakCount;
+  protected readonly comboStreakMultiplier = this.store.comboStreakMultiplier;
+  protected readonly comboPulse = signal(false);
+  private comboPulseTimeout: number | null = null;
 
   @ViewChildren('navLink') private readonly navLinks!: QueryList<ElementRef<HTMLElement>>;
+
+  constructor() {
+    let lastCount = this.comboStreakCount();
+    effect(() => {
+      const currentCount = this.comboStreakCount();
+      if (currentCount > lastCount) {
+        this.triggerComboPulse();
+      }
+      lastCount = currentCount;
+    });
+  }
 
   protected onNavKeydown(event: KeyboardEvent): void {
     const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
@@ -113,5 +130,26 @@ export class AppShellWidget {
 
   protected notifyCompanyLocked(): void {
     this.notifications.notify('Откроется после Senior и сертификата.', 'info');
+  }
+
+  protected formatComboMultiplier(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '1.00';
+    }
+    return value.toFixed(2);
+  }
+
+  private triggerComboPulse(): void {
+    this.comboPulse.set(true);
+    if (this.comboPulseTimeout !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.comboPulseTimeout);
+    }
+    if (typeof window === 'undefined') {
+      this.comboPulse.set(false);
+      return;
+    }
+    this.comboPulseTimeout = window.setTimeout(() => {
+      this.comboPulse.set(false);
+    }, 650);
   }
 }

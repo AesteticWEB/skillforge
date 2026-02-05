@@ -7,6 +7,8 @@ import {
 } from '@/entities/progress';
 import { createEmptyFinaleState } from '@/entities/finale';
 import { createEmptyEndingState } from '@/entities/ending';
+import { createEmptyAchievementsState } from '@/entities/achievements';
+import { createEmptyStreakState } from '@/entities/streak';
 import { BALANCE } from '@/shared/config';
 
 describe('decision history undo', () => {
@@ -33,6 +35,8 @@ describe('decision history undo', () => {
       meta: { isNewGamePlus: false, ngPlusCount: 0 },
       difficulty: { multiplier: 1 },
       cosmetics: { earnedBadges: [] },
+      achievements: createEmptyAchievementsState(),
+      comboStreak: createEmptyStreakState(),
       streak: { lastActiveDate: null, current: 0, best: 0 },
       finale: createEmptyFinaleState(),
       ending: createEmptyEndingState(),
