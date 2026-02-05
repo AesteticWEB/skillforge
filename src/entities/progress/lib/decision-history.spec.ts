@@ -32,7 +32,7 @@ describe('decision history undo', () => {
       candidatesPool: [],
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
-      meta: { isNewGamePlus: false, ngPlusCount: 0 },
+      meta: { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false },
       difficulty: { multiplier: 1 },
       cosmetics: { earnedBadges: [] },
       achievements: createEmptyAchievementsState(),

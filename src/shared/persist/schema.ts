@@ -161,8 +161,12 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
           typeof base.meta.ngPlusCount === 'number' && Number.isFinite(base.meta.ngPlusCount)
             ? Math.max(0, Math.floor(base.meta.ngPlusCount))
             : 0,
+        onboardingCompleted:
+          typeof base.meta.onboardingCompleted === 'boolean'
+            ? base.meta.onboardingCompleted
+            : false,
       }
-    : { isNewGamePlus: false, ngPlusCount: 0 };
+    : { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false };
   const difficulty = isRecord(base.difficulty)
     ? {
         multiplier:

@@ -1,71 +1,62 @@
 <section class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col justify-center px-6 py-16">
   <sf-card>
-    <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">Профиль</h1>
-    <p class="mt-3 text-base text-slate-300 sm:text-lg">
-      Заполни базовые настройки — дальше симулятор будет давать более точную картину.
-    </p>
-    <form class="mt-6 grid gap-6 text-left" (submit)="createProfile($event)">
-      <div class="grid gap-2">
-        <label class="text-xs font-semibold uppercase tracking-wide text-slate-400" for="role">
-          Роль
-        </label>
-        <select
-          id="role"
-          class="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-          [value]="role()"
-          (change)="setRole($event)"
-        >
-          @for (option of roleOptions; track option) {
-            <option [value]="option">{{ option }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="grid gap-2">
-        <label class="text-xs font-semibold uppercase tracking-wide text-slate-400" for="goal">
-          Цель на ближайший цикл
-        </label>
-        <sf-input
-          id="goal"
-          placeholder="Например: уверенно вести архитектуру"
-          [value]="goal()"
-          (valueChange)="goal.set($event)"
-        ></sf-input>
-      </div>
-
-      <div class="grid gap-3">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Стартовые навыки
-          </label>
-          <span class="text-xs text-slate-500">{{ selectedCount() }}/3 выбрано</span>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {{ progressLabel() }}
         </div>
-        <div class="grid gap-2">
-          @for (skill of skills(); track skill.id) {
-            <label
-              class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3"
-            >
-              <div>
-                <div class="text-sm font-semibold text-slate-100">{{ skill.name }}</div>
-                <div class="text-xs text-slate-500">{{ skill.category }}</div>
-              </div>
-              <input
-                type="checkbox"
-                class="h-4 w-4 rounded border-slate-700 bg-slate-950 text-emerald-400 focus:ring-emerald-400/40"
-                [checked]="isSelected(skill.id)"
-                [disabled]="!isSelected(skill.id) && selectedCount() >= 3"
-                (change)="toggleSkill(skill.id)"
-              />
-            </label>
-          }
-        </div>
-        <p class="text-xs text-slate-400">Выбери ровно 3 навыка — это твой старт.</p>
+        <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+          {{ currentStep().title }}
+        </h1>
       </div>
+      <sf-button variant="ghost" type="button" (click)="skipOnboarding()">Пропустить</sf-button>
+    </div>
 
-      <div class="flex flex-wrap gap-3">
-        <sf-button type="submit" [disabled]="!canSubmit()">Создать профиль</sf-button>
-        <sf-button variant="ghost" type="button" (click)="resetForm()">Сбросить</sf-button>
+    <div class="mt-4 h-2 w-full rounded-full bg-slate-800">
+      <div
+        class="h-full rounded-full bg-emerald-400 transition-all"
+        [style.width.%]="progressPercent()"
+      ></div>
+    </div>
+
+    <ul class="mt-6 grid gap-2 text-sm text-slate-300">
+      @for (bullet of currentStep().bullets; track bullet) {
+        <li class="flex gap-2">
+          <span class="text-emerald-300">•</span>
+          <span>{{ bullet }}</span>
+        </li>
+      }
+    </ul>
+
+    <div class="mt-6 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4">
+      <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        Что делать дальше
       </div>
-    </form>
+      <div class="mt-2 text-sm text-slate-200">{{ currentStep().nextText }}</div>
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        @if (currentStep().actionRoute && !currentStep().actionDisabled) {
+          <sf-button type="button" [routerLink]="currentStep().actionRoute">
+            {{ currentStep().actionLabel }}
+          </sf-button>
+        } @else {
+          <sf-button type="button" [disabled]="true">
+            {{ currentStep().actionLabel }}
+          </sf-button>
+        }
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+      <sf-button variant="ghost" type="button" [disabled]="isFirstStep()" (click)="prevStep()">
+        Назад
+      </sf-button>
+      <div class="flex items-center gap-2">
+        @if (!isLastStep()) {
+          <sf-button type="button" (click)="nextStep()">Далее</sf-button>
+        } @else {
+          <sf-button type="button" (click)="finishOnboarding()">Готово</sf-button>
+        }
+      </div>
+    </div>
   </sf-card>
 </section>

@@ -264,6 +264,7 @@ const createEmptyProgress = (): Progress => ({
   meta: {
     isNewGamePlus: false,
     ngPlusCount: 0,
+    onboardingCompleted: false,
   },
   difficulty: {
     multiplier: 1,
@@ -423,6 +424,9 @@ export class AppStore {
   readonly scenariosError = this._scenariosError.asReadonly();
   readonly hasProfile = computed(() => this._user().isProfileComplete);
   readonly isRegistered = computed(() => this._auth().isRegistered);
+  readonly onboardingCompleted = computed(
+    () => this._progress().meta?.onboardingCompleted ?? false,
+  );
   readonly careerProgress = computed(() => getCareerStageProgress(this.careerStage()));
 
   readonly skillsCount = computed(() => this._skills().length);
@@ -1847,6 +1851,7 @@ export class AppStore {
     const nextMeta = {
       isNewGamePlus: true,
       ngPlusCount: (progress.meta?.ngPlusCount ?? 0) + 1,
+      onboardingCompleted: progress.meta?.onboardingCompleted ?? false,
     };
 
     this._skills.set(resetSkills);
@@ -1948,6 +1953,7 @@ export class AppStore {
       meta: {
         isNewGamePlus: false,
         ngPlusCount: 0,
+        onboardingCompleted: false,
       },
       difficulty: {
         multiplier: 1,
@@ -2348,6 +2354,16 @@ export class AppStore {
     this._featureFlags.update((current) => ({
       ...current,
       [flag]: value,
+    }));
+  }
+
+  setOnboardingCompleted(value: boolean): void {
+    this._progress.update((progress) => ({
+      ...progress,
+      meta: {
+        ...progress.meta,
+        onboardingCompleted: value,
+      },
     }));
   }
 
@@ -3883,7 +3899,7 @@ export class AppStore {
 
   private normalizeProgressMeta(value: unknown): Progress['meta'] {
     if (!this.isRecord(value)) {
-      return { isNewGamePlus: false, ngPlusCount: 0 };
+      return { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false };
     }
     const isNewGamePlus =
       typeof value['isNewGamePlus'] === 'boolean' ? value['isNewGamePlus'] : false;
@@ -3891,7 +3907,9 @@ export class AppStore {
       typeof value['ngPlusCount'] === 'number' && Number.isFinite(value['ngPlusCount'])
         ? Math.max(0, Math.floor(value['ngPlusCount']))
         : 0;
-    return { isNewGamePlus, ngPlusCount };
+    const onboardingCompleted =
+      typeof value['onboardingCompleted'] === 'boolean' ? value['onboardingCompleted'] : false;
+    return { isNewGamePlus, ngPlusCount, onboardingCompleted };
   }
 
   private normalizeDifficulty(value: unknown): Progress['difficulty'] {

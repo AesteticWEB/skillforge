@@ -25,6 +25,7 @@ export interface ProgressSnapshot {
 export type ProgressMeta = {
   isNewGamePlus: boolean;
   ngPlusCount: number;
+  onboardingCompleted: boolean;
 };
 
 export type DifficultySettings = {

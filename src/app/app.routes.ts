@@ -10,9 +10,10 @@ export const routes: Routes = [
   },
   {
     path: 'onboarding',
-    title: '\u041f\u0440\u043e\u0444\u0438\u043b\u044c | SkillForge',
+    title: '\u041e\u043d\u0431\u043e\u0440\u0434\u0438\u043d\u0433 | SkillForge',
     canMatch: [authGuard],
-    loadComponent: () => import('../pages/profile/profile.page').then((m) => m.ProfilePage),
+    loadComponent: () =>
+      import('../pages/onboarding/onboarding.page').then((m) => m.OnboardingPage),
   },
   {
     path: 'profile',
