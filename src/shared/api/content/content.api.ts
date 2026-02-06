@@ -1,5 +1,5 @@
 ﻿import { Injectable } from '@angular/core';
-import { Observable, defer, from, map, shareReplay } from 'rxjs';
+import { Observable, catchError, defer, from, map, of, shareReplay } from 'rxjs';
 import type { Scenario } from '@/entities/scenario';
 import type { DecisionEffects } from '@/entities/decision';
 import type { ExamQuestion, ExamOption } from '@/entities/exam';
@@ -9,6 +9,8 @@ import type {
   IncidentSeverity,
   IncidentTemplate,
 } from '@/entities/incidents';
+import { INCIDENT_TEMPLATES } from '@/entities/incidents';
+import { QUICK_FIX_CONTRACT_ID, QUICK_FIX_REWARD_COINS } from '@/entities/contracts';
 import type {
   ShopItem,
   ShopCategory,
@@ -19,6 +21,10 @@ import type {
   SkillStageId,
 } from '@/shared/config';
 import { PROFESSION_OPTIONS, SKILL_STAGE_ORDER } from '@/shared/config';
+import { SHOP_ITEMS } from '@/shared/config/shop-items';
+import { EXAMS } from '@/shared/config/exams/exams';
+import { EXAM_QUESTIONS } from '@/shared/config/exams/questions';
+import { SCENARIOS_MOCK } from '@/shared/api/scenarios/scenarios.mock';
 
 export type ExamContent = {
   id: string;
@@ -125,6 +131,91 @@ const EXAM_PROFESSION_IDS = [
   'security',
   'gamedev',
 ] as const;
+
+const MOCK_QUESTION_PREFIXES: Array<{ prefix: string; professionId: string | null }> = [
+  { prefix: 'q_gen_', professionId: null },
+  { prefix: 'q_fe_', professionId: 'frontend' },
+  { prefix: 'q_be_', professionId: 'backend' },
+  { prefix: 'q_fs_', professionId: 'fullstack' },
+  { prefix: 'q_mob_', professionId: 'mobile' },
+  { prefix: 'q_qa_', professionId: 'qa' },
+  { prefix: 'q_ops_', professionId: 'devops' },
+  { prefix: 'q_de_', professionId: 'data-engineer' },
+  { prefix: 'q_ml_', professionId: 'data-scientist-ml' },
+  { prefix: 'q_sec_', professionId: 'security' },
+  { prefix: 'q_gd_', professionId: 'gamedev' },
+];
+
+const DEFAULT_QUICK_FIX: QuickFixContent = {
+  id: QUICK_FIX_CONTRACT_ID,
+  title: 'Quick Fix',
+  description: 'Небольшая подработка, чтобы выбраться из тупика.',
+  rewardCoins: QUICK_FIX_REWARD_COINS,
+};
+
+const collectIds = (items: Array<{ id: string } | null | undefined>): Set<string> => {
+  const ids = new Set<string>();
+  for (const item of items) {
+    if (item && typeof item.id === 'string' && item.id.trim().length > 0) {
+      ids.add(item.id);
+    }
+  }
+  return ids;
+};
+
+const mergeWithFallback = <T extends { id: string }>(
+  remoteEnabled: T[],
+  fallback: readonly T[],
+  reservedIds: Set<string>,
+): T[] => {
+  const merged = [...remoteEnabled];
+  for (const entry of fallback) {
+    if (!reservedIds.has(entry.id)) {
+      merged.push(entry);
+    }
+  }
+  return merged;
+};
+
+const mergeQuestionEntries = (
+  remoteEnabled: ExamQuestionEntry[],
+  fallback: readonly ExamQuestionEntry[],
+  reservedIds: Set<string>,
+): ExamQuestionEntry[] => {
+  const merged = [...remoteEnabled];
+  for (const entry of fallback) {
+    if (!reservedIds.has(entry.question.id)) {
+      merged.push(entry);
+    }
+  }
+  return merged;
+};
+
+const mapMockExam = (exam: {
+  id: string;
+  professionId: string;
+  stage: SkillStageId;
+  passScore: number;
+  questionCount: number;
+}): ExamContent => ({
+  id: exam.id,
+  professionId: exam.professionId,
+  stage: exam.stage,
+  passScore: exam.passScore,
+  questionCount: exam.questionCount,
+});
+
+const mapMockQuestion = (question: ExamQuestion): ExamQuestionEntry => {
+  const id = question.id;
+  let professionId: string | null = null;
+  for (const entry of MOCK_QUESTION_PREFIXES) {
+    if (id.startsWith(entry.prefix)) {
+      professionId = entry.professionId;
+      break;
+    }
+  }
+  return { question, professionId };
+};
 
 const parseJsonObject = (value: string | null | undefined): Record<string, unknown> => {
   if (!value) {
@@ -445,11 +536,17 @@ export class ContentApi {
 
   getItems(): Observable<ShopItem[]> {
     if (!this.items$) {
+      const fallback = [...SHOP_ITEMS];
       this.items$ = fetchJson<{ ok: boolean; items: ContentItemPayload[] }>(
         '/api/content/items',
       ).pipe(
         map((response) => response.items ?? []),
-        map((items) => items.filter((item) => item.enabled).map(mapItemPayload)),
+        map((items) => {
+          const reservedIds = collectIds(items);
+          const enabledItems = items.filter((item) => item.enabled).map(mapItemPayload);
+          return mergeWithFallback(enabledItems, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
@@ -458,16 +555,20 @@ export class ContentApi {
 
   getScenarios(): Observable<Scenario[]> {
     if (!this.scenarios$) {
+      const fallback = SCENARIOS_MOCK;
       this.scenarios$ = fetchJson<{ ok: boolean; scenarios: ContentScenarioPayload[] }>(
         '/api/content/scenarios',
       ).pipe(
         map((response) => response.scenarios ?? []),
-        map((scenarios) =>
-          scenarios
+        map((scenarios) => {
+          const reservedIds = collectIds(scenarios);
+          const enabled = scenarios
             .filter((scenario) => scenario.enabled)
             .map(mapScenarioPayload)
-            .filter((scenario): scenario is Scenario => Boolean(scenario)),
-        ),
+            .filter((scenario): scenario is Scenario => Boolean(scenario));
+          return mergeWithFallback(enabled, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
@@ -476,16 +577,20 @@ export class ContentApi {
 
   getExams(): Observable<ExamContent[]> {
     if (!this.exams$) {
+      const fallback = EXAMS.map(mapMockExam);
       this.exams$ = fetchJson<{ ok: boolean; exams: ContentExamPayload[] }>(
         '/api/content/exams',
       ).pipe(
         map((response) => response.exams ?? []),
-        map((exams) =>
-          exams
+        map((exams) => {
+          const reservedIds = collectIds(exams);
+          const enabled = exams
             .filter((exam) => exam.enabled)
             .map(mapExamPayload)
-            .filter((exam): exam is ExamContent => Boolean(exam)),
-        ),
+            .filter((exam): exam is ExamContent => Boolean(exam));
+          return mergeWithFallback(enabled, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
@@ -494,16 +599,20 @@ export class ContentApi {
 
   getQuestions(): Observable<ExamQuestionEntry[]> {
     if (!this.questions$) {
+      const fallback = EXAM_QUESTIONS.map(mapMockQuestion);
       this.questions$ = fetchJson<{ ok: boolean; questions: ContentQuestionPayload[] }>(
         '/api/content/questions',
       ).pipe(
         map((response) => response.questions ?? []),
-        map((questions) =>
-          questions
+        map((questions) => {
+          const reservedIds = collectIds(questions);
+          const enabled = questions
             .filter((question) => question.enabled)
             .map(mapQuestionPayload)
-            .filter((question): question is ExamQuestionEntry => Boolean(question)),
-        ),
+            .filter((question): question is ExamQuestionEntry => Boolean(question));
+          return mergeQuestionEntries(enabled, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
@@ -512,16 +621,20 @@ export class ContentApi {
 
   getIncidents(): Observable<IncidentTemplate[]> {
     if (!this.incidents$) {
+      const fallback = INCIDENT_TEMPLATES;
       this.incidents$ = fetchJson<{ ok: boolean; incidents: ContentIncidentPayload[] }>(
         '/api/content/incidents',
       ).pipe(
         map((response) => response.incidents ?? []),
-        map((incidents) =>
-          incidents
+        map((incidents) => {
+          const reservedIds = collectIds(incidents);
+          const enabled = incidents
             .filter((incident) => incident.enabled)
             .map(mapIncidentPayload)
-            .filter((incident): incident is IncidentTemplate => Boolean(incident)),
-        ),
+            .filter((incident): incident is IncidentTemplate => Boolean(incident));
+          return mergeWithFallback(enabled, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
@@ -530,13 +643,17 @@ export class ContentApi {
 
   getQuickFixes(): Observable<QuickFixContent[]> {
     if (!this.quickFixes$) {
+      const fallback = [DEFAULT_QUICK_FIX];
       this.quickFixes$ = fetchJson<{ ok: boolean; quickFixes: ContentQuickFixPayload[] }>(
         '/api/content/quick-fixes',
       ).pipe(
         map((response) => response.quickFixes ?? []),
-        map((quickFixes) =>
-          quickFixes.filter((quickFix) => quickFix.enabled).map(mapQuickFixPayload),
-        ),
+        map((quickFixes) => {
+          const reservedIds = collectIds(quickFixes);
+          const enabled = quickFixes.filter((quickFix) => quickFix.enabled).map(mapQuickFixPayload);
+          return mergeWithFallback(enabled, fallback, reservedIds);
+        }),
+        catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
     }
