@@ -201,6 +201,11 @@ type AuthState = {
   isRegistered: boolean;
 };
 
+type AuthResult = {
+  ok: boolean;
+  error?: string;
+};
+
 type AppStateExport = {
   version: number;
   exportedAt: string;
@@ -1574,6 +1579,109 @@ export class AppStore {
     this.ensureSessionQuests(true);
     this.publishEvent(createProfileCreatedEvent(profile));
     return true;
+  }
+
+  private async performAuthRequest(
+    url: string,
+    payload: Record<string, unknown>,
+    fallback: string,
+    statusMap: Record<number, string>,
+  ): Promise<AuthResult> {
+    if (typeof fetch !== 'function') {
+      return { ok: false, error: fallback };
+    }
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        return { ok: true };
+      }
+      const data = await response.json().catch(() => null);
+      const mapped = statusMap[response.status];
+      const error = mapped || (typeof data?.error === 'string' ? data.error : null) || fallback;
+      return { ok: false, error };
+    } catch {
+      return { ok: false, error: fallback };
+    }
+  }
+
+  async registerRemote(login: string, password: string, profession: string): Promise<AuthResult> {
+    const normalizedLogin = login.trim();
+    const normalizedPassword = password.trim();
+    const normalizedProfession = profession.trim();
+    if (
+      normalizedLogin.length === 0 ||
+      normalizedPassword.length === 0 ||
+      normalizedProfession.length === 0
+    ) {
+      return {
+        ok: false,
+        error:
+          '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d, \u043f\u0430\u0440\u043e\u043b\u044c \u0438 \u043f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u044e',
+      };
+    }
+    const result = await this.performAuthRequest(
+      '/api/auth/register',
+      { login: normalizedLogin, password: normalizedPassword },
+      '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442',
+      {
+        400: '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+        409: '\u041b\u043e\u0433\u0438\u043d \u0443\u0436\u0435 \u0437\u0430\u043d\u044f\u0442',
+        429: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.',
+      },
+    );
+    if (!result.ok) {
+      return result;
+    }
+    this.register(normalizedLogin, normalizedPassword, normalizedProfession);
+    this.remoteProgressEnabled = true;
+    return { ok: true };
+  }
+
+  async loginRemote(login: string, password: string): Promise<AuthResult> {
+    const normalizedLogin = login.trim();
+    const normalizedPassword = password.trim();
+    if (normalizedLogin.length === 0 || normalizedPassword.length === 0) {
+      return {
+        ok: false,
+        error:
+          '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+      };
+    }
+    const result = await this.performAuthRequest(
+      '/api/auth/login',
+      { login: normalizedLogin, password: normalizedPassword },
+      '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u043e\u0439\u0442\u0438',
+      {
+        400: '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+        401: '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u043b\u043e\u0433\u0438\u043d \u0438\u043b\u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+        429: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.',
+      },
+    );
+    if (!result.ok) {
+      return result;
+    }
+    const currentAuth = this._auth();
+    this._auth.set({
+      login: normalizedLogin,
+      profession: currentAuth.profession ?? '',
+      isRegistered: true,
+    });
+    this.remoteProgressEnabled = true;
+    await this.hydrateFromRemote();
+    if (!this._auth().isRegistered) {
+      this._auth.set({
+        login: normalizedLogin,
+        profession: currentAuth.profession ?? '',
+        isRegistered: true,
+      });
+    }
+    this.setFeatureFlag('demoMode', false);
+    return { ok: true };
   }
 
   setXp(value: number): void {
