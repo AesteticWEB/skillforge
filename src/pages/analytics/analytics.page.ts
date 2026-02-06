@@ -4,7 +4,7 @@ import { AchievementsStore } from '@/features/achievements';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
-import { EXAMS_BY_ID, PROFESSION_STAGE_SKILLS, type ProfessionId } from '@/shared/config';
+import { PROFESSION_STAGE_SKILLS, type ProfessionId } from '@/shared/config';
 
 type DecisionStats = {
   debtUp: number;
@@ -67,12 +67,13 @@ export class AnalyticsPage {
   protected readonly history = computed<AnalyticsHistoryEntry[]>(() => {
     const decisionHistory = this.store.decisionHistoryDetailed();
     const examHistory = this.store.examHistory();
+    const examsById = this.store.examsById();
     const scenarioEntries = decisionHistory.map((entry) => ({
       ...entry,
       source: 'scenario' as const,
     }));
     const examEntries = examHistory.map((attempt) => {
-      const exam = EXAMS_BY_ID[attempt.examId];
+      const exam = examsById[attempt.examId];
       const decidedAt = attempt.finishedAt ?? attempt.startedAt;
       const decisionText =
         attempt.passed === undefined

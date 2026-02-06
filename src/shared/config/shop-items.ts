@@ -337,4 +337,4 @@ export const SHOP_ITEMS = [
   },
 ] as const;
 
-export type ShopItemId = (typeof SHOP_ITEMS)[number]['id'];
+export type ShopItemId = string;

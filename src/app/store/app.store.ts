@@ -7,7 +7,14 @@ import {
   ProgressSnapshot,
   undoLastDecision,
 } from '@/entities/progress';
-import type { ExamAnswer, ExamAttempt, ExamRun, ExamSession } from '@/entities/exam';
+import type {
+  ExamAnswer,
+  ExamAttempt,
+  ExamConfig,
+  ExamQuestion,
+  ExamRun,
+  ExamSession,
+} from '@/entities/exam';
 import type { Certificate } from '@/entities/certificates';
 import { hasCertificate, makeCertificateId, upsertCertificate } from '@/entities/certificates';
 import {
@@ -46,6 +53,7 @@ import {
   IncidentDecisionId,
   IncidentHistoryEntry,
   IncidentSeverity,
+  IncidentTemplate,
   INCIDENT_DECISION_IDS,
   INCIDENT_SEVERITIES,
   INCIDENT_SOURCES,
@@ -126,12 +134,17 @@ import {
   ShopItem,
   SkillStageId,
   SPECIALIZATIONS,
-  getExam,
 } from '@/shared/config';
 import { NotificationsStore } from '@/features/notifications';
 import { AchievementsStore } from '@/features/achievements';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
+import {
+  ContentApi,
+  ExamContent,
+  ExamQuestionEntry,
+  QuickFixContent,
+} from '@/shared/api/content/content.api';
 import { ErrorLogStore } from '@/shared/lib/errors';
 import {
   createPurchaseMadeEvent,
@@ -225,6 +238,19 @@ const EXAM_PROFESSION_IDS = [
 
 type ExamProfessionId = (typeof EXAM_PROFESSION_IDS)[number];
 
+const EXAM_PROFESSION_LABELS: Record<ExamProfessionId, string> = {
+  frontend: 'Фронтенд',
+  backend: 'Бэкенд',
+  fullstack: 'Фуллстек',
+  mobile: 'Мобайл',
+  qa: 'Тестирование (QA)',
+  devops: 'DevOps / SRE',
+  'data-engineer': 'Дата-инженер',
+  'data-scientist-ml': 'Дата-сайентист / ML',
+  security: 'Безопасность',
+  gamedev: 'Геймдев',
+};
+
 const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
   internship: 'Стажировка',
   junior: 'Джуниор',
@@ -313,6 +339,7 @@ export class AppStore {
 
   private readonly skillsApi = inject(SkillsApi);
   private readonly scenariosApi = inject(ScenariosApi);
+  private readonly contentApi = inject(ContentApi);
   private readonly eventBus = inject(DomainEventBus);
   private readonly notificationsStore = inject(NotificationsStore);
   private readonly errorLogStore = inject(ErrorLogStore);
@@ -329,6 +356,11 @@ export class AppStore {
   private readonly _user = signal<User>(createEmptyUser());
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
+  private readonly _shopItems = signal<ShopItem[]>([]);
+  private readonly _examDefinitions = signal<ExamContent[]>([]);
+  private readonly _examQuestions = signal<ExamQuestionEntry[]>([]);
+  private readonly _incidentTemplates = signal<IncidentTemplate[]>([]);
+  private readonly _quickFixes = signal<QuickFixContent[]>([]);
   private readonly _skillsLoading = signal<boolean>(false);
   private readonly _scenariosLoading = signal<boolean>(false);
   private readonly _skillsError = signal<string | null>(null);
@@ -345,6 +377,28 @@ export class AppStore {
   readonly user = this._user.asReadonly();
   readonly skills = this._skills.asReadonly();
   readonly scenarios = this._scenarios.asReadonly();
+  readonly shopItems = this._shopItems.asReadonly();
+  readonly incidentTemplates = this._incidentTemplates.asReadonly();
+  readonly quickFixTemplates = this._quickFixes.asReadonly();
+  readonly quickFixTemplate = computed(() => {
+    const quickFixes = this._quickFixes();
+    return quickFixes.find((item) => item.id === QUICK_FIX_CONTRACT_ID) ?? quickFixes[0] ?? null;
+  });
+  readonly exams = computed(() => this.buildExamConfigs());
+  readonly examsById = computed(() => {
+    const map: Record<string, ExamConfig> = {};
+    for (const exam of this.exams()) {
+      map[exam.id] = exam;
+    }
+    return map;
+  });
+  readonly examQuestionsById = computed(() => {
+    const map: Record<string, ExamQuestion> = {};
+    for (const entry of this._examQuestions()) {
+      map[entry.question.id] = entry.question;
+    }
+    return map;
+  });
   readonly skillsLoading = this._skillsLoading.asReadonly();
   readonly scenariosLoading = this._scenariosLoading.asReadonly();
   readonly progress = this._progress.asReadonly();
@@ -392,6 +446,15 @@ export class AppStore {
   readonly stageScenarioIds = computed(() => {
     const profession = this.professionId();
     const stage = this.careerStage();
+    const scenarios = this._scenarios();
+    if (scenarios.length > 0) {
+      return scenarios
+        .filter(
+          (scenario) =>
+            scenario.stage === stage && this.matchesScenarioProfession(scenario, profession),
+        )
+        .map((scenario) => scenario.id);
+    }
     const mapping =
       PROFESSION_STAGE_SCENARIOS[profession as keyof typeof PROFESSION_STAGE_SCENARIOS];
     return mapping?.[stage] ?? [];
@@ -477,14 +540,16 @@ export class AppStore {
   readonly earnedBadges = computed(() => this._progress().cosmetics.earnedBadges);
   readonly totalBuffs = computed(() => {
     const owned = new Set(this._inventory().ownedItemIds);
-    const sources = SHOP_ITEMS.filter((item) => owned.has(item.id)).map((item) => ({
-      effects: {
-        coinBonus:
-          'coins' in item.effects && typeof item.effects.coins === 'number'
-            ? item.effects.coins
-            : 0,
-      },
-    }));
+    const sources = this._shopItems()
+      .filter((item) => owned.has(item.id))
+      .map((item) => ({
+        effects: {
+          coinBonus:
+            'coins' in item.effects && typeof item.effects.coins === 'number'
+              ? item.effects.coins
+              : 0,
+        },
+      }));
     return getTotalBuffs(
       sources,
       this.resolveExamProfessionId(),
@@ -670,6 +735,56 @@ export class AppStore {
         this._scenariosLoading.set(false);
       },
     });
+
+    this.contentApi.getItems().subscribe({
+      next: (items) => {
+        this._shopItems.set(items);
+      },
+      error: (error) => {
+        this.logDevError('content-items-load-failed', error);
+        this._shopItems.set([]);
+      },
+    });
+
+    this.contentApi.getExams().subscribe({
+      next: (exams) => {
+        this._examDefinitions.set(exams);
+      },
+      error: (error) => {
+        this.logDevError('content-exams-load-failed', error);
+        this._examDefinitions.set([]);
+      },
+    });
+
+    this.contentApi.getQuestions().subscribe({
+      next: (questions) => {
+        this._examQuestions.set(questions);
+      },
+      error: (error) => {
+        this.logDevError('content-questions-load-failed', error);
+        this._examQuestions.set([]);
+      },
+    });
+
+    this.contentApi.getIncidents().subscribe({
+      next: (incidents) => {
+        this._incidentTemplates.set(incidents);
+      },
+      error: (error) => {
+        this.logDevError('content-incidents-load-failed', error);
+        this._incidentTemplates.set([]);
+      },
+    });
+
+    this.contentApi.getQuickFixes().subscribe({
+      next: (quickFixes) => {
+        this._quickFixes.set(quickFixes);
+      },
+      error: (error) => {
+        this.logDevError('content-quickfix-load-failed', error);
+        this._quickFixes.set([]);
+      },
+    });
   }
 
   refreshAvailableContracts(): void {
@@ -708,6 +823,7 @@ export class AppStore {
     const stageGate = this.stagePromotionGate();
     const canPromote = this.canAdvanceSkillStage() && stageGate.ok;
     const examAvailable = this.isExamAvailableForSafetyNet(stageGate.requiredCert !== undefined);
+    const quickFixTemplate = this.quickFixTemplate();
 
     const stuck = isStuck({
       coins: this.coins(),
@@ -727,6 +843,9 @@ export class AppStore {
       stuck,
       stage: this.careerStage(),
       seed: `${this.resolveContractSeed()}:quick-fix`,
+      rewardCoins: quickFixTemplate?.rewardCoins,
+      title: quickFixTemplate?.title,
+      description: quickFixTemplate?.description,
     });
 
     if (added) {
@@ -742,7 +861,7 @@ export class AppStore {
     if (!professionId) {
       return false;
     }
-    return Boolean(getExam(professionId, this.careerStage()));
+    return Boolean(this.getExamByProfessionStage(professionId, this.careerStage()));
   }
 
   initCandidatesIfEmpty(): void {
@@ -1292,6 +1411,7 @@ export class AppStore {
       stage: this.careerStage(),
       reputation: this.reputation(),
       techDebt: this.techDebt(),
+      templates: this._incidentTemplates(),
     });
 
     this._company.update((current) => ({
@@ -2537,7 +2657,7 @@ export class AppStore {
   }
 
   buyItem(itemId: string): boolean {
-    const item = SHOP_ITEMS.find((entry) => entry.id === itemId);
+    const item = this._shopItems().find((entry) => entry.id === itemId);
     if (!item) {
       this.notificationsStore.error('Неизвестный предмет.');
       return false;
@@ -4931,6 +5051,56 @@ export class AppStore {
     return null;
   }
 
+  private buildExamConfigs(): ExamConfig[] {
+    const definitions = this._examDefinitions();
+    if (definitions.length === 0) {
+      return [];
+    }
+    const questions = this._examQuestions();
+    const generalIds: string[] = [];
+    const byProfession = new Map<string, string[]>();
+
+    for (const entry of questions) {
+      const questionId = entry.question.id;
+      const professionId = entry.professionId;
+      if (!professionId) {
+        generalIds.push(questionId);
+        continue;
+      }
+      const list = byProfession.get(professionId) ?? [];
+      list.push(questionId);
+      byProfession.set(professionId, list);
+    }
+
+    return definitions.map((exam) => {
+      const specific = byProfession.get(exam.professionId) ?? [];
+      const questionIds = Array.from(new Set([...specific, ...generalIds]));
+      return {
+        id: exam.id,
+        title: this.resolveExamTitle(exam.professionId, exam.stage),
+        professionId: exam.professionId,
+        stage: exam.stage,
+        questionCount: exam.questionCount,
+        passScore: exam.passScore,
+        questionIds,
+      };
+    });
+  }
+
+  private resolveExamTitle(professionId: string, stage: SkillStageId): string {
+    const label =
+      EXAM_PROFESSION_LABELS[professionId as ExamProfessionId] ?? professionId ?? 'Экзамен';
+    const stageLabel = CERT_STAGE_LABELS[stage] ?? stage;
+    return `${label} · ${stageLabel} — экзамен`;
+  }
+
+  private getExamByProfessionStage(professionId: string, stage: SkillStageId): ExamConfig | null {
+    return (
+      this.exams().find((exam) => exam.professionId === professionId && exam.stage === stage) ??
+      null
+    );
+  }
+
   private matchesScenarioProfession(scenario: Scenario, profession: string): boolean {
     return scenario.profession === 'all' || scenario.profession === profession;
   }
@@ -4975,7 +5145,8 @@ export class AppStore {
     if (!carryLuxuryOnly) {
       return ownedItemIds;
     }
-    const items = SHOP_ITEMS as readonly ShopItem[];
+    const items =
+      this._shopItems().length > 0 ? this._shopItems() : (SHOP_ITEMS as readonly ShopItem[]);
     const luxuryIds = new Set<ShopItemId>(
       items
         .filter((item) => item.currency === 'cash' || item.category === 'luxury')

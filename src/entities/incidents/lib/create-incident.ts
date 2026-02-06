@@ -16,6 +16,7 @@ type CreateIncidentParams = {
   stage: SkillStageId;
   reputation: number;
   techDebt: number;
+  templates?: IncidentTemplate[];
 };
 
 const clamp = (value: number, min: number, max: number): number =>
@@ -81,8 +82,11 @@ const cloneDecisions = (decisions: IncidentDecision[]): IncidentDecision[] =>
 export const createIncidentFromRoll = (params: CreateIncidentParams): ActiveIncident => {
   const seed = `${params.seed}:incident:${params.tickIndex}:${params.reason}`;
   const rng = mulberry32(hashStringToInt(seed));
-  const template =
-    selectTemplate(INCIDENT_TEMPLATES, rng, params.stage, params.techDebt) ?? INCIDENT_TEMPLATES[0];
+  const templates =
+    Array.isArray(params.templates) && params.templates.length > 0
+      ? params.templates
+      : INCIDENT_TEMPLATES;
+  const template = selectTemplate(templates, rng, params.stage, params.techDebt) ?? templates[0];
 
   const fallbackSeverity = template?.severity ?? resolveSeverityFallback();
   const decisions = template?.decisions?.length

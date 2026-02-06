@@ -1,7 +1,7 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { AppStore } from '@/app/store/app.store';
-import { SHOP_ITEMS, ShopItem, ShopItemCurrency } from '@/shared/config';
+import { ShopItem, ShopItemCurrency } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -111,9 +111,10 @@ export class ShopPage {
     const cash = this.companyCash();
     const companyUnlocked = this.companyUnlocked();
 
-    const prepared = SHOP_ITEMS.filter((item) => this.normalizeCurrency(item) === 'coins').map(
-      (item) => this.buildItemView(item, ownedIds, { coins, cash, companyUnlocked }),
-    );
+    const prepared = this.store
+      .shopItems()
+      .filter((item) => this.normalizeCurrency(item) === 'coins')
+      .map((item) => this.buildItemView(item, ownedIds, { coins, cash, companyUnlocked }));
     const filtered =
       category === 'all'
         ? prepared
@@ -133,9 +134,10 @@ export class ShopPage {
     const cash = this.companyCash();
     const companyUnlocked = this.companyUnlocked();
 
-    const prepared = SHOP_ITEMS.filter((item) => this.normalizeCurrency(item) === 'cash').map(
-      (item) => this.buildItemView(item, ownedIds, { coins, cash, companyUnlocked }),
-    );
+    const prepared = this.store
+      .shopItems()
+      .filter((item) => this.normalizeCurrency(item) === 'cash')
+      .map((item) => this.buildItemView(item, ownedIds, { coins, cash, companyUnlocked }));
     const sorted = [...prepared];
     sorted.sort((left, right) => this.compareLuxuryItems(left, right, sortKey));
     return sorted;

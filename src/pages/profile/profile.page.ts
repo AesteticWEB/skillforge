@@ -15,7 +15,6 @@ import {
 } from '@/entities/achievements';
 import type { SkillStageId } from '@/shared/config';
 import {
-  EXAMS_BY_ID,
   PROFESSION_STAGE_SKILLS,
   SKILL_STAGE_LABELS,
   SKILL_STAGE_ORDER,
@@ -137,11 +136,12 @@ export class ProfilePage {
   });
   protected readonly hasSpecializations = computed(() => this.specializationOptions().length > 0);
   protected readonly certificateRows = computed<CertificateRow[]>(() => {
+    const examsById = this.store.examsById();
     return this.certificates()
       .slice()
       .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt))
       .map((certificate) => {
-        const exam = EXAMS_BY_ID[certificate.examId];
+        const exam = examsById[certificate.examId];
         const professionLabel = exam
           ? this.extractProfessionLabel(exam.title)
           : certificate.professionId;

@@ -1,21 +1,13 @@
-import { Injectable } from '@angular/core';
-import { Observable, of, throwError } from 'rxjs';
+import { Injectable, inject } from '@angular/core';
+import { Observable } from 'rxjs';
 import { Scenario } from '@/entities/scenario';
-import { SCENARIOS_MOCK } from './scenarios.mock';
+import { ContentApi } from '@/shared/api/content/content.api';
 
 @Injectable({ providedIn: 'root' })
 export class ScenariosApi {
-  getScenarios(): Observable<Scenario[]> {
-    if (this.shouldFail()) {
-      return throwError(() => new Error('Mock scenarios API failed'));
-    }
-    return of(SCENARIOS_MOCK);
-  }
+  private readonly contentApi = inject(ContentApi);
 
-  private shouldFail(): boolean {
-    return (
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem('skillforge.failScenarios') === 'true'
-    );
+  getScenarios(): Observable<Scenario[]> {
+    return this.contentApi.getScenarios();
   }
 }

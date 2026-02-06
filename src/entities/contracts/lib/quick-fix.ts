@@ -12,6 +12,8 @@ export const createQuickFixContract = (params?: {
   rewardCoins?: number;
   stage?: SkillStageId;
   seed?: string;
+  title?: string;
+  description?: string;
 }): Contract => {
   const rewardCoins =
     typeof params?.rewardCoins === 'number' && Number.isFinite(params.rewardCoins)
@@ -19,11 +21,15 @@ export const createQuickFixContract = (params?: {
       : QUICK_FIX_REWARD_COINS;
   const stage = params?.stage ?? 'internship';
   const seed = params?.seed ?? 'safety-net';
+  const title = params?.title?.trim().length ? params.title.trim() : 'Quick Fix';
+  const description = params?.description?.trim().length
+    ? params.description.trim()
+    : 'Небольшая подработка, чтобы выбраться из тупика.';
 
   return {
     id: QUICK_FIX_CONTRACT_ID,
-    title: 'Quick Fix',
-    description: 'Небольшая подработка, чтобы выбраться из тупика.',
+    title,
+    description,
     difficulty: 'легко',
     objectives: [
       {
@@ -50,6 +56,8 @@ export const ensureQuickFixContract = (params: {
   stage?: SkillStageId;
   seed?: string;
   rewardCoins?: number;
+  title?: string;
+  description?: string;
 }): { available: Contract[]; active: Contract[]; added: boolean } => {
   const available = Array.isArray(params.available) ? params.available : [];
   const active = Array.isArray(params.active) ? params.active : [];
@@ -68,6 +76,8 @@ export const ensureQuickFixContract = (params: {
     rewardCoins: params.rewardCoins,
     stage: params.stage,
     seed: params.seed,
+    title: params.title,
+    description: params.description,
   });
   return { available: [quickFix, ...available], active, added: true };
 };

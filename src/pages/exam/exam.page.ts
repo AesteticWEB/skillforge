@@ -20,13 +20,7 @@ import {
 } from '@/entities/exam';
 import { calcExamReward } from '@/entities/rewards';
 import { calcStreakMultiplier } from '@/entities/streak';
-import {
-  BALANCE,
-  EXAM_QUESTIONS_BY_ID,
-  EXAMS_BY_ID,
-  PROFESSION_OPTIONS,
-  getExam,
-} from '@/shared/config';
+import { BALANCE, PROFESSION_OPTIONS } from '@/shared/config';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
@@ -120,13 +114,18 @@ export class ExamPage implements OnDestroy {
   protected readonly currentExam = computed(() => {
     const run = this.activeRun();
     if (run) {
-      return EXAMS_BY_ID[run.examId] ?? null;
+      return this.store.examsById()[run.examId] ?? null;
     }
     const professionId = this.examProfessionId();
     if (!professionId) {
       return null;
     }
-    return getExam(professionId, this.careerStage()) ?? null;
+    return (
+      this.store
+        .exams()
+        .find((exam) => exam.professionId === professionId && exam.stage === this.careerStage()) ??
+      null
+    );
   });
   protected readonly attemptHistory = computed(() => {
     const exam = this.currentExam();
@@ -151,7 +150,7 @@ export class ExamPage implements OnDestroy {
     if (!id) {
       return null;
     }
-    const question = EXAM_QUESTIONS_BY_ID[id] ?? null;
+    const question = this.store.examQuestionsById()[id] ?? null;
     if (!question || !run) {
       return question;
     }
@@ -257,7 +256,7 @@ export class ExamPage implements OnDestroy {
     const attemptIndex = this.attemptHistory().length;
     const session = buildExamSession({
       exam,
-      questionsById: EXAM_QUESTIONS_BY_ID,
+      questionsById: this.store.examQuestionsById(),
       seed,
       attemptIndex,
       rating: this.store.playerSkillRating(),
@@ -438,7 +437,7 @@ export class ExamPage implements OnDestroy {
     const grade = gradeExam({
       exam,
       session: run.session,
-      questionsById: EXAM_QUESTIONS_BY_ID,
+      questionsById: this.store.examQuestionsById(),
       answers: run.answers,
     });
 
