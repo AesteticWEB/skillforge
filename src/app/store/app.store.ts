@@ -321,6 +321,11 @@ export class AppStore {
   private readonly sessionId = this.resolveSessionId();
 
   private hasHydrated = false;
+  private remoteProgressEnabled = false;
+  private remoteSaveTimer: number | null = null;
+  private remotePendingPayload: PersistedStateLatest | null = null;
+  private remoteLastSerialized: string | null = null;
+  private remoteSaveInFlight = false;
   private readonly _user = signal<User>(createEmptyUser());
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
@@ -573,11 +578,12 @@ export class AppStore {
     this.load();
     this.ensureSessionQuests();
     this.hasHydrated = true;
+    void this.hydrateFromRemote();
     effect(() => {
       if (!this.hasHydrated) {
         return;
       }
-      this.persistToStorage();
+      this.persistProgress();
     });
     effect(() => {
       if (!this.hasHydrated) {
@@ -2830,49 +2836,11 @@ export class AppStore {
       return;
     }
 
-    const { state, isLegacy } = stored;
-
-    if (state.user) {
-      this._user.set({
-        role: state.user.role ?? 'Без роли',
-        goals: state.user.goals ?? [],
-        startDate: state.user.startDate ?? new Date().toISOString().slice(0, 10),
-        isProfileComplete: state.user.isProfileComplete ?? false,
-      });
+    const result = this.applyPersistedState(stored.state, { allowLegacy: stored.isLegacy });
+    if (!result.ok) {
+      this.handleStorageError(new Error(result.error ?? 'Invalid save payload'), 'apply');
+      this.clearStorage();
     }
-    if (state.progress) {
-      this._progress.set(this.mergeProgressDefaults(state.progress));
-    }
-    if (state.company) {
-      this._company.set(this.mergeCompanyDefaults(state.company));
-    }
-    if (state.inventory) {
-      this._inventory.set(this.mergeInventoryDefaults(state.inventory));
-    }
-    if (state.featureFlags) {
-      this._featureFlags.set({
-        ...DEFAULT_FEATURE_FLAGS,
-        ...state.featureFlags,
-      });
-    }
-    if (typeof state.xp === 'number') {
-      this._xp.set(this.normalizeXp(state.xp));
-    }
-    if (state.auth) {
-      const auth = this.parseAuth(state.auth);
-      if (auth) {
-        this._auth.set(auth);
-        if (auth.isRegistered && !this._user().isProfileComplete) {
-          this._user.update((current) => ({
-            ...current,
-            role: auth.profession || current.role,
-            isProfileComplete: true,
-          }));
-        }
-      }
-    }
-
-    this.checkAndUnlockCompany({ allowLegacy: isLegacy });
   }
 
   private resetState(): void {
@@ -2908,21 +2876,19 @@ export class AppStore {
     this._backupAvailable.set(false);
   }
 
-  private persistToStorage(): void {
+  private persistProgress(): void {
+    const payload = this.buildPersistPayload();
+    if (this.remoteProgressEnabled) {
+      this.scheduleRemotePersist(payload);
+      return;
+    }
+    this.persistToStorage(payload);
+  }
+
+  private persistToStorage(payload: PersistedStateLatest): void {
     if (!this.isStorageAvailable()) {
       return;
     }
-
-    const payload = {
-      version: AppStore.STORAGE_VERSION,
-      user: this._user(),
-      progress: this._progress(),
-      company: this._company(),
-      inventory: this._inventory(),
-      featureFlags: this._featureFlags(),
-      auth: this._auth(),
-      xp: this._xp(),
-    };
 
     try {
       const serialized = JSON.stringify(payload);
@@ -2932,6 +2898,32 @@ export class AppStore {
     } catch {
       // Ignore storage errors (quota or privacy mode).
     }
+  }
+
+  private buildPersistPayload(): PersistedStateLatest {
+    return {
+      version: AppStore.STORAGE_VERSION,
+      user: this._user(),
+      progress: this._progress(),
+      company: this._company(),
+      inventory: this._inventory(),
+      featureFlags: this._featureFlags(),
+      auth: this._auth(),
+      xp: this._xp(),
+    };
+  }
+
+  private buildEmptyPersistPayload(): PersistedStateLatest {
+    return {
+      version: AppStore.STORAGE_VERSION,
+      user: createEmptyUser(),
+      progress: createEmptyProgress(),
+      company: createEmptyCompany(),
+      inventory: createEmptyInventory(),
+      featureFlags: DEFAULT_FEATURE_FLAGS,
+      auth: createEmptyAuth(),
+      xp: 0,
+    };
   }
 
   private readStorage(): StorageReadResult | null {
@@ -3036,6 +3028,104 @@ export class AppStore {
     this.notificationsStore.error(
       'Не удалось прочитать сохранение. Выполнен сброс к пустому состоянию.',
     );
+  }
+
+  private async hydrateFromRemote(): Promise<void> {
+    if (typeof fetch !== 'function') {
+      return;
+    }
+    try {
+      const response = await fetch('/api/progress', { credentials: 'include' });
+      if (response.status === 401) {
+        return;
+      }
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json().catch(() => null);
+      this.remoteProgressEnabled = true;
+      const stateJson = typeof data?.stateJson === 'string' ? data.stateJson : null;
+      if (!stateJson) {
+        this.applyPersistedState(this.buildEmptyPersistPayload(), { allowLegacy: false });
+        return;
+      }
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(stateJson);
+      } catch (error) {
+        this.errorLogStore.capture(error, 'persist:remote-parse', false);
+        return;
+      }
+      const migrated = migratePersistedState(parsed);
+      if (!migrated) {
+        return;
+      }
+      const result = this.applyPersistedState(migrated, { allowLegacy: false });
+      if (!result.ok) {
+        this.errorLogStore.capture(
+          new Error(result.error ?? 'Invalid remote payload'),
+          'persist:remote-apply',
+          false,
+        );
+      }
+    } catch (error) {
+      this.errorLogStore.capture(error, 'persist:remote-load', false);
+    }
+  }
+
+  private scheduleRemotePersist(payload: PersistedStateLatest): void {
+    this.remotePendingPayload = payload;
+    if (this.remoteSaveTimer !== null) {
+      return;
+    }
+    this.remoteSaveTimer = window.setTimeout(() => {
+      this.remoteSaveTimer = null;
+      void this.flushRemotePersist();
+    }, 1500);
+  }
+
+  private async flushRemotePersist(): Promise<void> {
+    if (this.remoteSaveInFlight) {
+      return;
+    }
+    const payload = this.remotePendingPayload;
+    if (!payload) {
+      return;
+    }
+    this.remotePendingPayload = null;
+    let serialized = '';
+    try {
+      serialized = JSON.stringify(payload);
+    } catch {
+      return;
+    }
+    if (serialized === this.remoteLastSerialized) {
+      return;
+    }
+    if (serialized.length > 1_000_000) {
+      return;
+    }
+    this.remoteSaveInFlight = true;
+    try {
+      const response = await fetch('/api/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ stateJson: serialized }),
+      });
+      if (response.status === 401) {
+        this.remoteProgressEnabled = false;
+        this.persistToStorage(payload);
+        return;
+      }
+      if (response.ok) {
+        this.remoteLastSerialized = serialized;
+      }
+    } catch (error) {
+      this.errorLogStore.capture(error, 'persist:remote-save', false);
+    } finally {
+      this.remoteSaveInFlight = false;
+    }
   }
 
   private mergeProgressDefaults(progress: Partial<Progress>): Progress {
