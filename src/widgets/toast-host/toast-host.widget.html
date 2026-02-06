@@ -7,6 +7,8 @@
     <div
       class="pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg shadow-black/20"
       [ngClass]="typeClasses[toast.type]"
+      data-testid="toast"
+      [attr.data-message]="toast.message"
     >
       <div class="flex-1">
         <div class="text-xs text-slate-400">{{ formatDate(toast.createdAt) }}</div>

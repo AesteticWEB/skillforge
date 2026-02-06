@@ -51,7 +51,7 @@ describe('persist schema migration', () => {
         candidatesRefreshIndex: 0,
         companyTickIndex: 0,
         meta: { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false },
-        difficulty: { multiplier: 1 },
+        difficulty: { multiplier: 1, rating: 50, failStreak: 0, successStreak: 0 },
         cosmetics: { earnedBadges: [] },
         achievements: createEmptyAchievementsState(),
         comboStreak: createEmptyStreakState(),
@@ -120,7 +120,7 @@ describe('persist schema migration', () => {
         candidatesRefreshIndex: 0,
         companyTickIndex: 0,
         meta: { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false },
-        difficulty: { multiplier: 1 },
+        difficulty: { multiplier: 1, rating: 50, failStreak: 0, successStreak: 0 },
         cosmetics: { earnedBadges: [] },
         achievements: createEmptyAchievementsState(),
         comboStreak: createEmptyStreakState(),
@@ -145,5 +145,72 @@ describe('persist schema migration', () => {
       auth: undefined,
       xp: undefined,
     });
+  });
+
+  it('returns safe defaults for invalid payloads', () => {
+    const migrated = migratePersistedState('invalid-json');
+
+    expect(migrated).not.toBeNull();
+    if (!migrated) {
+      return;
+    }
+
+    expect(migrated.version).toBe(PERSIST_SCHEMA_VERSION);
+    expect(migrated.user).toMatchObject({
+      role: 'Guest',
+      goals: [],
+      isProfileComplete: false,
+    });
+    expect(migrated.progress?.achievements?.unlocked ?? {}).toEqual({});
+    expect(migrated.progress?.comboStreak?.count).toBe(0);
+    expect(migrated.progress?.coins).toBe(0);
+    expect(Number.isNaN(migrated.progress?.coins as number)).toBe(false);
+  });
+
+  it('fills partial payloads and clamps numeric values', () => {
+    const partial = {
+      version: PERSIST_SCHEMA_VERSION,
+      user: {
+        role: 'Developer',
+        goals: ['Ship'],
+        startDate: '2026-02-04',
+        isProfileComplete: true,
+      },
+      progress: {
+        coins: -5,
+        reputation: 3,
+        techDebt: 0,
+        difficulty: {
+          multiplier: 99,
+          rating: 200,
+          failStreak: -2,
+          successStreak: 2,
+          lastResult: 'pass' as const,
+        },
+      },
+      company: {
+        cash: -10,
+      },
+      inventory: {
+        ownedItemIds: ['shop-a', 'shop-a'],
+      },
+    };
+
+    const migrated = migratePersistedState(partial);
+
+    expect(migrated).not.toBeNull();
+    if (!migrated) {
+      return;
+    }
+
+    expect(migrated.user).toEqual(partial.user);
+    expect(migrated.progress?.coins).toBe(0);
+    expect(migrated.progress?.difficulty?.multiplier).toBe(3);
+    expect(migrated.progress?.difficulty?.rating).toBe(100);
+    expect(migrated.progress?.difficulty?.failStreak).toBe(0);
+    expect(migrated.progress?.difficulty?.successStreak).toBe(2);
+    expect(migrated.progress?.difficulty?.lastResult).toBe('pass');
+    expect(migrated.company?.cash).toBe(0);
+    expect(migrated.inventory?.ownedItemIds).toEqual(['shop-a']);
   });
 });

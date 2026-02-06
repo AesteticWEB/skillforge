@@ -28,6 +28,12 @@ export const routes: Routes = [
     loadComponent: () => import('../pages/skills/skills.page').then((m) => m.SkillsPage),
   },
   {
+    path: 'roadmap',
+    title: '\u041f\u0443\u0442\u044c | SkillForge',
+    canMatch: [authGuard],
+    loadComponent: () => import('../pages/roadmap/roadmap.page').then((m) => m.RoadmapPage),
+  },
+  {
     path: 'shop',
     title: '\u041c\u0430\u0433\u0430\u0437\u0438\u043d | SkillForge',
     canMatch: [authGuard],

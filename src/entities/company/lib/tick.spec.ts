@@ -122,4 +122,22 @@ describe('runCompanyTick', () => {
     expect(line).toContain('12%');
     expect(line).toContain('2%');
   });
+
+  it('clamps cash and morale to valid ranges', () => {
+    const employees = [createEmployee({ morale: 150 })];
+    const company = createCompany({ cash: -500, employees });
+    const state = {
+      company,
+      reputation: 0,
+      techDebt: 0,
+      totalBuffs: EMPTY_BUFFS,
+    };
+
+    const result = runCompanyTick({ reason: 'manual', state, seed: 'seed', tickIndex: 1 });
+
+    expect(result.nextCompany.cash).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(result.nextCompany.cash)).toBe(true);
+    expect(result.nextCompany.employees[0]?.morale).toBeLessThanOrEqual(100);
+    expect(Number.isFinite(result.nextCompany.employees[0]?.morale ?? 0)).toBe(true);
+  });
 });

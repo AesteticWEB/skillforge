@@ -5,13 +5,7 @@
   "compilerOptions": {
     "outDir": "./out-tsc/spec",
     "module": "commonjs",
-    "types": [
-      "jest",
-      "node"
-    ]
+    "types": ["jest", "node"]
   },
-  "include": [
-    "src/**/*.d.ts",
-    "src/**/*.spec.ts"
-  ]
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts", "e2e/**/*.ts"]
 }

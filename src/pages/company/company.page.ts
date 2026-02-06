@@ -13,6 +13,7 @@ import type {
   ContractReward,
   ContractType,
 } from '@/entities/contracts';
+import { isQuickFixContract } from '@/entities/contracts';
 import {
   ASSIGNMENT_LABELS,
   ASSIGNMENT_OPTIONS,
@@ -132,8 +133,16 @@ export class CompanyPage implements OnInit {
     this.store.acceptContract(contractId);
   }
 
+  protected completeQuickFix(): void {
+    this.store.completeQuickFixContract();
+  }
+
   protected abandonContract(contractId: string): void {
     this.store.abandonContract(contractId);
+  }
+
+  protected isQuickFix(contract: Contract): boolean {
+    return isQuickFixContract(contract);
   }
 
   protected initCandidates(): void {

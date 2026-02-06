@@ -25,6 +25,8 @@ export type ScenarioRewardInput = {
 export type ExamRewardInput = ScenarioRewardInput & {
   score: number;
   maxScore?: number;
+  playerSkillRating?: number;
+  passed?: boolean;
 };
 
 export type ScenarioXpInput = {
@@ -43,6 +45,19 @@ const resolveBaseCoins = (value: number | undefined, fallback: number): number =
     return fallback;
   }
   return Math.max(0, value);
+};
+
+const resolveRatingMultiplier = (rating: number | undefined): number => {
+  if (typeof rating !== 'number' || !Number.isFinite(rating)) {
+    return 1;
+  }
+  if (rating < 35) {
+    return 0.85;
+  }
+  if (rating > 70) {
+    return 1.15;
+  }
+  return 1;
 };
 
 const resolveBuffs = (buffs?: RewardBuffs): Required<RewardBuffs> => {
@@ -141,8 +156,12 @@ export const calcScenarioXp = (input: ScenarioXpInput): number => {
 };
 
 export const calcExamReward = (input: ExamRewardInput): number => {
+  if (input.passed === false) {
+    return 0;
+  }
   const { rewards } = BALANCE;
-  const baseCoins = resolveBaseCoins(input.baseCoins, rewards.examCoins);
+  const ratingMultiplier = resolveRatingMultiplier(input.playerSkillRating);
+  const baseCoins = resolveBaseCoins(input.baseCoins, rewards.examCoins) * ratingMultiplier;
   const maxScore =
     typeof input.maxScore === 'number' && Number.isFinite(input.maxScore) ? input.maxScore : 1;
   const score = normalizeNumber(input.score);

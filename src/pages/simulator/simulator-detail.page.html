@@ -17,7 +17,7 @@
       <div class="flex flex-wrap items-center gap-3 text-xs text-slate-400">
         <span>Репутация: {{ reputation() }}</span>
         <span>Техдолг: {{ techDebt() }}</span>
-        <span>Coins: {{ coins() }}</span>
+        <span data-testid="scenario-coins" [attr.data-value]="coins()">Coins: {{ coins() }}</span>
         <span>Решений всего: {{ decisionCount() }}</span>
       </div>
       <div class="text-sm text-slate-400">ID сценария: {{ current.id }}</div>
@@ -46,6 +46,9 @@
                     ? 'border-rose-500/60 bg-rose-500/10'
                     : 'border-slate-800/80 bg-slate-950/40 hover:border-emerald-400/50 hover:bg-slate-950/60'
                 "
+                data-testid="scenario-decision"
+                [attr.data-decision-id]="decision.id"
+                [attr.data-correct]="current.correctOptionIds.includes(decision.id) ? 'true' : null"
                 (click)="chooseDecision(decision.id)"
               >
                 <div class="text-sm font-semibold text-slate-100">{{ decision.text }}</div>
@@ -69,6 +72,7 @@
     [title]="rewardData()?.title ?? ''"
     [subtitle]="rewardData()?.subtitle ?? ''"
     (closed)="closeRewardModal()"
+    [testId]="'reward-modal'"
   >
     @if (rewardData(); as reward) {
       <div class="grid gap-4">
@@ -124,7 +128,12 @@
           </div>
         </div>
         <div class="flex justify-end">
-          <sf-button variant="ghost" type="button" (click)="closeRewardModal()">
+          <sf-button
+            variant="ghost"
+            type="button"
+            [testId]="'reward-modal-close'"
+            (click)="closeRewardModal()"
+          >
             Закрыть
           </sf-button>
         </div>

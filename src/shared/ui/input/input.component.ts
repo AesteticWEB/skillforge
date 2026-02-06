@@ -12,6 +12,7 @@ export class InputComponent {
   @Input() name?: string;
   @Input() id?: string;
   @Input() value?: string;
+  @Input() testId?: string;
   @Output() valueChange = new EventEmitter<string>();
 
   protected onInput(event: Event): void {

@@ -251,6 +251,7 @@ export class ExamPage implements OnDestroy {
       questionsById: EXAM_QUESTIONS_BY_ID,
       seed,
       attemptIndex,
+      rating: this.store.playerSkillRating(),
     });
     const run: ExamRun = {
       examId: exam.id,
@@ -450,6 +451,8 @@ export class ExamPage implements OnDestroy {
       buffs: this.store.totalBuffs(),
       comboMultiplier,
       difficultyMultiplier: this.store.difficultyMultiplier(),
+      playerSkillRating: this.store.playerSkillRating(),
+      passed: grade.passed,
     });
     const speedBonus = this.calcSpeedBonus(rewardCoins, durationSeconds);
     const totalCoins = rewardCoins + speedBonus;

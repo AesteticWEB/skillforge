@@ -78,7 +78,13 @@ import {
   Contract,
   ContractProgressEvent,
   RewardSummary,
+  canAcceptContract,
+  ensureQuickFixContract,
   generateAvailableContracts,
+  QUICK_FIX_CONTRACT_ID,
+  isQuickFixContract,
+  resolveQuickFixCompletion,
+  isStuck,
 } from '@/entities/contracts';
 import { EarnedBadge, getBadgeById, grantBadgeOnce } from '@/entities/cosmetics';
 import { Quest, QuestProgressEvent, generateSessionQuests } from '@/entities/quests';
@@ -86,6 +92,12 @@ import { Candidate, generateCandidates } from '@/features/hiring';
 import { getTotalBuffs } from '@/entities/buffs';
 import { addItem, Inventory, normalizeOwnedItemIds, ownsItem } from '@/entities/inventory';
 import { calcScenarioReward, calcScenarioXp } from '@/entities/rewards';
+import {
+  clampRating,
+  createDefaultDifficultyState,
+  updateRating,
+  DEFAULT_RATING,
+} from '@/entities/difficulty';
 import type { DecisionEffects } from '@/entities/decision';
 import {
   AchievementRuleState,
@@ -114,6 +126,7 @@ import {
   ShopItem,
   SkillStageId,
   SPECIALIZATIONS,
+  getExam,
 } from '@/shared/config';
 import { NotificationsStore } from '@/features/notifications';
 import { AchievementsStore } from '@/features/achievements';
@@ -138,6 +151,7 @@ import {
 } from '@/shared/lib/events';
 import {
   migratePersistedState,
+  migratePersistedStateStrict,
   PERSIST_BACKUP_KEY,
   PERSIST_LEGACY_BACKUP_KEYS,
   PERSIST_LEGACY_KEYS,
@@ -218,8 +232,6 @@ const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
   senior: 'Сеньор',
 };
 
-const MAX_ACTIVE_CONTRACTS = 3;
-
 const createEmptyAuth = (): AuthState => ({
   login: '',
   profession: '',
@@ -268,6 +280,7 @@ const createEmptyProgress = (): Progress => ({
   },
   difficulty: {
     multiplier: 1,
+    ...createDefaultDifficultyState(),
   },
   cosmetics: {
     earnedBadges: [],
@@ -333,6 +346,16 @@ export class AppStore {
   readonly company = this._company.asReadonly();
   readonly inventory = this._inventory.asReadonly();
   readonly availableContracts = this._availableContracts.asReadonly();
+  readonly quickFixContract = computed(() => {
+    const available = this._availableContracts();
+    const active = this._progress().activeContracts ?? [];
+    return (
+      available.find((contract) => isQuickFixContract(contract)) ??
+      active.find((contract) => isQuickFixContract(contract)) ??
+      null
+    );
+  });
+  readonly hasQuickFixContract = computed(() => Boolean(this.quickFixContract()));
   readonly achievements = computed(() => this._progress().achievements);
   readonly featureFlags = this._featureFlags.asReadonly();
   readonly auth = this._auth.asReadonly();
@@ -442,6 +465,9 @@ export class AppStore {
   readonly comboStreakCount = computed(() => this._progress().comboStreak?.count ?? 0);
   readonly comboStreakMultiplier = computed(() => this._progress().comboStreak?.multiplier ?? 1);
   readonly difficultyMultiplier = computed(() => this._progress().difficulty?.multiplier ?? 1);
+  readonly playerSkillRating = computed(() =>
+    clampRating(this._progress().difficulty?.rating ?? DEFAULT_RATING),
+  );
   readonly cosmetics = computed(() => this._progress().cosmetics);
   readonly earnedBadges = computed(() => this._progress().cosmetics.earnedBadges);
   readonly totalBuffs = computed(() => {
@@ -553,6 +579,12 @@ export class AppStore {
       }
       this.persistToStorage();
     });
+    effect(() => {
+      if (!this.hasHydrated) {
+        return;
+      }
+      this.ensureSafetyNetContract();
+    });
     this.eventBus.subscribe('ScenarioCompleted', (event) => {
       this.updateDailyStreak();
       const progressEvent: ContractProgressEvent = {
@@ -582,6 +614,10 @@ export class AppStore {
       this.applyEventToContracts(progressEvent);
       this.applyEventToSessionQuests(progressEvent);
       this.applyCompanyTick('exam');
+      this.updateDifficultyAfterExam('pass');
+    });
+    this.eventBus.subscribe('ExamFailed', () => {
+      this.updateDifficultyAfterExam('fail');
     });
   }
 
@@ -640,7 +676,67 @@ export class AppStore {
       count: 5,
     });
     const activeIds = new Set(this._progress().activeContracts.map((contract) => contract.id));
-    this._availableContracts.set(generated.filter((contract) => !activeIds.has(contract.id)));
+    const existingQuickFix = this._availableContracts().find((contract) =>
+      isQuickFixContract(contract),
+    );
+    const nextAvailable = generated.filter((contract) => !activeIds.has(contract.id));
+    this._availableContracts.set(
+      existingQuickFix ? [existingQuickFix, ...nextAvailable] : nextAvailable,
+    );
+  }
+
+  private ensureSafetyNetContract(): void {
+    if (!this._auth().isRegistered || !this._user().isProfileComplete) {
+      return;
+    }
+    if (this._skillsLoading() || this._scenariosLoading()) {
+      return;
+    }
+
+    const available = this._availableContracts();
+    const active = this._progress().activeContracts ?? [];
+    const availableContractsCount = available.filter(
+      (contract) => !isQuickFixContract(contract),
+    ).length;
+    const companyCash = this.companyUnlocked() ? this.companyCash() : 0;
+    const stageGate = this.stagePromotionGate();
+    const canPromote = this.canAdvanceSkillStage() && stageGate.ok;
+    const examAvailable = this.isExamAvailableForSafetyNet(stageGate.requiredCert !== undefined);
+
+    const stuck = isStuck({
+      coins: this.coins(),
+      companyCash,
+      activeScenariosCount: this.activeStageScenarios().length,
+      stageSkillIds: this.stageSkillIds(),
+      skills: this._skills(),
+      availableXp: this.availableXpForSkills(),
+      canPromote,
+      availableContractsCount,
+      examAvailable,
+    });
+
+    const { available: nextAvailable, added } = ensureQuickFixContract({
+      available,
+      active,
+      stuck,
+      stage: this.careerStage(),
+      seed: `${this.resolveContractSeed()}:quick-fix`,
+    });
+
+    if (added) {
+      this._availableContracts.set(nextAvailable);
+    }
+  }
+
+  private isExamAvailableForSafetyNet(needsCertificate: boolean): boolean {
+    if (!needsCertificate) {
+      return false;
+    }
+    const professionId = this.examProfessionId();
+    if (!professionId) {
+      return false;
+    }
+    return Boolean(getExam(professionId, this.careerStage()));
   }
 
   initCandidatesIfEmpty(): void {
@@ -809,7 +905,11 @@ export class AppStore {
     if (active.some((contract) => contract.id === contractId)) {
       return;
     }
-    if (active.length >= MAX_ACTIVE_CONTRACTS) {
+    if (contractId === QUICK_FIX_CONTRACT_ID) {
+      this.completeQuickFixContract();
+      return;
+    }
+    if (!canAcceptContract(active.length)) {
       this.notificationsStore.error('Лимит 3 контракта');
       return;
     }
@@ -837,6 +937,46 @@ export class AppStore {
       ...progress,
       activeContracts: progress.activeContracts.filter((contract) => contract.id !== contractId),
     }));
+  }
+
+  completeQuickFixContract(): boolean {
+    const available = this._availableContracts();
+    const active = this._progress().activeContracts;
+    const completedAtIso = new Date().toISOString();
+    const completion = resolveQuickFixCompletion({
+      available,
+      active,
+      completedAtIso,
+    });
+    if (!completion) {
+      return false;
+    }
+
+    const reward = completion.reward;
+    const rewardCoins = this.normalizeCoins(reward.coins);
+    const rewardCash = typeof reward.cash === 'number' ? this.normalizeCash(reward.cash) : 0;
+    const reputationDelta = typeof reward.reputationDelta === 'number' ? reward.reputationDelta : 0;
+    const techDebtDelta = typeof reward.techDebtDelta === 'number' ? reward.techDebtDelta : 0;
+
+    this._availableContracts.set(completion.available);
+    this._progress.update((progress) => ({
+      ...progress,
+      activeContracts: completion.active,
+      completedContractsHistory: [...progress.completedContractsHistory, completion.completedEntry],
+      coins: this.normalizeCoins(progress.coins + rewardCoins),
+      reputation: this.normalizeReputation(progress.reputation + reputationDelta),
+      techDebt: this.normalizeTechDebt(progress.techDebt + techDebtDelta),
+    }));
+
+    if (rewardCash > 0) {
+      this._company.update((company) => ({
+        ...company,
+        cash: this.normalizeCash(company.cash + rewardCash),
+      }));
+    }
+
+    this.notificationsStore.success(`Quick Fix выполнен: +${rewardCoins} coins`);
+    return true;
   }
 
   applyEventToContracts(event: ContractProgressEvent): {
@@ -1873,6 +2013,7 @@ export class AppStore {
       meta: nextMeta,
       difficulty: {
         multiplier: ngPlusConfig.difficultyMultiplier ?? 1,
+        ...createDefaultDifficultyState(),
       },
       cosmetics,
       comboStreak: createEmptyStreakState(),
@@ -1957,6 +2098,7 @@ export class AppStore {
       },
       difficulty: {
         multiplier: 1,
+        ...createDefaultDifficultyState(),
       },
       cosmetics: {
         earnedBadges: [],
@@ -2024,7 +2166,7 @@ export class AppStore {
       return { ok: false, error: 'JSON должен быть объектом.' };
     }
 
-    const migrated = migratePersistedState(parsed);
+    const migrated = migratePersistedStateStrict(parsed);
     if (!migrated) {
       return {
         ok: false,
@@ -2054,7 +2196,7 @@ export class AppStore {
       return false;
     }
 
-    const migrated = migratePersistedState(parsed);
+    const migrated = migratePersistedStateStrict(parsed);
     if (!migrated) {
       this.handleStorageError(new Error('Unsupported backup version'), 'backup-migrate');
       return false;
@@ -2257,6 +2399,27 @@ export class AppStore {
       examHistory: [...progress.examHistory, attempt],
       activeExamRun: null,
     }));
+  }
+
+  private updateDifficultyAfterExam(result: 'pass' | 'fail'): void {
+    this._progress.update((progress) => {
+      const updated = updateRating(
+        {
+          rating: progress.difficulty?.rating ?? DEFAULT_RATING,
+          failStreak: progress.difficulty?.failStreak ?? 0,
+          successStreak: progress.difficulty?.successStreak ?? 0,
+          lastResult: progress.difficulty?.lastResult,
+        },
+        result,
+      );
+      return {
+        ...progress,
+        difficulty: {
+          multiplier: progress.difficulty?.multiplier ?? 1,
+          ...updated,
+        },
+      };
+    });
   }
 
   notifyExamPassed(examId: string, stage?: SkillStageId, score?: number): void {
@@ -3914,12 +4077,35 @@ export class AppStore {
 
   private normalizeDifficulty(value: unknown): Progress['difficulty'] {
     if (!this.isRecord(value)) {
-      return { multiplier: 1 };
+      return {
+        multiplier: 1,
+        ...createDefaultDifficultyState(),
+      };
     }
     const raw = value['multiplier'];
     const multiplier =
       typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0.5, Math.min(3, raw)) : 1;
-    return { multiplier };
+    const ratingRaw = value['rating'];
+    const rating = clampRating(typeof ratingRaw === 'number' ? ratingRaw : DEFAULT_RATING);
+    const successStreak =
+      typeof value['successStreak'] === 'number' && Number.isFinite(value['successStreak'])
+        ? Math.max(0, Math.floor(value['successStreak']))
+        : 0;
+    const failStreak =
+      typeof value['failStreak'] === 'number' && Number.isFinite(value['failStreak'])
+        ? Math.max(0, Math.floor(value['failStreak']))
+        : 0;
+    const lastResult =
+      value['lastResult'] === 'pass' || value['lastResult'] === 'fail'
+        ? (value['lastResult'] as 'pass' | 'fail')
+        : undefined;
+    return {
+      multiplier,
+      rating,
+      successStreak,
+      failStreak,
+      lastResult,
+    };
   }
 
   private normalizeCosmeticsState(value: unknown): Progress['cosmetics'] {

@@ -30,6 +30,10 @@ export type ProgressMeta = {
 
 export type DifficultySettings = {
   multiplier: number;
+  rating: number;
+  failStreak: number;
+  successStreak: number;
+  lastResult?: 'pass' | 'fail';
 };
 
 export type ActivityStreak = {

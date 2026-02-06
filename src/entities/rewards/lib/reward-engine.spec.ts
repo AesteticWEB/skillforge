@@ -48,6 +48,17 @@ describe('reward engine', () => {
     expect(reward).toBe(25);
   });
 
+  it('caps combo multiplier at max', () => {
+    const reward = calcScenarioReward({
+      reputation: 0,
+      techDebt: 0,
+      baseCoins: 10,
+      comboMultiplier: 5,
+    });
+
+    expect(reward).toBe(15);
+  });
+
   it('scales exam reward with score ratio', () => {
     const reward = calcExamReward({
       reputation: 0,
@@ -58,6 +69,32 @@ describe('reward engine', () => {
     });
 
     expect(reward).toBe(14);
+  });
+
+  it('applies rating multiplier to exam reward', () => {
+    const reward = calcExamReward({
+      reputation: 0,
+      techDebt: 0,
+      baseCoins: 10,
+      score: 100,
+      maxScore: 100,
+      playerSkillRating: 90,
+    });
+
+    expect(reward).toBe(16);
+  });
+
+  it('returns zero reward for failed exam', () => {
+    const reward = calcExamReward({
+      reputation: 0,
+      techDebt: 0,
+      baseCoins: 10,
+      score: 10,
+      maxScore: 100,
+      passed: false,
+    });
+
+    expect(reward).toBe(0);
   });
 
   it('applies xp bonus to scenario xp', () => {

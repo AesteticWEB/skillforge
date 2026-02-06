@@ -26,7 +26,7 @@ describe('decision effects', () => {
       candidatesRefreshIndex: 0,
       companyTickIndex: 0,
       meta: { isNewGamePlus: false, ngPlusCount: 0, onboardingCompleted: false },
-      difficulty: { multiplier: 1 },
+      difficulty: { multiplier: 1, rating: 50, failStreak: 0, successStreak: 0 },
       cosmetics: { earnedBadges: [] },
       achievements: createEmptyAchievementsState(),
       comboStreak: createEmptyStreakState(),

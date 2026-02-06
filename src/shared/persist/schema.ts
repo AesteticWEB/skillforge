@@ -87,8 +87,14 @@ export type PersistedState =
   | PersistedStateV4
   | PersistedStateLatest;
 
+type MigrateOptions = {
+  strict?: boolean;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const DEFAULT_START_DATE = '1970-01-01';
 
 const normalizeAchievements = (value: unknown): Progress['achievements'] => {
   if (!isRecord(value)) {
@@ -174,8 +180,26 @@ const normalizeProgress = (progress: Partial<Progress> | undefined): Partial<Pro
           Number.isFinite(base.difficulty.multiplier)
             ? Math.max(0.5, Math.min(3, base.difficulty.multiplier))
             : 1,
+        rating:
+          typeof base.difficulty.rating === 'number' && Number.isFinite(base.difficulty.rating)
+            ? Math.min(100, Math.max(0, Math.round(base.difficulty.rating)))
+            : 50,
+        failStreak:
+          typeof base.difficulty.failStreak === 'number' &&
+          Number.isFinite(base.difficulty.failStreak)
+            ? Math.max(0, Math.floor(base.difficulty.failStreak))
+            : 0,
+        successStreak:
+          typeof base.difficulty.successStreak === 'number' &&
+          Number.isFinite(base.difficulty.successStreak)
+            ? Math.max(0, Math.floor(base.difficulty.successStreak))
+            : 0,
+        lastResult:
+          base.difficulty.lastResult === 'pass' || base.difficulty.lastResult === 'fail'
+            ? base.difficulty.lastResult
+            : undefined,
       }
-    : { multiplier: 1 };
+    : { multiplier: 1, rating: 50, failStreak: 0, successStreak: 0 };
   const cosmetics = isRecord(base.cosmetics)
     ? {
         earnedBadges: Array.isArray(base.cosmetics.earnedBadges) ? base.cosmetics.earnedBadges : [],
@@ -261,9 +285,45 @@ const normalizeInventory = (inventory: Partial<Inventory> | undefined): Partial<
   };
 };
 
-export const migratePersistedState = (raw: unknown): PersistedStateLatest | null => {
+const createSafePersistedState = (): PersistedStateLatest => {
+  const safeProgress = normalizeProgress({
+    skillLevels: {},
+    decisionHistory: [],
+    examHistory: [],
+    activeExamRun: null,
+    certificates: [],
+    specializationId: null,
+    reputation: 0,
+    techDebt: 0,
+    scenarioOverrides: {},
+    spentXpOnSkills: 0,
+    careerStage: 'internship',
+  });
+
+  return {
+    version: PERSIST_SCHEMA_VERSION,
+    user: {
+      role: 'Guest',
+      goals: [],
+      startDate: DEFAULT_START_DATE,
+      isProfileComplete: false,
+    },
+    progress: safeProgress,
+    company: normalizeCompany({}),
+    inventory: normalizeInventory({}),
+    featureFlags: undefined,
+    auth: undefined,
+    xp: 0,
+  };
+};
+
+export const migratePersistedState = (
+  raw: unknown,
+  options: MigrateOptions = {},
+): PersistedStateLatest | null => {
+  const strict = options.strict ?? false;
   if (!isRecord(raw)) {
-    return null;
+    return strict ? null : createSafePersistedState();
   }
 
   const version = raw['version'];
@@ -316,5 +376,8 @@ export const migratePersistedState = (raw: unknown): PersistedStateLatest | null
     };
   }
 
-  return null;
+  return strict ? null : createSafePersistedState();
 };
+
+export const migratePersistedStateStrict = (raw: unknown): PersistedStateLatest | null =>
+  migratePersistedState(raw, { strict: true });

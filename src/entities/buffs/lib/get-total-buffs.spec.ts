@@ -55,4 +55,12 @@ describe('getTotalBuffs', () => {
     expect(result.incidentReducePct).toBeLessThanOrEqual(0.8);
     expect(Math.abs(result.techDebtReduceFlat)).toBeLessThanOrEqual(5);
   });
+
+  it('includes profession perks and specialization effects', () => {
+    const result = getTotalBuffs([], 'frontend', 'spec_frontend_performance');
+
+    expect(result.xpBonusPct).toBeCloseTo(0.11, 5);
+    expect(result.coinMultiplier).toBeCloseTo(0.02, 5);
+    expect(result.repBonusFlat).toBeCloseTo(0.5, 5);
+  });
 });

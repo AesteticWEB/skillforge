@@ -25,9 +25,10 @@ type NavItem = {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Главная', path: '/', exact: true, meta: 'Старт' },
-  { label: 'Профиль', path: '/profile', exact: false, meta: 'Шаг 1' },
-  { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 2' },
-  { label: 'Магазин', path: '/shop', exact: false, meta: 'Бонусы' },
+  { label: 'Профиль', path: '/profile', exact: false, meta: 'Аккаунт' },
+  { label: 'Навыки', path: '/skills', exact: false, meta: 'Шаг 1' },
+  { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 2' },
+  { label: 'Экзамен', path: '/exam', exact: false, meta: 'Шаг 3' },
   {
     label: 'Компания',
     path: '/company',
@@ -36,8 +37,8 @@ const NAV_ITEMS: readonly NavItem[] = [
     requiresCompany: true,
     lockHint: 'Откроется после Senior и сертификата',
   },
-  { label: 'Симулятор', path: '/simulator', exact: false, meta: 'Шаг 3' },
-  { label: 'Экзамен', path: '/exam', exact: false, meta: 'Арена' },
+  { label: 'Путь', path: '/roadmap', exact: false, meta: 'Трек' },
+  { label: 'Магазин', path: '/shop', exact: false, meta: 'Бонусы' },
   { label: 'Аналитика', path: '/analytics', exact: false, meta: 'Итоги' },
   { label: 'Дебаг', path: '/debug', exact: false, meta: 'Dev' },
 ];

@@ -18,7 +18,9 @@
           Доступно для прокачки
         </div>
         <div class="mt-2 text-lg font-semibold text-emerald-200">
-          {{ availableXpForSkills() }}
+          <span data-testid="skills-available-xp" [attr.data-value]="availableXpForSkills()">{{
+            availableXpForSkills()
+          }}</span>
         </div>
       </div>
       <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
@@ -93,7 +95,12 @@
 
       <div class="mt-6 grid gap-4 md:grid-cols-2">
         @for (card of skillCards(); track card.id) {
-          <sf-card>
+          <sf-card
+            data-testid="skill-card"
+            [attr.data-skill-id]="card.id"
+            [attr.data-level]="card.level"
+            [attr.data-max]="card.maxLevel"
+          >
             <div class="flex items-start justify-between gap-4">
               <div class="flex items-start gap-3">
                 <div class="text-2xl">{{ card.icon }}</div>
@@ -109,6 +116,7 @@
                   [disabled]="!card.canIncrease"
                   [attr.title]="!card.canIncrease ? card.increaseReason : null"
                   [ariaLabel]="'Increase ' + card.name"
+                  [testId]="'skill-upgrade-' + card.id"
                   (click)="incrementSkill(card.id)"
                 >
                   +

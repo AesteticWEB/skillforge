@@ -31,6 +31,7 @@ export class HomePage {
   protected readonly xp = this.store.xp;
   protected readonly sessionQuests = this.store.sessionQuests;
   protected readonly sessionQuestBadges = SESSION_QUEST_BADGE_LABELS;
+  protected readonly quickFixContract = this.store.quickFixContract;
   protected readonly allSessionQuestsClaimed = computed(
     () =>
       this.sessionQuests().length > 0 &&
@@ -114,6 +115,10 @@ export class HomePage {
       this.openLogin();
     }
     void this.router.navigate([action.route]);
+  }
+
+  protected completeQuickFix(): void {
+    this.store.completeQuickFixContract();
   }
 
   protected setProfession(event: Event): void {

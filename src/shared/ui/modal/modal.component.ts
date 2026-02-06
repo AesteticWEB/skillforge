@@ -21,6 +21,7 @@ export class ModalComponent {
   @Input() showClose = true;
   @Input() closeOnBackdrop = true;
   @Input() closeOnEsc = true;
+  @Input() testId?: string;
   @Output() closed = new EventEmitter<void>();
 
   @HostListener('document:keydown.escape', ['$event'])

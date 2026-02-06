@@ -4,7 +4,7 @@ import { AchievementsStore } from '@/features/achievements';
 import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
-import { PROFESSION_STAGE_SKILLS, type ProfessionId } from '@/shared/config';
+import { EXAMS_BY_ID, PROFESSION_STAGE_SKILLS, type ProfessionId } from '@/shared/config';
 
 type DecisionStats = {
   debtUp: number;
@@ -19,17 +19,37 @@ type DecisionStats = {
   total: number;
 };
 
+type AnalyticsHistoryEntry = {
+  scenarioId: string;
+  decisionId: string;
+  decidedAt: string;
+  scenarioTitle: string;
+  decisionText: string;
+  effects: Record<string, number>;
+  source: 'scenario' | 'exam';
+};
+
 type SeniorArchetype = {
   id: 'optimizer' | 'firefighter' | 'diplomat' | 'pragmatist';
   title: string;
   description: string;
 };
 
+type ChartPoint = {
+  x: number;
+  y: number;
+};
+
 type TensionChart = {
   points: string;
+  areaPoints: string;
   latest: number;
   peak: number;
+  min: number;
+  max: number;
   metricLabel: string;
+  latestPoint: ChartPoint;
+  peakPoint: ChartPoint;
 };
 
 @Component({
@@ -44,8 +64,37 @@ export class AnalyticsPage {
   private readonly achievementsStore = inject(AchievementsStore);
   protected readonly isDevMode = isDevMode();
   protected readonly scenariosCount = this.store.scenariosCount;
-  protected readonly decisionCount = this.store.decisionCount;
-  protected readonly history = this.store.decisionHistoryDetailed;
+  protected readonly history = computed<AnalyticsHistoryEntry[]>(() => {
+    const decisionHistory = this.store.decisionHistoryDetailed();
+    const examHistory = this.store.examHistory();
+    const scenarioEntries = decisionHistory.map((entry) => ({
+      ...entry,
+      source: 'scenario' as const,
+    }));
+    const examEntries = examHistory.map((attempt) => {
+      const exam = EXAMS_BY_ID[attempt.examId];
+      const decidedAt = attempt.finishedAt ?? attempt.startedAt;
+      const decisionText =
+        attempt.passed === undefined
+          ? 'Экзамен завершён'
+          : attempt.passed
+            ? 'Экзамен сдан'
+            : 'Экзамен провален';
+      return {
+        scenarioId: `exam:${attempt.examId}`,
+        decisionId: attempt.attemptId,
+        decidedAt,
+        scenarioTitle: exam?.title ?? 'Экзамен',
+        decisionText,
+        effects: {},
+        source: 'exam' as const,
+      };
+    });
+    return [...scenarioEntries, ...examEntries].sort(
+      (a, b) => new Date(a.decidedAt).getTime() - new Date(b.decidedAt).getTime(),
+    );
+  });
+  protected readonly decisionCount = computed(() => this.history().length);
   protected readonly careerStage = this.store.careerStage;
   protected readonly stageLabel = this.store.stageLabel;
   protected readonly isSenior = computed(() => this.careerStage() === 'senior');
@@ -55,12 +104,16 @@ export class AnalyticsPage {
     return history
       .slice(-5)
       .reverse()
-      .map((entry) => ({
-        key: `${entry.decidedAt}-${entry.decisionId}`,
-        ...entry,
-        formattedDate: new Date(entry.decidedAt).toLocaleString(),
-        effectsText: this.formatEffects(entry.effects, skillMap),
-      }));
+      .map((entry) => {
+        const isExam = entry.source === 'exam';
+        return {
+          key: `${entry.decidedAt}-${entry.decisionId}`,
+          ...entry,
+          formattedDate: new Date(entry.decidedAt).toLocaleString(),
+          effectsText: this.formatEffects(entry.effects, skillMap),
+          sourceLabel: isExam ? 'Экзамен' : null,
+        };
+      });
   });
   protected readonly completedScenarios = this.store.completedScenarioCount;
   protected readonly topSkills = this.store.topSkillsByLevel;
@@ -153,29 +206,52 @@ export class AnalyticsPage {
     });
 
     if (values.length === 0) {
-      return { points: '', latest: 0, peak: 0, metricLabel };
+      return {
+        points: '',
+        areaPoints: '',
+        latest: 0,
+        peak: 0,
+        min: 0,
+        max: 0,
+        metricLabel,
+        latestPoint: { x: 0, y: 0 },
+        peakPoint: { x: 0, y: 0 },
+      };
     }
 
     const width = 120;
-    const height = 40;
+    const height = 44;
     const series = [0, ...values];
     const min = Math.min(...series);
     const max = Math.max(...series);
     const range = Math.max(1, max - min);
     const lastIndex = series.length - 1;
-    const points = series
-      .map((value, index) => {
-        const x = (index / lastIndex) * width;
-        const y = height - ((value - min) / range) * height;
-        return `${x.toFixed(1)},${y.toFixed(1)}`;
-      })
-      .join(' ');
+    const toPoint = (value: number, index: number): ChartPoint => {
+      const x = (index / lastIndex) * width;
+      const y = height - ((value - min) / range) * height;
+      return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+    };
+    const pointList = series.map((value, index) => {
+      const point = toPoint(value, index);
+      return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    });
+    const points = pointList.join(' ');
+    const areaPoints = `${points} ${width},${height} 0,${height}`;
+    const latestPoint = toPoint(series[lastIndex], lastIndex);
+    const peak = Math.max(...series);
+    const peakIndex = series.lastIndexOf(peak);
+    const peakPoint = toPoint(peak, peakIndex);
 
     return {
       points,
+      areaPoints,
       latest: series[series.length - 1],
-      peak: Math.max(...series),
+      peak,
+      min,
+      max,
       metricLabel,
+      latestPoint,
+      peakPoint,
     };
   });
   protected readonly seniorSummary = computed(() => {

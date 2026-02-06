@@ -15,11 +15,22 @@
     </p>
     <div class="mt-4 flex flex-wrap gap-3 text-sm text-slate-300">
       <div class="rounded-full border border-slate-800/80 bg-slate-950/40 px-3 py-1">
-        Баланс XP: <span class="font-semibold text-emerald-200">{{ totalXp() }}</span>
+        Баланс XP:
+        <span
+          class="font-semibold text-emerald-200"
+          data-testid="simulator-total-xp"
+          [attr.data-value]="totalXp()"
+          >{{ totalXp() }}</span
+        >
       </div>
       <div class="rounded-full border border-slate-800/80 bg-slate-950/40 px-3 py-1">
         Доступно для прокачки:
-        <span class="font-semibold text-emerald-200">{{ availableXp() }}</span>
+        <span
+          class="font-semibold text-emerald-200"
+          data-testid="simulator-available-xp"
+          [attr.data-value]="availableXp()"
+          >{{ availableXp() }}</span
+        >
       </div>
     </div>
     <div
@@ -70,6 +81,8 @@
             <a
               class="block rounded-2xl border border-slate-800/80 bg-slate-950/40 p-5 transition hover:border-emerald-400/50 hover:bg-slate-950/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70"
               [routerLink]="['/simulator', entry.scenario.id]"
+              data-testid="scenario-card"
+              [attr.data-scenario-id]="entry.scenario.id"
             >
               <div class="text-sm text-slate-400">Сценарий</div>
               <div class="mt-1 text-lg font-semibold text-slate-100">

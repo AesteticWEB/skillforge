@@ -57,6 +57,7 @@
                 #activeLink="routerLinkActive"
                 [attr.aria-current]="activeLink.isActive ? 'page' : null"
                 [attr.data-disabled]="null"
+                [attr.data-testid]="item.path === '/' ? 'nav-home' : 'nav-' + item.path.slice(1)"
               >
                 <span>{{ item.label }}</span>
                 <span class="text-xs text-slate-500">{{ item.meta }}</span>

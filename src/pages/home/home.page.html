@@ -2,7 +2,7 @@
   class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl flex-col items-center justify-center px-6 py-16 text-center"
 >
   @if (hasProfile()) {
-    <div class="mx-auto w-full max-w-5xl text-left">
+    <div class="mx-auto w-full max-w-5xl text-left" data-testid="home-dashboard">
       <div class="grid gap-6">
         <sf-card>
           <div class="flex flex-col gap-6">
@@ -77,6 +77,32 @@
             }
           </div>
         </sf-card>
+
+        @if (quickFixContract(); as quickFix) {
+          <sf-card>
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Safety Net
+                  </div>
+                  <div class="mt-2 text-xl font-semibold text-slate-100">
+                    {{ quickFix.title }}
+                  </div>
+                  <div class="mt-2 text-sm text-slate-300">{{ quickFix.description }}</div>
+                  <div class="mt-2 text-xs text-slate-400">
+                    Награда: +{{ quickFix.reward.coins }} coins
+                  </div>
+                </div>
+                <div class="flex items-start">
+                  <sf-button type="button" (click)="completeQuickFix()">
+                    Выполнить Quick Fix
+                  </sf-button>
+                </div>
+              </div>
+            </div>
+          </sf-card>
+        }
 
         <sf-card>
           <div class="flex flex-wrap items-start justify-between gap-4">
@@ -205,7 +231,7 @@
       </div>
     </div>
   } @else {
-    <div class="mx-auto w-full max-w-2xl grid gap-6">
+    <div class="mx-auto w-full max-w-2xl grid gap-6" data-testid="home-guest">
       <sf-card>
         @if (!isLoginOpen()) {
           <div class="mx-auto max-w-2xl">
@@ -218,8 +244,15 @@
 
             @if (!isRegistered()) {
               <div class="mt-6 flex flex-wrap justify-center gap-3">
-                <sf-button type="button" (click)="openLogin()">Начать</sf-button>
-                <sf-button variant="ghost" type="button" (click)="startOnboarding()">
+                <sf-button type="button" [testId]="'home-start'" (click)="openLogin()">
+                  Начать
+                </sf-button>
+                <sf-button
+                  variant="ghost"
+                  type="button"
+                  [testId]="'home-onboarding'"
+                  (click)="startOnboarding()"
+                >
                   Начать с нуля
                 </sf-button>
               </div>
@@ -265,6 +298,7 @@
                   placeholder="Например: neo_dev"
                   [value]="login()"
                   (valueChange)="login.set($event)"
+                  [testId]="'login-input'"
                 ></sf-input>
               </label>
               <label class="grid gap-2">
@@ -276,6 +310,7 @@
                   placeholder="Введите пароль"
                   [value]="password()"
                   (valueChange)="password.set($event)"
+                  [testId]="'password-input'"
                 ></sf-input>
               </label>
               <label class="grid gap-2">
@@ -286,6 +321,7 @@
                   class="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
                   [value]="profession()"
                   (change)="setProfession($event)"
+                  data-testid="profession-select"
                 >
                   <option value="" disabled>Выберите профессию</option>
                   @for (option of professionOptions; track option) {
@@ -296,7 +332,12 @@
             </div>
 
             <div class="mt-6 flex flex-wrap items-center gap-3">
-              <sf-button type="button" [disabled]="isLoginDisabled()" (click)="submitLogin()">
+              <sf-button
+                type="button"
+                [disabled]="isLoginDisabled()"
+                [testId]="'login-submit'"
+                (click)="submitLogin()"
+              >
                 Войти
               </sf-button>
               <sf-button variant="ghost" type="button" (click)="closeLogin()">Назад</sf-button>

@@ -6,7 +6,7 @@ import { ButtonComponent } from '@/shared/ui/button';
 import { CardComponent } from '@/shared/ui/card';
 import { EmptyStateComponent } from '@/shared/ui/empty-state';
 
-type ShopCategory = 'all' | 'computer' | 'software' | 'office' | 'security' | 'luxury';
+type ShopCategory = 'all' | 'computer' | 'software' | 'office' | 'security' | 'owned' | 'luxury';
 type NormalizedRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 type SortKey = 'price-asc' | 'price-desc' | 'rarity' | 'unowned';
 type LuxurySortKey = 'price-asc' | 'price-desc';
@@ -35,6 +35,7 @@ const CATEGORY_LABELS: Record<ShopCategory, string> = {
   software: 'Софт',
   office: 'Офис',
   security: 'Безопасность',
+  owned: 'Купленные',
   luxury: 'Люкс',
 };
 
@@ -91,6 +92,7 @@ export class ShopPage {
     'software',
     'office',
     'security',
+    'owned',
   ];
   protected readonly tabs: ShopTab[] = ['items', 'luxury'];
   protected readonly sortOptions = SORT_OPTIONS;
@@ -113,7 +115,11 @@ export class ShopPage {
       (item) => this.buildItemView(item, ownedIds, { coins, cash, companyUnlocked }),
     );
     const filtered =
-      category === 'all' ? prepared : prepared.filter((item) => item.category === category);
+      category === 'all'
+        ? prepared
+        : category === 'owned'
+          ? prepared.filter((item) => item.isOwned)
+          : prepared.filter((item) => item.category === category);
 
     const sorted = [...filtered];
     sorted.sort((left, right) => this.compareItems(left, right, sortKey));
