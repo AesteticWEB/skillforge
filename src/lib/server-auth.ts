@@ -5,7 +5,7 @@ import type { SessionPayload } from "@/lib/auth";
 
 const SESSION_COOKIE = "sf_session";
 
-export const requireAdmin = async (): Promise<
+export const requireSession = async (): Promise<
   | { ok: true; session: SessionPayload }
   | { ok: false; response: NextResponse }
 > => {
@@ -24,6 +24,18 @@ export const requireAdmin = async (): Promise<
       response: NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 }),
     };
   }
+  return { ok: true, session };
+};
+
+export const requireAdmin = async (): Promise<
+  | { ok: true; session: SessionPayload }
+  | { ok: false; response: NextResponse }
+> => {
+  const guard = await requireSession();
+  if (!guard.ok) {
+    return guard;
+  }
+  const { session } = guard;
   if (session.role !== "admin") {
     return {
       ok: false,

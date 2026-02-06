@@ -7,10 +7,12 @@ const SESSION_COOKIE = "sf_session";
 const isAdminRoute = (pathname: string) =>
   pathname.startsWith("/admin") || pathname.startsWith("/debug");
 
+const isProtectedRoute = (pathname: string) => pathname.startsWith("/account");
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (!isAdminRoute(pathname)) {
+  if (!isAdminRoute(pathname) && !isProtectedRoute(pathname)) {
     return NextResponse.next();
   }
 
@@ -29,7 +31,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (session.role !== "admin") {
+  if (isAdminRoute(pathname) && session.role !== "admin") {
     return new NextResponse("Forbidden", { status: 403 });
   }
 
@@ -37,5 +39,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/debug/:path*"],
+  matcher: ["/admin/:path*", "/debug/:path*", "/account/:path*"],
 };
