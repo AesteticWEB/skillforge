@@ -1,30 +1,19 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
-import { verifySessionToken } from "@/lib/auth";
+import { requireSession } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
-const SESSION_COOKIE = "sf_session";
 const MAX_STATE_BYTES = 1024 * 1024;
 
-const getSession = async () => {
-  const token = cookies().get(SESSION_COOKIE)?.value;
-  if (!token) {
-    return null;
-  }
-  const secret = process.env.SESSION_SECRET || "dev-secret";
-  return verifySessionToken(token, secret);
-};
-
 export async function GET() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const guard = await requireSession();
+  if (!guard.ok) {
+    return guard.response;
   }
 
   const progress = await prisma.userProgress.findUnique({
-    where: { userId: session.sub },
+    where: { userId: guard.session.sub },
   });
 
   return NextResponse.json({
@@ -34,9 +23,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const guard = await requireSession();
+  if (!guard.ok) {
+    return guard.response;
   }
 
   const body = await request.json().catch(() => null);
@@ -54,9 +43,9 @@ export async function POST(request: Request) {
   }
 
   await prisma.userProgress.upsert({
-    where: { userId: session.sub },
+    where: { userId: guard.session.sub },
     update: { stateJson },
-    create: { userId: session.sub, stateJson },
+    create: { userId: guard.session.sub, stateJson },
   });
 
   return NextResponse.json({ ok: true });

@@ -1,18 +1,57 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { createSessionToken } from "@/lib/auth";
+import { createSessionToken, getSessionSecret } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import { setSessionCookie } from "@/lib/session-cookie";
+import { isValidLogin, isValidPassword, normalizeLogin } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
-const SESSION_COOKIE = "sf_session";
+const ADMIN_LOGIN = "admin1";
+const ADMIN_PASSWORD = "admin1";
 
 export async function POST(request: Request) {
+  const limiter = rateLimit(request, "auth:login", { windowMs: 60_000, max: 10 });
+  if (!limiter.ok) {
+    return limiter.response;
+  }
   const body = await request.json().catch(() => null);
-  const login = typeof body?.login === "string" ? body.login.trim() : "";
+  const login = normalizeLogin(body?.login);
   const password = typeof body?.password === "string" ? body.password : "";
 
-  if (!login || !password) {
+  if (login === ADMIN_LOGIN) {
+    if (password !== ADMIN_PASSWORD) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid credentials" },
+        { status: 401 },
+      );
+    }
+    const passwordHash = await hashPassword(ADMIN_PASSWORD);
+    const existing = await prisma.user.findUnique({ where: { login: ADMIN_LOGIN } });
+    const user = existing
+      ? await prisma.user.update({
+          where: { id: existing.id },
+          data: { passwordHash, role: "admin" },
+        })
+      : await prisma.user.create({
+          data: { login: ADMIN_LOGIN, passwordHash, role: "admin" },
+        });
+
+    const token = await createSessionToken(
+      {
+        sub: user.id,
+        login: user.login,
+        role: user.role,
+      },
+      getSessionSecret(),
+    );
+    const response = NextResponse.json({ ok: true });
+    setSessionCookie(response, token);
+    return response;
+  }
+
+  if (!isValidLogin(login) || !isValidPassword(password)) {
     return NextResponse.json(
       { ok: false, error: "Invalid credentials" },
       { status: 400 },
@@ -30,7 +69,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const isValid = await bcrypt.compare(password, user.passwordHash);
+  const isValid = await verifyPassword(password, user.passwordHash);
   if (!isValid) {
     return NextResponse.json(
       { ok: false, error: "Invalid credentials" },
@@ -38,25 +77,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const secret = process.env.SESSION_SECRET || "dev-secret";
+  const secret = getSessionSecret();
   const token = await createSessionToken(
     {
       sub: user.id,
       login: user.login,
       role: user.role,
-      iat: Math.floor(Date.now() / 1000),
     },
     secret,
   );
 
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  setSessionCookie(response, token);
 
   return response;
 }

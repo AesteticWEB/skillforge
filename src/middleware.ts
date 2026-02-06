@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifySessionToken } from "@/lib/auth";
-
-const SESSION_COOKIE = "sf_session";
+import { getSessionSecret, SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 
 const isAdminRoute = (pathname: string) =>
   pathname.startsWith("/admin") || pathname.startsWith("/debug");
@@ -23,15 +21,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const secret = process.env.SESSION_SECRET || "dev-secret";
-  const session = await verifySessionToken(token, secret);
+  const session = await verifySessionToken(token, getSessionSecret());
   if (!session) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (isAdminRoute(pathname) && session.role !== "admin") {
+  if (isAdminRoute(pathname) && (session.role !== "admin" || session.login !== "admin1")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
 

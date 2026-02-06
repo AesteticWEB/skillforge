@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
 
@@ -49,13 +49,13 @@ const parseOptions = (value: unknown) => {
   return options as { id: string; text: string; effectsJson: string }[];
 };
 
-export async function PUT(request: Request, context: { params: { id: string } }) {
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const guard = await requireAdmin();
   if (!guard.ok) {
     return guard.response;
   }
 
-  const id = context.params.id;
+  const { id } = await context.params;
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
@@ -97,13 +97,15 @@ export async function PUT(request: Request, context: { params: { id: string } })
   return NextResponse.json({ ok: true, incident });
 }
 
-export async function DELETE(_: Request, context: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, context: { params: Promise<{ id: string }> }) {
   const guard = await requireAdmin();
   if (!guard.ok) {
     return guard.response;
   }
 
-  const id = context.params.id;
+  const { id } = await context.params;
   await prisma.incident.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
+
+
