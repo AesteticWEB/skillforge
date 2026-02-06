@@ -5,6 +5,7 @@ import { Skill } from '@/entities/skill';
 import { calcScenarioReward } from '@/entities/rewards';
 import { calcStreakMultiplier } from '@/entities/streak';
 import { NotificationsStore } from '@/features/notifications';
+import { ContentApi } from '@/shared/api/content/content.api';
 import { ScenariosApi } from '@/shared/api/scenarios/scenarios.api';
 import { SkillsApi } from '@/shared/api/skills/skills.api';
 import { BALANCE, SHOP_ITEMS } from '@/shared/config';
@@ -26,6 +27,16 @@ const createStore = (skills: Skill[], scenarios: Scenario[]): AppStore => {
         provide: ScenariosApi,
         useValue: {
           getScenarios: () => of(scenarios),
+        },
+      },
+      {
+        provide: ContentApi,
+        useValue: {
+          getItems: () => of(SHOP_ITEMS),
+          getExams: () => of([]),
+          getQuestions: () => of([]),
+          getIncidents: () => of([]),
+          getQuickFixes: () => of([]),
         },
       },
     ],
