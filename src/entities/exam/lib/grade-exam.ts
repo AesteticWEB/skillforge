@@ -1,5 +1,6 @@
 import type { ExamAnswer, ExamConfig, ExamQuestion, ExamSession } from '../model/exam.model';
 import { isMultiChoiceCorrect, isOrderingCorrect } from './exam-helpers';
+import { resolveExamQuestionForSession } from './resolve-session-question';
 
 type GradeExamParams = {
   exam: ExamConfig;
@@ -54,8 +55,9 @@ export const gradeExam = ({
       continue;
     }
 
+    const resolvedQuestion = resolveExamQuestionForSession(question, session.seed);
     const answer = answers[questionId];
-    if (isAnswerCorrect(question, answer)) {
+    if (isAnswerCorrect(resolvedQuestion, answer)) {
       correctCount += 1;
     }
   }

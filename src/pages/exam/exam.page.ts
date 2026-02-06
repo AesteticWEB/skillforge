@@ -16,6 +16,7 @@ import {
   gradeExam,
   isMultiChoiceCorrect,
   isOrderingCorrect,
+  resolveExamQuestionForSession,
 } from '@/entities/exam';
 import { calcExamReward } from '@/entities/rewards';
 import { calcStreakMultiplier } from '@/entities/streak';
@@ -146,7 +147,15 @@ export class ExamPage implements OnDestroy {
   });
   protected readonly currentQuestion = computed<ExamQuestion | null>(() => {
     const id = this.currentQuestionId();
-    return id ? (EXAM_QUESTIONS_BY_ID[id] ?? null) : null;
+    const run = this.activeRun();
+    if (!id) {
+      return null;
+    }
+    const question = EXAM_QUESTIONS_BY_ID[id] ?? null;
+    if (!question || !run) {
+      return question;
+    }
+    return resolveExamQuestionForSession(question, run.session.seed);
   });
   protected readonly currentAnswer = computed<ExamAnswer | null>(() => {
     const run = this.activeRun();
