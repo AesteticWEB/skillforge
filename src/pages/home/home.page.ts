@@ -21,9 +21,12 @@ export class HomePage {
   private readonly router = inject(Router);
 
   protected readonly isLoginOpen = signal(false);
+  protected readonly authMode = signal<'register' | 'login'>('register');
   protected readonly login = signal('');
   protected readonly password = signal('');
   protected readonly profession = signal('');
+  protected readonly authError = signal<string | null>(null);
+  protected readonly authSubmitting = signal(false);
   protected readonly professionOptions = PROFESSION_OPTIONS;
   protected readonly hasProfile = this.store.hasProfile;
   protected readonly isRegistered = this.store.isRegistered;
@@ -73,36 +76,58 @@ export class HomePage {
   });
   protected readonly loginBlockReason = computed(() => {
     if (this.login().trim().length === 0) {
-      return 'Введите логин';
+      return '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043B\u043E\u0433\u0438\u043D';
     }
     if (this.password().trim().length === 0) {
-      return 'Введите пароль';
+      return '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C';
     }
-    if (this.profession().trim().length === 0) {
-      return 'Выберите профессию';
+    if (this.authMode() === 'register' && this.profession().trim().length === 0) {
+      return '\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u044E';
     }
     return null;
   });
-  protected readonly isLoginDisabled = computed(() => this.loginBlockReason() !== null);
+  protected readonly isLoginDisabled = computed(
+    () => this.loginBlockReason() !== null || this.authSubmitting(),
+  );
 
-  protected openLogin(): void {
+  protected openLogin(mode: 'register' | 'login' = 'register'): void {
+    this.authMode.set(mode);
+    this.authError.set(null);
     this.isLoginOpen.set(true);
   }
 
   protected closeLogin(): void {
     this.isLoginOpen.set(false);
+    this.authError.set(null);
   }
 
-  protected submitLogin(): void {
+  protected async submitLogin(): Promise<void> {
     if (this.isLoginDisabled()) {
       return;
     }
+    this.authError.set(null);
+    this.authSubmitting.set(true);
 
-    const registered = this.store.register(this.login(), this.password(), this.profession());
-    if (registered) {
+    const result =
+      this.authMode() === 'register'
+        ? await this.store.registerRemote(this.login(), this.password(), this.profession())
+        : await this.store.loginRemote(this.login(), this.password());
+
+    this.authSubmitting.set(false);
+    if (result.ok) {
       this.password.set('');
       this.isLoginOpen.set(false);
+      const action = this.nextAction();
+      if (action?.route) {
+        void this.router.navigateByUrl(action.route);
+      }
+      return;
     }
+    const fallback =
+      this.authMode() === 'register'
+        ? '\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u0430\u043A\u043A\u0430\u0443\u043D\u0442'
+        : '\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043B\u043E\u0433\u0438\u043D \u0438\u043B\u0438 \u043F\u0430\u0440\u043E\u043B\u044C';
+    this.authError.set(result.error ?? fallback);
   }
 
   protected startOnboarding(): void {
@@ -112,7 +137,7 @@ export class HomePage {
   protected goToNextAction(): void {
     const action = this.nextAction();
     if (!this.isRegistered() && action.id === 'create-profile') {
-      this.openLogin();
+      this.openLogin('register');
     }
     void this.router.navigate([action.route]);
   }

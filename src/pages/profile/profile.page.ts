@@ -256,28 +256,71 @@ export class ProfilePage {
   protected readonly currentPassword = signal('');
   protected readonly newPassword = signal('');
   protected readonly repeatPassword = signal('');
+  protected readonly passwordSubmitting = signal(false);
   protected readonly passwordBlockReason = computed(() => {
-    if (this.newPassword().trim().length < 6) {
-      return 'Минимум 6 символов';
+    if (this.currentPassword().trim().length === 0) {
+      return '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0442\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c';
+    }
+    if (this.newPassword().trim().length < 8) {
+      return '\u041c\u0438\u043d\u0438\u043c\u0443\u043c 8 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432';
     }
     if (this.newPassword() !== this.repeatPassword()) {
-      return 'Пароли не совпадают';
+      return '\u041f\u0430\u0440\u043e\u043b\u0438 \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442';
     }
     return null;
   });
-  protected readonly isPasswordDisabled = computed(() => this.passwordBlockReason() !== null);
+  protected readonly isPasswordDisabled = computed(
+    () => this.passwordBlockReason() !== null || this.passwordSubmitting(),
+  );
 
-  protected changePassword(): void {
+  protected async changePassword(): Promise<void> {
     if (this.isPasswordDisabled()) {
       return;
     }
+    if (typeof fetch !== 'function') {
+      this.notifications.error(
+        '\u041d\u0435\u0442 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u044f \u043a \u0441\u0435\u0440\u0432\u0435\u0440\u0443.',
+      );
+      return;
+    }
 
-    this.currentPassword.set('');
-    this.newPassword.set('');
-    this.repeatPassword.set('');
-    this.notifications.success('Пароль обновлён.');
+    this.passwordSubmitting.set(true);
+    try {
+      const response = await fetch('/api/account/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: this.currentPassword(),
+          newPassword: this.newPassword(),
+          confirm: this.repeatPassword(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        const message =
+          typeof data?.error === 'string'
+            ? data.error
+            : '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c.';
+        this.notifications.error(message);
+        return;
+      }
+
+      this.currentPassword.set('');
+      this.newPassword.set('');
+      this.repeatPassword.set('');
+      this.notifications.success(
+        '\u041f\u0430\u0440\u043e\u043b\u044c \u043e\u0431\u043d\u043e\u0432\u043b\u0451\u043d.',
+      );
+    } catch {
+      this.notifications.error(
+        '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c.',
+      );
+    } finally {
+      this.passwordSubmitting.set(false);
+    }
   }
-
   protected advanceStage(): void {
     this.store.advanceSkillStage();
   }

@@ -26,6 +26,7 @@ export class SkillsPage {
   protected readonly stageScenarioProgress = this.store.stageScenarioProgress;
   protected readonly nextStageLabel = this.store.nextStageLabel;
   protected readonly canAdvanceStage = this.store.canAdvanceSkillStage;
+  protected readonly stagePromotionGate = this.store.stagePromotionGate;
   protected readonly stagePromotionReasons = this.store.stagePromotionReasons;
   protected readonly stageSkills = this.store.stageSkills;
   protected readonly selectedCategory = signal<string>('Все');

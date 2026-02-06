@@ -27,8 +27,6 @@ export const applyDecisionEffects = (
       }
       continue;
     }
-
-    // Skill effects from scenarios are ignored; skill progression is manual only.
   }
 
   return {

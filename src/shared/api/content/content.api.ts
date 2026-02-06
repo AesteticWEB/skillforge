@@ -11,7 +11,7 @@ import type {
 } from '@/entities/incidents';
 import type {
   ShopItem,
-  ShopItemCategory,
+  ShopCategory,
   ShopItemCurrency,
   ShopItemEffect,
   ShopItemRarity,
@@ -222,7 +222,7 @@ const normalizeRarity = (value: string | null | undefined): ShopItemRarity => {
   return 'common';
 };
 
-const normalizeCategory = (value: unknown): ShopItemCategory | null => {
+const normalizeCategory = (value: unknown): ShopCategory | null => {
   if (typeof value !== 'string') {
     return null;
   }
@@ -239,7 +239,7 @@ const normalizeCategory = (value: unknown): ShopItemCategory | null => {
     'security',
     'luxury',
   ] as const;
-  return allowed.includes(value as ShopItemCategory) ? (value as ShopItemCategory) : null;
+  return allowed.includes(value as ShopCategory) ? (value as ShopCategory) : null;
 };
 
 const normalizeCurrency = (value: unknown): ShopItemCurrency | null => {
@@ -252,22 +252,22 @@ const normalizeCurrency = (value: unknown): ShopItemCurrency | null => {
 const mapItemPayload = (payload: ContentItemPayload): ShopItem => {
   const raw = parseJsonObject(payload.effectsJson);
   const effects: ShopItemEffect = {
-    reputation: toNumber(raw.reputation, 0) || undefined,
-    techDebt: toNumber(raw.techDebt, 0) || undefined,
-    coins: toNumber(raw.coins, 0) || undefined,
-    cash: toNumber(raw.cash, 0) || undefined,
-    xp: toNumber(raw.xp, 0) || undefined,
+    reputation: toNumber(raw['reputation'], 0) || undefined,
+    techDebt: toNumber(raw['techDebt'], 0) || undefined,
+    coins: toNumber(raw['coins'], 0) || undefined,
+    cash: toNumber(raw['cash'], 0) || undefined,
+    xp: toNumber(raw['xp'], 0) || undefined,
   };
   const normalizedEffects = Object.fromEntries(
     Object.entries(effects).filter(([, value]) => typeof value === 'number' && value !== 0),
   ) as ShopItemEffect;
 
   const currency =
-    normalizeCurrency(raw.currency) ??
+    normalizeCurrency(raw['currency']) ??
     (payload.priceCash && payload.priceCash > 0 ? 'cash' : 'coins');
   const price = currency === 'cash' ? (payload.priceCash ?? 0) : (payload.priceCoins ?? 0);
   const category =
-    normalizeCategory(raw.category) ?? (currency === 'cash' ? 'luxury' : 'productivity');
+    normalizeCategory(raw['category']) ?? (currency === 'cash' ? 'luxury' : 'productivity');
 
   return {
     id: payload.id,
@@ -378,10 +378,10 @@ const normalizeIncidentSeverity = (value: string | null | undefined): IncidentSe
 };
 
 const mapIncidentEffects = (raw: Record<string, unknown>): IncidentDecisionEffects => ({
-  cashDelta: toNumber(raw.cashDelta, 0),
-  reputationDelta: toNumber(raw.reputationDelta, 0),
-  techDebtDelta: toNumber(raw.techDebtDelta, 0),
-  moraleDelta: toNumber(raw.moraleDelta, 0),
+  cashDelta: toNumber(raw['cashDelta'], 0),
+  reputationDelta: toNumber(raw['reputationDelta'], 0),
+  techDebtDelta: toNumber(raw['techDebtDelta'], 0),
+  moraleDelta: toNumber(raw['moraleDelta'], 0),
 });
 
 const mapIncidentPayload = (payload: ContentIncidentPayload): IncidentTemplate | null => {

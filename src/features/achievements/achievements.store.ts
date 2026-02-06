@@ -211,7 +211,7 @@ export class AchievementsStore {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
-      // ignore storage issues
+      void 0;
     }
   }
 

@@ -24,7 +24,7 @@
       <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">
         <div class="text-xs uppercase tracking-wide text-slate-500">Профессия</div>
         <div class="mt-1 text-sm font-semibold text-slate-100">
-          {{ auth().profession || '—' }}
+          {{ auth().profession || user().role || '—' }}
         </div>
       </div>
       <div class="rounded-xl border border-slate-800/80 bg-slate-950/40 px-4 py-3">

@@ -284,52 +284,86 @@
           </div>
         } @else {
           <div class="mx-auto max-w-2xl text-left">
-            <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">Вход в игру</h2>
-            <p class="mt-3 text-base text-slate-300 sm:text-lg">
-              Симулятор прокачки и решений. Войди, чтобы начать путь.
-            </p>
+            @if (authMode() === 'register') {
+              <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+                &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x0442;&#x044C;
+                &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;
+              </h2>
+              <p class="mt-3 text-base text-slate-300 sm:text-lg">
+                &#x0417;&#x0430;&#x043F;&#x043E;&#x043B;&#x043D;&#x0438;
+                &#x043B;&#x043E;&#x0433;&#x0438;&#x043D;,
+                &#x043F;&#x0430;&#x0440;&#x043E;&#x043B;&#x044C; &#x0438;
+                &#x043F;&#x0440;&#x043E;&#x0444;&#x0435;&#x0441;&#x0441;&#x0438;&#x044E;,
+                &#x0447;&#x0442;&#x043E;&#x0431;&#x044B;
+                &#x043D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;.
+              </p>
+            } @else {
+              <h2 class="text-3xl font-semibold tracking-tight sm:text-4xl">
+                &#x0412;&#x0445;&#x043E;&#x0434; &#x0432; &#x0438;&#x0433;&#x0440;&#x0443;
+              </h2>
+              <p class="mt-3 text-base text-slate-300 sm:text-lg">
+                &#x0421;&#x0438;&#x043C;&#x0443;&#x043B;&#x044F;&#x0442;&#x043E;&#x0440;
+                &#x043F;&#x0440;&#x043E;&#x043A;&#x0430;&#x0447;&#x043A;&#x0438; &#x0438;
+                &#x0440;&#x0435;&#x0448;&#x0435;&#x043D;&#x0438;&#x0439;.
+                &#x0412;&#x043E;&#x0439;&#x0434;&#x0438;, &#x0447;&#x0442;&#x043E;&#x0431;&#x044B;
+                &#x043D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x043F;&#x0443;&#x0442;&#x044C;.
+              </p>
+            }
 
             <div class="mt-6 grid gap-4">
               <label class="grid gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                  >Логин</span
-                >
+                <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  &#x041B;&#x043E;&#x0433;&#x0438;&#x043D;
+                </span>
                 <sf-input
-                  placeholder="Например: neo_dev"
+                  placeholder="&#x041D;&#x0430;&#x043F;&#x0440;&#x0438;&#x043C;&#x0435;&#x0440;: neo_dev"
                   [value]="login()"
                   (valueChange)="login.set($event)"
                   [testId]="'login-input'"
                 ></sf-input>
               </label>
               <label class="grid gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wide text-slate-400"
-                  >Пароль</span
-                >
+                <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  &#x041F;&#x0430;&#x0440;&#x043E;&#x043B;&#x044C;
+                </span>
                 <sf-input
                   type="password"
-                  placeholder="Введите пароль"
+                  placeholder="&#x0412;&#x0432;&#x0435;&#x0434;&#x0438;&#x0442;&#x0435; &#x043F;&#x0430;&#x0440;&#x043E;&#x043B;&#x044C;"
                   [value]="password()"
                   (valueChange)="password.set($event)"
                   [testId]="'password-input'"
                 ></sf-input>
               </label>
-              <label class="grid gap-2">
-                <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Профессия
-                </span>
-                <select
-                  class="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
-                  [value]="profession()"
-                  (change)="setProfession($event)"
-                  data-testid="profession-select"
-                >
-                  <option value="" disabled>Выберите профессию</option>
-                  @for (option of professionOptions; track option) {
-                    <option [value]="option">{{ option }}</option>
-                  }
-                </select>
-              </label>
+              @if (authMode() === 'register') {
+                <label class="grid gap-2">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    &#x041F;&#x0440;&#x043E;&#x0444;&#x0435;&#x0441;&#x0441;&#x0438;&#x044F;
+                  </span>
+                  <select
+                    class="w-full rounded-xl border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400/70 focus:outline-none focus:ring-2 focus:ring-emerald-400/20"
+                    [value]="profession()"
+                    (change)="setProfession($event)"
+                    data-testid="profession-select"
+                  >
+                    <option value="" disabled>
+                      &#x0412;&#x044B;&#x0431;&#x0435;&#x0440;&#x0438;&#x0442;&#x0435;
+                      &#x043F;&#x0440;&#x043E;&#x0444;&#x0435;&#x0441;&#x0441;&#x0438;&#x044E;
+                    </option>
+                    @for (option of professionOptions; track option) {
+                      <option [value]="option">{{ option }}</option>
+                    }
+                  </select>
+                </label>
+              }
             </div>
+
+            @if (authError(); as error) {
+              <div
+                class="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
+              >
+                {{ error }}
+              </div>
+            }
 
             <div class="mt-6 flex flex-wrap items-center gap-3">
               <sf-button
@@ -338,9 +372,24 @@
                 [testId]="'login-submit'"
                 (click)="submitLogin()"
               >
-                Войти
+                @if (authMode() === 'register') {
+                  @if (authSubmitting()) {
+                    &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x043D;&#x0438;&#x0435;...
+                  } @else {
+                    &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x0442;&#x044C;
+                    &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;
+                  }
+                } @else {
+                  @if (authSubmitting()) {
+                    &#x0412;&#x0445;&#x043E;&#x0434;...
+                  } @else {
+                    &#x0412;&#x043E;&#x0439;&#x0442;&#x0438;
+                  }
+                }
               </sf-button>
-              <sf-button variant="ghost" type="button" (click)="closeLogin()">Назад</sf-button>
+              <sf-button variant="ghost" type="button" (click)="closeLogin()">
+                &#x041D;&#x0430;&#x0437;&#x0430;&#x0434;
+              </sf-button>
               @if (loginBlockReason(); as reason) {
                 <div class="text-xs text-slate-400">{{ reason }}</div>
               }
@@ -353,18 +402,64 @@
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div class="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Что дальше
+                &#x0427;&#x0442;&#x043E; &#x0434;&#x0430;&#x043B;&#x044C;&#x0448;&#x0435;
               </div>
-              <div class="mt-2 text-xl font-semibold text-slate-100">{{ nextAction().title }}</div>
-              <div class="mt-2 text-sm text-slate-300">{{ nextAction().description }}</div>
+              @if (authMode() === 'login') {
+                <div class="mt-2 text-xl font-semibold text-slate-100">
+                  &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x0442;&#x044C;
+                  &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;
+                </div>
+                <div class="mt-2 text-sm text-slate-300">
+                  &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x0439;
+                  &#x043D;&#x043E;&#x0432;&#x044B;&#x0439;
+                  &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;,
+                  &#x0447;&#x0442;&#x043E;&#x0431;&#x044B;
+                  &#x043D;&#x0430;&#x0447;&#x0430;&#x0442;&#x044C; &#x0438;&#x0433;&#x0440;&#x0443;
+                  &#x0438; &#x0441;&#x043E;&#x0445;&#x0440;&#x0430;&#x043D;&#x044F;&#x0442;&#x044C;
+                  &#x043F;&#x0440;&#x043E;&#x0433;&#x0440;&#x0435;&#x0441;&#x0441;.
+                </div>
+              } @else {
+                <div class="mt-2 text-xl font-semibold text-slate-100">
+                  &#x0412;&#x043E;&#x0439;&#x0442;&#x0438; &#x0432;
+                  &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;
+                </div>
+                <div class="mt-2 text-sm text-slate-300">
+                  &#x0415;&#x0441;&#x043B;&#x0438;
+                  &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442; &#x0443;&#x0436;&#x0435;
+                  &#x0441;&#x043E;&#x0437;&#x0434;&#x0430;&#x043D;,
+                  &#x0432;&#x043E;&#x0439;&#x0434;&#x0438;&#x0442;&#x0435;,
+                  &#x0447;&#x0442;&#x043E;&#x0431;&#x044B;
+                  &#x043F;&#x0440;&#x043E;&#x0434;&#x043E;&#x043B;&#x0436;&#x0438;&#x0442;&#x044C;
+                  &#x043F;&#x0440;&#x043E;&#x0433;&#x0440;&#x0435;&#x0441;&#x0441;.
+                </div>
+              }
             </div>
             <div class="flex items-start">
-              <sf-button type="button" (click)="goToNextAction()">Перейти</sf-button>
+              @if (authMode() === 'login') {
+                <sf-button type="button" (click)="openLogin('register')">
+                  &#x0421;&#x043E;&#x0437;&#x0434;&#x0430;&#x0442;&#x044C;
+                  &#x0430;&#x043A;&#x043A;&#x0430;&#x0443;&#x043D;&#x0442;
+                </sf-button>
+              } @else {
+                <sf-button type="button" (click)="openLogin('login')">
+                  &#x0412;&#x043E;&#x0439;&#x0442;&#x0438;
+                </sf-button>
+              }
             </div>
           </div>
-          @if (nextAction().reason) {
-            <div class="text-xs text-slate-400">Почему: {{ nextAction().reason }}</div>
-          }
+          <div class="text-xs text-slate-400">
+            @if (authMode() === 'login') {
+              &#x041F;&#x043E;&#x0447;&#x0435;&#x043C;&#x0443;: &#x0431;&#x0435;&#x0437;
+              &#x0440;&#x0435;&#x0433;&#x0438;&#x0441;&#x0442;&#x0440;&#x0430;&#x0446;&#x0438;&#x0438;
+              &#x043F;&#x0440;&#x043E;&#x0433;&#x0440;&#x0435;&#x0441;&#x0441; &#x043D;&#x0435;
+              &#x0441;&#x043E;&#x0445;&#x0440;&#x0430;&#x043D;&#x0438;&#x0442;&#x0441;&#x044F;.
+            } @else {
+              &#x041F;&#x043E;&#x0447;&#x0435;&#x043C;&#x0443;: &#x0431;&#x0435;&#x0437;
+              &#x0432;&#x0445;&#x043E;&#x0434;&#x0430;
+              &#x043F;&#x0440;&#x043E;&#x0433;&#x0440;&#x0435;&#x0441;&#x0441; &#x043D;&#x0435;
+              &#x043F;&#x043E;&#x0434;&#x0442;&#x044F;&#x043D;&#x0435;&#x0442;&#x0441;&#x044F;.
+            }
+          </div>
         </div>
       </sf-card>
     </div>

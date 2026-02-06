@@ -47,15 +47,24 @@
       </div>
       <div class="flex flex-col items-start gap-2">
         @if (nextStageLabel(); as nextLabel) {
-          <sf-button type="button" [disabled]="!canAdvanceStage()" (click)="advanceStage()">
-            Перейти к этапу {{ nextLabel }}
-          </sf-button>
-          @if (!canAdvanceStage() && stagePromotionReasons().length > 0) {
-            <div class="flex flex-col gap-1 text-xs text-amber-200">
-              @for (reason of stagePromotionReasons(); track reason) {
-                <span>{{ reason }}</span>
-              }
-            </div>
+          @if (stagePromotionGate(); as gate) {
+            <sf-button
+              type="button"
+              [disabled]="!canAdvanceStage() || !gate.ok"
+              (click)="advanceStage()"
+            >
+              &#x041F;&#x0435;&#x0440;&#x0435;&#x0439;&#x0442;&#x0438; &#x043A;
+              &#x044D;&#x0442;&#x0430;&#x043F;&#x0443; {{ nextLabel }}
+            </sf-button>
+            @if (!gate.ok) {
+              <div class="text-xs text-amber-200">{{ gate.reason }}</div>
+            } @else if (!canAdvanceStage() && stagePromotionReasons().length > 0) {
+              <div class="flex flex-col gap-1 text-xs text-amber-200">
+                @for (reason of stagePromotionReasons(); track reason) {
+                  <span>{{ reason }}</span>
+                }
+              </div>
+            }
           }
         } @else {
           <div class="text-xs font-semibold uppercase tracking-wide text-emerald-300">

@@ -239,25 +239,25 @@ const EXAM_PROFESSION_IDS = [
 type ExamProfessionId = (typeof EXAM_PROFESSION_IDS)[number];
 
 const EXAM_PROFESSION_LABELS: Record<ExamProfessionId, string> = {
-  frontend: 'Фронтенд',
-  backend: 'Бэкенд',
-  fullstack: 'Фуллстек',
-  mobile: 'Мобайл',
-  qa: 'Тестирование (QA)',
+  frontend: '\u0424\u0440\u043e\u043d\u0442\u0435\u043d\u0434',
+  backend: '\u0411\u044d\u043a\u0435\u043d\u0434',
+  fullstack: '\u0424\u0443\u043b\u043b\u0441\u0442\u0435\u043a',
+  mobile: '\u041c\u043e\u0431\u0430\u0439\u043b',
+  qa: '\u0422\u0435\u0441\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 (QA)',
   devops: 'DevOps / SRE',
-  'data-engineer': 'Дата-инженер',
-  'data-scientist-ml': 'Дата-сайентист / ML',
-  security: 'Безопасность',
-  gamedev: 'Геймдев',
+  'data-engineer': '\u0414\u0430\u0442\u0430-\u0438\u043d\u0436\u0435\u043d\u0435\u0440',
+  'data-scientist-ml':
+    '\u0414\u0430\u0442\u0430-\u0441\u0430\u0439\u0435\u043d\u0442\u0438\u0441\u0442 / ML',
+  security: '\u0411\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c',
+  gamedev: '\u0413\u0435\u0439\u043c\u0434\u0435\u0432',
 };
 
 const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
-  internship: 'Стажировка',
-  junior: 'Джуниор',
-  middle: 'Миддл',
-  senior: 'Сеньор',
+  internship: '\u0421\u0442\u0430\u0436\u0438\u0440\u043e\u0432\u043a\u0430',
+  junior: '\u0414\u0436\u0443\u043d\u0438\u043e\u0440',
+  middle: '\u041c\u0438\u0434\u0434\u043b',
+  senior: '\u0421\u0435\u043d\u044c\u043e\u0440',
 };
-
 const createEmptyAuth = (): AuthState => ({
   login: '',
   profession: '',
@@ -265,7 +265,7 @@ const createEmptyAuth = (): AuthState => ({
 });
 
 const createEmptyUser = (): User => ({
-  role: 'Без роли',
+  role: '\\u0411\\u0435\\u0437 \\u0440\\u043e\\u043b\\u0438',
   goals: [],
   startDate: new Date().toISOString().slice(0, 10),
   isProfileComplete: false,
@@ -507,7 +507,9 @@ export class AppStore {
     }
     const reasons: string[] = [];
     if (status.skills.completed < status.skills.total) {
-      reasons.push('Прокачай все 4 навыка этапа до максимума');
+      reasons.push(
+        '\\u041f\\u0440\\u043e\\u043a\\u0430\\u0447\\u0430\\u0439 \\u0432\\u0441\\u0435 4 \\u043d\\u0430\\u0432\\u044b\\u043a\\u0430 \\u044d\\u0442\\u0430\\u043f\\u0430 \\u0434\\u043e \\u043c\\u0430\\u043a\\u0441\\u0438\\u043c\\u0443\\u043c\\u0430',
+      );
     }
     return reasons;
   });
@@ -613,8 +615,12 @@ export class AppStore {
 
       return {
         ...entry,
-        scenarioTitle: scenario?.title ?? 'Неизвестный сценарий',
-        decisionText: decision?.text ?? 'Неизвестное решение',
+        scenarioTitle:
+          scenario?.title ??
+          '\u041d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b\u0439 \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0439',
+        decisionText:
+          decision?.text ??
+          '\u041d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e\u0435 \u0440\u0435\u0448\u0435\u043d\u0438\u0435',
         effects: decision?.effects ?? {},
       };
     });
@@ -718,7 +724,9 @@ export class AppStore {
         this._skillsLoading.set(false);
       },
       error: () => {
-        this._skillsError.set('Не удалось загрузить навыки.');
+        this._skillsError.set(
+          '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043d\u0430\u0432\u044b\u043a\u0438.',
+        );
         this._skills.set([]);
         this._skillsLoading.set(false);
       },
@@ -730,7 +738,9 @@ export class AppStore {
         this._scenariosLoading.set(false);
       },
       error: () => {
-        this._scenariosError.set('Не удалось загрузить сценарии.');
+        this._scenariosError.set(
+          '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438.',
+        );
         this._scenarios.set([]);
         this._scenariosLoading.set(false);
       },
@@ -888,7 +898,9 @@ export class AppStore {
     const cost = BALANCE.hiring?.refreshCostCoins ?? 200;
     const currentCoins = this.coins();
     if (currentCoins < cost) {
-      this.notificationsStore.error('Не хватает coins.');
+      this.notificationsStore.error(
+        '\u041d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 coins.',
+      );
       return;
     }
     const nextIndex = this.normalizeCandidatesRefreshIndex(
@@ -901,33 +913,51 @@ export class AppStore {
       candidatesPool: pool,
       candidatesRefreshIndex: nextIndex,
     }));
-    this.notificationsStore.success(`Кандидаты обновлены (-${cost} coins)`);
+    this.notificationsStore.success(
+      `\u041a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u044b \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u044b (-${cost} coins)`,
+    );
   }
 
   hireCandidate(candidateId: string): { ok: boolean; reason?: string } {
     if (!this.isCompanyUnlocked()) {
-      return { ok: false, reason: 'Компания закрыта' };
+      return {
+        ok: false,
+        reason:
+          '\u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f \u0437\u0430\u043a\u0440\u044b\u0442\u0430',
+      };
     }
     const trimmedId = candidateId?.trim();
     if (!trimmedId) {
       this.logDevError('candidate-missing-id', { candidateId });
-      return { ok: false, reason: 'Кандидат не найден' };
+      return {
+        ok: false,
+        reason:
+          '\u041a\u0430\u043d\u0434\u0438\u0434\u0430\u0442 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d',
+      };
     }
     const progress = this._progress();
     const candidate = progress.candidatesPool.find((entry) => entry.id === trimmedId);
     if (!candidate) {
       this.logDevError('candidate-not-found', { candidateId: trimmedId });
-      return { ok: false, reason: 'Кандидат не найден' };
+      return {
+        ok: false,
+        reason:
+          '\u041a\u0430\u043d\u0434\u0438\u0434\u0430\u0442 \u043d\u0435 \u0432\u044b\u0431\u0440\u0430\u043d',
+      };
     }
 
     const company = this._company();
     if (company.employees.some((employee) => employee.id === candidate.id)) {
-      return { ok: false, reason: 'Кандидат уже нанят' };
+      return {
+        ok: false,
+        reason:
+          '\u041a\u0430\u043d\u0434\u0438\u0434\u0430\u0442 \u0443\u0436\u0435 \u043d\u0430\u043d\u044f\u0442',
+      };
     }
 
     const hireCost = resolveHireCostForCandidate(candidate);
     if (company.cash < hireCost) {
-      return { ok: false, reason: 'Не хватает cash' };
+      return { ok: false, reason: '\u041d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 cash' };
     }
 
     const hiredAtIso = new Date().toISOString();
@@ -944,7 +974,7 @@ export class AppStore {
     }));
 
     this.notificationsStore.success(
-      `Нанят сотрудник: ${candidate.name} (-${this.formatNumber(hireCost)} cash)`,
+      `\u041d\u043e\u0432\u044b\u0439 \u0441\u043e\u0442\u0440\u0443\u0434\u043d\u0438\u043a: ${candidate.name} (-${this.formatNumber(hireCost)} cash)`,
     );
 
     this.publishEvent(
@@ -983,7 +1013,9 @@ export class AppStore {
       employees: nextEmployees,
     }));
     const label = ASSIGNMENT_LABELS[assignment] ?? assignment;
-    this.notificationsStore.success(`Назначение обновлено: ${employee.name} → ${label}`);
+    this.notificationsStore.success(
+      `\u041d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u0435\u043d\u043e: ${employee.name} -> ${label}`,
+    );
   }
 
   ensureSessionQuests(force = false): void {
@@ -1035,7 +1067,9 @@ export class AppStore {
       return;
     }
     if (!canAcceptContract(active.length)) {
-      this.notificationsStore.error('Лимит 3 контракта');
+      this.notificationsStore.error(
+        '\u041c\u043e\u0436\u043d\u043e \u043c\u0430\u043a\u0441\u0438\u043c\u0443\u043c 3 \u043a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u0430',
+      );
       return;
     }
     const available = this._availableContracts();
@@ -1100,7 +1134,9 @@ export class AppStore {
       }));
     }
 
-    this.notificationsStore.success(`Quick Fix выполнен: +${rewardCoins} coins`);
+    this.notificationsStore.success(
+      `Quick Fix \u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d: +${rewardCoins} coins`,
+    );
     return true;
   }
 
@@ -1213,8 +1249,8 @@ export class AppStore {
       const rewardLabel = this.formatRewardSummary(totalReward);
       const message =
         completed.length === 1
-          ? `Контракт выполнен: ${completed[0].title}. Награда: ${rewardLabel}`
-          : `Выполнено контрактов: ${completed.length}. Награда: ${rewardLabel}`;
+          ? `\u041a\u043e\u043d\u0442\u0440\u0430\u043a\u0442 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d: ${completed[0].title}. \u041d\u0430\u0433\u0440\u0430\u0434\u0430: ${rewardLabel}`
+          : `\u041a\u043e\u043d\u0442\u0440\u0430\u043a\u0442\u044b \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043d\u044b: ${completed.length}. \u041d\u0430\u0433\u0440\u0430\u0434\u0430: ${rewardLabel}`;
       this.notificationsStore.success(message);
     }
 
@@ -1324,7 +1360,9 @@ export class AppStore {
     });
 
     if (added) {
-      this.notificationsStore.success(`Получен бейдж: ${badge.title}`);
+      this.notificationsStore.success(
+        `\u041d\u043e\u0432\u044b\u0439 \u0431\u0435\u0439\u0434\u0436: ${badge.title}`,
+      );
     }
   }
 
@@ -1381,13 +1419,17 @@ export class AppStore {
 
     if (result.incident?.happened) {
       this.tryStartIncidentFromTick({ ...result, tickIndex, reason });
-      this.notificationsStore.error('Инцидент! Требуется решение.');
+      this.notificationsStore.error(
+        '\u0412\u043d\u0438\u043c\u0430\u043d\u0438\u0435! \u041e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d \u0438\u043d\u0446\u0438\u0434\u0435\u043d\u0442.',
+      );
       return;
     }
 
     const cashDelta = result.ledgerEntry.delta.netCash;
     const signedDelta = `${cashDelta >= 0 ? '+' : ''}${this.formatNumber(Math.abs(cashDelta))}`;
-    this.notificationsStore.success(`Компания: ${signedDelta} cash (доход - зарплаты)`);
+    this.notificationsStore.success(
+      `\u0414\u043e\u0445\u043e\u0434: ${signedDelta} cash (\u0434\u043e\u0445\u043e\u0434 - \u0440\u0430\u0441\u0445\u043e\u0434\u044b)`,
+    );
   }
 
   tryStartIncidentFromTick(
@@ -1475,7 +1517,7 @@ export class AppStore {
     const cashLabel = this.formatSignedValue(effects.cashDelta);
     const repLabel = this.formatSignedValue(effects.reputationDelta);
     this.notificationsStore.success(
-      `Инцидент решён: ${incident.title}. Итог: ${cashLabel} cash, репутация ${repLabel}`,
+      `\u0418\u043d\u0446\u0438\u0434\u0435\u043d\u0442 \u0440\u0435\u0448\u0451\u043d: ${incident.title}. \u0418\u0442\u043e\u0433: ${cashLabel} cash, ${repLabel} \u0440\u0435\u043f\u0443\u0442\u0430\u0446\u0438\u044f`,
     );
 
     if (this.isIncidentDeferredDecision(decision)) {
@@ -1507,7 +1549,10 @@ export class AppStore {
     }
 
     const profile: User = {
-      role: normalizedProfession.length > 0 ? normalizedProfession : 'Без роли',
+      role:
+        normalizedProfession.length > 0
+          ? normalizedProfession
+          : '\\u0411\\u0435\\u0437 \\u0440\\u043e\\u043b\\u0438',
       goals: [],
       startDate: new Date().toISOString().slice(0, 10),
       isProfileComplete: true,
@@ -1752,19 +1797,27 @@ export class AppStore {
   startFinaleChain(): void {
     const finale = this._progress().finale;
     if (!finale.unlocked) {
-      this.notificationsStore.error('Финал ещё закрыт.');
+      this.notificationsStore.error(
+        '\u0424\u0438\u043d\u0430\u043b \u0435\u0449\u0451 \u0437\u0430\u043a\u0440\u044b\u0442.',
+      );
       return;
     }
     if (this._company().level !== 'cto') {
-      this.notificationsStore.error('Финал доступен только на уровне CTO.');
+      this.notificationsStore.error(
+        '\u0424\u0438\u043d\u0430\u043b \u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d \u0442\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0443\u0440\u043e\u0432\u043d\u0435 CTO.',
+      );
       return;
     }
     if (finale.finished) {
-      this.notificationsStore.error('Финал уже завершён.');
+      this.notificationsStore.error(
+        '\u0424\u0438\u043d\u0430\u043b \u0443\u0436\u0435 \u043f\u0440\u043e\u0439\u0434\u0435\u043d.',
+      );
       return;
     }
     if (finale.active) {
-      this.notificationsStore.error('Финал уже идёт.');
+      this.notificationsStore.error(
+        '\u0424\u0438\u043d\u0430\u043b \u0443\u0436\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d.',
+      );
       return;
     }
 
@@ -2170,7 +2223,7 @@ export class AppStore {
     this.ensureSessionQuests(true);
     this.publishEvent(createProgressResetEvent('new_game_plus'));
     this.notificationsStore.success(
-      'New Game+ начата: сохранены luxury и бейджи, сложность повышена',
+      'New Game+ \u0430\u043a\u0442\u0438\u0432\u0438\u0440\u043e\u0432\u0430\u043d: \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442\u0441\u044f luxury \u0438 \u0446\u0435\u043b\u0438, \u043f\u043e\u0432\u044b\u0448\u0430\u0435\u0442\u0441\u044f \u0441\u043b\u043e\u0436\u043d\u043e\u0441\u0442\u044c',
     );
   }
 
@@ -2182,7 +2235,10 @@ export class AppStore {
     const startConfig = BALANCE.newGame ?? { startCoins: 0, startReputation: 0, startTechDebt: 0 };
 
     const profile: User = {
-      role: normalizedRole.length > 0 ? normalizedRole : 'Без роли',
+      role:
+        normalizedRole.length > 0
+          ? normalizedRole
+          : '\\u0411\\u0435\\u0437 \\u0440\\u043e\\u043b\\u0438',
       goals: normalizedGoal.length > 0 ? [normalizedGoal] : [],
       startDate,
       isProfileComplete: true,
@@ -2285,18 +2341,26 @@ export class AppStore {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      return { ok: false, error: 'Некорректный JSON.' };
+      return {
+        ok: false,
+        error: '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 JSON.',
+      };
     }
 
     if (!this.isRecord(parsed)) {
-      return { ok: false, error: 'JSON должен быть объектом.' };
+      return {
+        ok: false,
+        error:
+          'JSON \u0434\u043e\u043b\u0436\u0435\u043d \u0431\u044b\u0442\u044c \u043e\u0431\u044a\u0435\u043a\u0442\u043e\u043c.',
+      };
     }
 
     const migrated = migratePersistedStateStrict(parsed);
     if (!migrated) {
       return {
         ok: false,
-        error: 'Неподдерживаемая версия экспорта.',
+        error:
+          '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 \u0444\u043e\u0440\u043c\u0430\u0442 \u0434\u0430\u043d\u043d\u044b\u0445.',
       };
     }
     const sourceVersion = this.resolvePersistedVersion(parsed);
@@ -2339,7 +2403,9 @@ export class AppStore {
     if (backupEntry.key !== AppStore.BACKUP_STORAGE_KEY) {
       localStorage.removeItem(backupEntry.key);
     }
-    this.notificationsStore.success('Бэкап восстановлен.');
+    this.notificationsStore.success(
+      '\u0411\u044d\u043a\u0430\u043f \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.',
+    );
     this._backupAvailable.set(true);
     return true;
   }
@@ -2350,20 +2416,36 @@ export class AppStore {
   ): ImportResult {
     const user = this.parseUser(migrated.user);
     if (!user) {
-      return { ok: false, error: 'Некорректные данные профиля.' };
+      return {
+        ok: false,
+        error:
+          '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u043e\u0444\u0438\u043b\u044f.',
+      };
     }
 
     const progress = this.parseProgress(migrated.progress);
     if (!progress) {
-      return { ok: false, error: 'Некорректные данные прогресса.' };
+      return {
+        ok: false,
+        error:
+          '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0441\u0430.',
+      };
     }
     const company = this.parseCompany(migrated.company);
     if (!company) {
-      return { ok: false, error: 'Некорректные данные компании.' };
+      return {
+        ok: false,
+        error:
+          '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438.',
+      };
     }
     const inventory = this.parseInventory(migrated.inventory);
     if (!inventory) {
-      return { ok: false, error: 'Некорректные данные инвентаря.' };
+      return {
+        ok: false,
+        error:
+          '\u041d\u0435\u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0438\u043d\u0432\u0435\u043d\u0442\u0430\u0440\u044f.',
+      };
     }
 
     const featureFlags = this.parseFeatureFlags(migrated.featureFlags);
@@ -2659,31 +2741,41 @@ export class AppStore {
   buyItem(itemId: string): boolean {
     const item = this._shopItems().find((entry) => entry.id === itemId);
     if (!item) {
-      this.notificationsStore.error('Неизвестный предмет.');
+      this.notificationsStore.error(
+        '\u041f\u0440\u0435\u0434\u043c\u0435\u0442 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d.',
+      );
       return false;
     }
 
     const inventory = this._inventory();
     if (ownsItem(inventory, item.id as ShopItemId)) {
-      this.notificationsStore.error('Предмет уже куплен.');
+      this.notificationsStore.error(
+        '\u041f\u0440\u0435\u0434\u043c\u0435\u0442 \u0443\u0436\u0435 \u043a\u0443\u043f\u043b\u0435\u043d.',
+      );
       return false;
     }
 
     if (!Number.isFinite(item.price) || item.price <= 0) {
-      this.notificationsStore.error('Предмет недоступен.');
+      this.notificationsStore.error(
+        '\u041f\u0440\u0435\u0434\u043c\u0435\u0442 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d.',
+      );
       return false;
     }
 
     const currency = item.currency === 'cash' ? 'cash' : 'coins';
     if (currency === 'cash') {
       if (!this.isCompanyUnlocked()) {
-        this.notificationsStore.error('Люкс-магазин откроется после Senior и сертификата.');
+        this.notificationsStore.error(
+          'Cash-\u0442\u043e\u0432\u0430\u0440\u044b \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b \u043f\u043e\u0441\u043b\u0435 Senior \u0438 \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u0430.',
+        );
         return false;
       }
       const company = this._company();
       const currentCash = company?.cash ?? 0;
       if (currentCash < item.price) {
-        this.notificationsStore.error('Не хватает кэша.');
+        this.notificationsStore.error(
+          '\u041d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 cash.',
+        );
         return false;
       }
       const cashAfter = this.normalizeCash(currentCash - item.price);
@@ -2692,7 +2784,7 @@ export class AppStore {
         cash: cashAfter,
       }));
       this._inventory.update((current) => addItem(current, item.id as ShopItemId));
-      this.notificationsStore.success(`Куплено: ${item.name}.`);
+      this.notificationsStore.success(`\u041f\u043e\u043a\u0443\u043f\u043a\u0430: ${item.name}.`);
       this.publishEvent(
         createPurchaseMadeEvent(item.id, item.price, {
           itemName: item.name,
@@ -2706,7 +2798,9 @@ export class AppStore {
 
     const currentCoins = this._progress().coins;
     if (currentCoins < item.price) {
-      this.notificationsStore.error('Не хватает монет.');
+      this.notificationsStore.error(
+        '\u041d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 \u043c\u043e\u043d\u0435\u0442.',
+      );
       return false;
     }
 
@@ -2716,7 +2810,7 @@ export class AppStore {
       coins: coinsAfter,
     }));
     this._inventory.update((current) => addItem(current, item.id as ShopItemId));
-    this.notificationsStore.success(`Куплено: ${item.name}.`);
+    this.notificationsStore.success(`\u041f\u043e\u043a\u0443\u043f\u043a\u0430: ${item.name}.`);
     this.publishEvent(
       createPurchaseMadeEvent(item.id, item.price, {
         itemName: item.name,
@@ -2813,7 +2907,9 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий уже пройден.'],
+        reasons: [
+          '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u0443\u0436\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0451\u043d.',
+        ],
         status: 'completed',
       };
     }
@@ -2821,7 +2917,9 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий доступен на другом этапе.'],
+        reasons: [
+          '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d \u043d\u0430 \u044d\u0442\u043e\u043c \u044d\u0442\u0430\u043f\u0435.',
+        ],
         status: 'active',
       };
     }
@@ -2832,7 +2930,9 @@ export class AppStore {
       return {
         scenario,
         available: false,
-        reasons: ['Сценарий доступен на другом этапе.'],
+        reasons: [
+          '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d.',
+        ],
         status: 'active',
       };
     }
@@ -2840,7 +2940,9 @@ export class AppStore {
       this.scenarioAccessMap().get(scenarioId) ?? {
         scenario,
         available: false,
-        reasons: ['Сценарий недоступен.'],
+        reasons: [
+          '\u0421\u0446\u0435\u043d\u0430\u0440\u0438\u0439 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d.',
+        ],
         status: 'active',
       }
     );
@@ -2886,7 +2988,8 @@ export class AppStore {
       });
       return {
         ok: false,
-        reason: 'Нужно выбрать профессию, чтобы повысить стадию.',
+        reason:
+          '\u041d\u0443\u0436\u043d\u043e \u0441\u0434\u0430\u0442\u044c \u044d\u043a\u0437\u0430\u043c\u0435\u043d, \u0447\u043e\u0431\u044b \u043f\u0440\u043e\u0434\u0432\u0438\u043d\u0443\u0442\u044c\u0441\u044f.',
       };
     }
 
@@ -2902,12 +3005,12 @@ export class AppStore {
       const nextStage = this.nextSkillStage();
       const nextStageLabel = nextStage
         ? (CERT_STAGE_LABELS[nextStage] ?? nextStage)
-        : 'следующего этапа';
+        : '\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u044d\u0442\u0430\u043f';
       return {
         ok: false,
         reason: isRetro
-          ? `Для дальнейшего роста нужно сдать ретро-экзамен за этап: ${label}`
-          : `Чтобы повыситься до ${nextStageLabel}, нужно сдать экзамен: ${label}`,
+          ? `\u0414\u043b\u044f \u043f\u0440\u043e\u0434\u0432\u0438\u0436\u0435\u043d\u0438\u044f \u043d\u0443\u0436\u0435\u043d \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442 \u043f\u043e \u044d\u0442\u0430\u043f\u0443: ${label}`
+          : `\u0427\u0442\u043e\u0431\u044b \u043f\u0435\u0440\u0435\u0439\u0442\u0438 \u043d\u0430 ${nextStageLabel}, \u043d\u0443\u0436\u0435\u043d \u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442: ${label}`,
         requiredCert: {
           professionId,
           stage: missingStage,
@@ -3016,7 +3119,7 @@ export class AppStore {
       localStorage.setItem(AppStore.BACKUP_STORAGE_KEY, serialized);
       this._backupAvailable.set(true);
     } catch {
-      // Ignore storage errors (quota or privacy mode).
+      void 0;
     }
   }
 
@@ -3132,7 +3235,7 @@ export class AppStore {
         localStorage.removeItem(fromKey);
       }
     } catch {
-      // Ignore storage errors (quota or privacy mode).
+      void 0;
     }
   }
 
@@ -3146,7 +3249,7 @@ export class AppStore {
   private handleStorageError(error: unknown, context: string): void {
     this.errorLogStore.capture(error, `persist:${context}`, false);
     this.notificationsStore.error(
-      'Не удалось прочитать сохранение. Выполнен сброс к пустому состоянию.',
+      '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435. \u0412\u044b\u043f\u043e\u043b\u043d\u0435\u043d \u0441\u0431\u0440\u043e\u0441 \u0438 \u0441\u043e\u0437\u0434\u0430\u043d\u043e \u043d\u043e\u0432\u043e\u0435.',
     );
   }
 
@@ -3839,8 +3942,8 @@ export class AppStore {
   private formatRewardSummary(summary: RewardSummary): string {
     const coins = this.normalizeCoins(summary.coins);
     const cash = this.normalizeCash(summary.cash);
-    const coinsLabel = `+${this.formatNumber(coins)} монет`;
-    const cashLabel = cash > 0 ? ` (+${this.formatNumber(cash)} кэш)` : '';
+    const coinsLabel = `+${this.formatNumber(coins)} \u043c\u043e\u043d\u0435\u0442`;
+    const cashLabel = cash > 0 ? ` (+${this.formatNumber(cash)} cash)` : '';
     return `${coinsLabel}${cashLabel}`;
   }
 
@@ -3862,7 +3965,7 @@ export class AppStore {
 
   private isIncidentDeferredDecision(decision: IncidentDecision): boolean {
     const label = `${decision.title} ${decision.description}`.toLowerCase();
-    return label.includes('отлож');
+    return label.includes('\u043c\u043e\u043d\u0435\u0442');
   }
 
   private updateDailyStreak(): void {
@@ -3992,7 +4095,9 @@ export class AppStore {
     });
 
     if (didUpdate) {
-      this.notificationsStore.success('Достижение получено');
+      this.notificationsStore.success(
+        '\u0414\u043e\u0441\u0442\u0438\u0436\u0435\u043d\u0438\u0435 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043e',
+      );
     }
   }
 
@@ -5089,9 +5194,11 @@ export class AppStore {
 
   private resolveExamTitle(professionId: string, stage: SkillStageId): string {
     const label =
-      EXAM_PROFESSION_LABELS[professionId as ExamProfessionId] ?? professionId ?? 'Экзамен';
+      EXAM_PROFESSION_LABELS[professionId as ExamProfessionId] ??
+      professionId ??
+      '\u042d\u043a\u0437\u0430\u043c\u0435\u043d';
     const stageLabel = CERT_STAGE_LABELS[stage] ?? stage;
-    return `${label} · ${stageLabel} — экзамен`;
+    return `${label} \u00b7 ${stageLabel} \u2014 \u044d\u043a\u0437\u0430\u043c\u0435\u043d`;
   }
 
   private getExamByProfessionStage(professionId: string, stage: SkillStageId): ExamConfig | null {

@@ -58,7 +58,8 @@
               "buildTarget": "skillforge:build:production"
             },
             "development": {
-              "buildTarget": "skillforge:build:development"
+              "buildTarget": "skillforge:build:development",
+              "proxyConfig": "proxy.conf.json"
             }
           },
           "defaultConfiguration": "development"
