@@ -21,11 +21,14 @@ Health check: `http://localhost:3002/api/health`.
 
 ## Environment
 
-Create `.env` (already present in this repo for local dev):
+Create `.env` (use `.env.example` as a template):
 
 ```
 DATABASE_URL="file:./dev.db"
 SESSION_SECRET="your-32+chars-secret"
+LOG_LEVEL="debug"
+LOG_FILE="./logs/backend.log"
+METRICS_TOKEN="optional-metrics-token"
 ```
 
 ## Admin access (dev)
@@ -51,6 +54,7 @@ Admin UI is under `/admin`.
 - `POST /api/progress`
 - `GET /api/content/*`
 - `POST /api/telemetry`
+- `GET /api/metrics` (Prometheus)
 
 ## Useful scripts
 
@@ -60,11 +64,13 @@ Admin UI is under `/admin`.
 - `npm run load-test` - lightweight load test for a single endpoint
 - `npm test` - backend unit/integration tests
 - `npm run test:coverage` - tests with coverage gate
+- `npm run test:e2e` - end-to-end API checks (spins up dev server)
 - `npm run env:check` - validate required environment variables
 
 ## Ops docs
 
 Operational guides live in `docs/ops/README.md`.
+Observability stack setup is documented in `docs/ops/observability.md`.
 
 ## Production
 

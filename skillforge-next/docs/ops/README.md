@@ -6,3 +6,4 @@ Operational references for the SkillForge backend.
 - `runbook.md` - incident response and recovery steps
 - `backup.md` - SQLite backup/restore procedures
 - `perf.md` - quick load test workflow
+- `observability.md` - Loki/Prometheus/Grafana setup

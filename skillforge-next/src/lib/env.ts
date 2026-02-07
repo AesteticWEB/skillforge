@@ -7,6 +7,8 @@ const envSchema = z.object({
     .string()
     .min(32, "SESSION_SECRET must be at least 32 characters"),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
+  LOG_FILE: z.string().min(1).optional(),
+  METRICS_TOKEN: z.string().min(1).optional(),
   APP_VERSION: z.string().optional(),
 });
 

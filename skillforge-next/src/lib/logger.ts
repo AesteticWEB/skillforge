@@ -1,4 +1,6 @@
 import { env } from "@/lib/env";
+import { appendFile, mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -18,6 +20,15 @@ const resolveLogLevel = (): LogLevel => {
 };
 
 const CURRENT_LEVEL = resolveLogLevel();
+const LOG_FILE = env.LOG_FILE;
+
+if (LOG_FILE) {
+  try {
+    mkdirSync(dirname(LOG_FILE), { recursive: true });
+  } catch {
+    // ignore filesystem errors for log directory creation
+  }
+}
 
 const shouldLog = (level: LogLevel): boolean =>
   LEVEL_WEIGHT[level] >= LEVEL_WEIGHT[CURRENT_LEVEL];
@@ -41,6 +52,9 @@ export const log = (level: LogLevel, message: string, data?: Record<string, unkn
     ...(data ? { data } : {}),
   };
   const serialized = safeSerialize(payload);
+  if (LOG_FILE) {
+    appendFile(LOG_FILE, `${serialized}\n`, () => undefined);
+  }
   if (level === "error") {
     console.error(serialized);
   } else if (level === "warn") {

@@ -1,0 +1,18 @@
+name: Policy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conftest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Policy check
+        run: docker run --rm -v "${{ github.workspace }}:/project" openpolicyagent/conftest:v0.53.0 test /project/.github/workflows -p /project/.policy

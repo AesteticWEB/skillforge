@@ -21,6 +21,7 @@
 /build
 /dev.db
 /backups
+/logs
 
 # misc
 .DS_Store

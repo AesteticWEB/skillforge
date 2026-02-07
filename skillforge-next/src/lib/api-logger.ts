@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { logError, logInfo } from "@/lib/logger";
+import { recordRequest } from "@/lib/metrics";
 
 export type ApiLogContext = {
   requestId: string;
@@ -43,20 +44,24 @@ export const withApiLogging = async (
   try {
     const response = await handler(context);
     response.headers.set("x-request-id", requestId);
+    const durationMs = Date.now() - startedAt;
+    recordRequest(context.method, context.path, response.status, durationMs);
     logInfo("api_request", {
       requestId,
       method: context.method,
       path: context.path,
       status: response.status,
-      durationMs: Date.now() - startedAt,
+      durationMs,
     });
     return response;
   } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    recordRequest(context.method, context.path, 500, durationMs);
     logError("api_error", {
       requestId,
       method: context.method,
       path: context.path,
-      durationMs: Date.now() - startedAt,
+      durationMs,
       error: error instanceof Error ? error.message : "Unknown error",
     });
     return NextResponse.json(

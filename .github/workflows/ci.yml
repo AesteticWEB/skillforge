@@ -5,8 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  frontend:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,6 +36,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
@@ -52,3 +58,44 @@ jobs:
 
       - name: E2E tests
         run: npm run test:e2e
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skillforge-next
+    env:
+      DATABASE_URL: "file:./ci.db"
+      SESSION_SECRET: "ci-secret-32-characters-minimum"
+      LOG_LEVEL: "error"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: skillforge-next/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Env validation
+        run: npm run env:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests (coverage)
+        run: npm run test:coverage
+
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build
+        run: npm run build
