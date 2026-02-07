@@ -37,6 +37,13 @@ Optional protection:
 
 Promtail tails `./logs/backend.log` and ships to Loki.
 
+## Alerts and dashboards
+
+- Prometheus alert rules: `ops/observability/alerts.yml`
+- Grafana dashboards: `ops/observability/dashboards/skillforge-backend.json`
+
+Prometheus retention is set to 7 days in `docker-compose.yml`.
+
 ## Troubleshooting
 
 - If Prometheus cannot reach the backend, update `prometheus.yml` target.

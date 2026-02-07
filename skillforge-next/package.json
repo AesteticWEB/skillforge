@@ -13,6 +13,7 @@
     "env:check": "tsx scripts/env-check.ts",
     "db:backup": "tsx scripts/db-backup.ts",
     "db:restore": "tsx scripts/db-restore.ts",
+    "db:prepare-ci": "tsx scripts/db-prepare-ci.ts",
     "contract:check": "tsx scripts/contract-check.ts",
     "load-test": "tsx scripts/load-test.ts",
     "load-test:ci": "tsx scripts/load-test-runner.ts"

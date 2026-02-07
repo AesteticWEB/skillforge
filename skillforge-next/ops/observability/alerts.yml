@@ -1,0 +1,38 @@
+groups:
+  - name: skillforge-backend
+    rules:
+      - alert: SkillForgeBackendDown
+        expr: up{job="skillforge-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is down"
+          description: "No metrics scrape for skillforge-backend in the last minute."
+
+      - alert: SkillForgeHighErrorRate
+        expr: |
+          (
+            sum(rate(skillforge_http_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(skillforge_http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate"
+          description: "5xx errors exceeded 5% for 5 minutes."
+
+      - alert: SkillForgeHighLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(skillforge_http_request_duration_ms_bucket[5m]))
+          ) > 500
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request latency"
+          description: "P95 latency over 500ms for 10 minutes."

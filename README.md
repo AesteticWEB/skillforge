@@ -105,6 +105,10 @@ PRs should be green before merging.
 
 Operational notes live in `docs/ops/README.md`.
 
+## Security docs
+
+Threat model and review checklist live in `docs/security/README.md`.
+
 ## Release checklist
 
 - **Env:** Node.js 20+, npm 11+, clean working tree, `.env` (if added later).

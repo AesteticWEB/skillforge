@@ -60,6 +60,7 @@ Admin UI is under `/admin`.
 
 - `npm run db:backup` - snapshot SQLite database into `backups/`
 - `npm run db:restore -- --file <path>` - restore from a backup file
+- `npm run db:prepare-ci` - apply migrations + seed (CI)
 - `npm run contract:check` - basic API contract verification
 - `npm run load-test` - lightweight load test for a single endpoint
 - `npm test` - backend unit/integration tests

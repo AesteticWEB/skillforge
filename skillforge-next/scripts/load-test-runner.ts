@@ -41,7 +41,7 @@ const waitForHealth = async () => {
 };
 
 const run = async () => {
-  await runCommand("npx prisma db push");
+  await runCommand("npx prisma migrate deploy");
   await runCommand("npx prisma db seed");
 
   const server = spawn("npm", ["run", "dev", "--", "-p", String(port)], {

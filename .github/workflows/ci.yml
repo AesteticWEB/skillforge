@@ -82,6 +82,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Prepare database (migrations + seed)
+        run: npm run db:prepare-ci
+
       - name: Env validation
         run: npm run env:check
 
