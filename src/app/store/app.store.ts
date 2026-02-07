@@ -177,6 +177,25 @@ import {
   getStagePromotionStatus,
   selectCoreSkillsForStage,
 } from '@/shared/lib/stage';
+import { AppStoreEffects } from './app.store.effects';
+import {
+  CERT_STAGE_LABELS,
+  EXAM_PROFESSION_IDS,
+  EXAM_PROFESSION_LABELS,
+  createEmptyAuth,
+  createEmptyCompany,
+  createEmptyInventory,
+  createEmptyProgress,
+  createEmptyUser,
+} from './app.store.state';
+import type {
+  AppStateExport,
+  AuthResult,
+  AuthState,
+  ExamProfessionId,
+  ImportResult,
+  StorageReadResult,
+} from './app.store.state';
 
 declare const ngDevMode: boolean | undefined;
 type ScenarioAccess = {
@@ -194,145 +213,6 @@ type StagePromotionGate = {
     stage: SkillStageId;
   };
 };
-
-type AuthState = {
-  login: string;
-  profession: string;
-  isRegistered: boolean;
-};
-
-type AuthResult = {
-  ok: boolean;
-  error?: string;
-};
-
-type AppStateExport = {
-  version: number;
-  exportedAt: string;
-  user: User;
-  progress: Progress;
-  company: Company;
-  inventory: Inventory;
-  featureFlags: FeatureFlags;
-  auth: AuthState;
-  xp: number;
-};
-
-type ImportResult = {
-  ok: boolean;
-  error?: string;
-};
-
-type StorageReadResult = {
-  state: PersistedStateLatest;
-  isLegacy: boolean;
-};
-
-const EXAM_PROFESSION_IDS = [
-  'frontend',
-  'backend',
-  'fullstack',
-  'mobile',
-  'qa',
-  'devops',
-  'data-engineer',
-  'data-scientist-ml',
-  'security',
-  'gamedev',
-] as const;
-
-type ExamProfessionId = (typeof EXAM_PROFESSION_IDS)[number];
-
-const EXAM_PROFESSION_LABELS: Record<ExamProfessionId, string> = {
-  frontend: '\u0424\u0440\u043e\u043d\u0442\u0435\u043d\u0434',
-  backend: '\u0411\u044d\u043a\u0435\u043d\u0434',
-  fullstack: '\u0424\u0443\u043b\u043b\u0441\u0442\u0435\u043a',
-  mobile: '\u041c\u043e\u0431\u0430\u0439\u043b',
-  qa: '\u0422\u0435\u0441\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 (QA)',
-  devops: 'DevOps / SRE',
-  'data-engineer': '\u0414\u0430\u0442\u0430-\u0438\u043d\u0436\u0435\u043d\u0435\u0440',
-  'data-scientist-ml':
-    '\u0414\u0430\u0442\u0430-\u0441\u0430\u0439\u0435\u043d\u0442\u0438\u0441\u0442 / ML',
-  security: '\u0411\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u044c',
-  gamedev: '\u0413\u0435\u0439\u043c\u0434\u0435\u0432',
-};
-
-const CERT_STAGE_LABELS: Record<SkillStageId, string> = {
-  internship: '\u0421\u0442\u0430\u0436\u0438\u0440\u043e\u0432\u043a\u0430',
-  junior: '\u0414\u0436\u0443\u043d\u0438\u043e\u0440',
-  middle: '\u041c\u0438\u0434\u0434\u043b',
-  senior: '\u0421\u0435\u043d\u044c\u043e\u0440',
-};
-const createEmptyAuth = (): AuthState => ({
-  login: '',
-  profession: '',
-  isRegistered: false,
-});
-
-const createEmptyUser = (): User => ({
-  role: '\\u0411\\u0435\\u0437 \\u0440\\u043e\\u043b\\u0438',
-  goals: [],
-  startDate: new Date().toISOString().slice(0, 10),
-  isProfileComplete: false,
-});
-
-const createEmptyCompany = (): Company => ({
-  cash: 0,
-  unlocked: false,
-  level: 'none',
-  onboardingSeen: false,
-  employees: [],
-  ledger: [],
-  activeIncident: null,
-  incidentsHistory: [],
-});
-
-const createEmptyInventory = (): Inventory => ({
-  ownedItemIds: [],
-});
-
-const createEmptyProgress = (): Progress => ({
-  skillLevels: {},
-  decisionHistory: [],
-  examHistory: [],
-  activeExamRun: null,
-  certificates: [],
-  activeContracts: [],
-  completedContractsHistory: [],
-  sessionQuests: [],
-  sessionQuestSessionId: null,
-  candidatesPool: [],
-  candidatesRefreshIndex: 0,
-  companyTickIndex: 0,
-  meta: {
-    isNewGamePlus: false,
-    ngPlusCount: 0,
-    onboardingCompleted: false,
-  },
-  difficulty: {
-    multiplier: 1,
-    ...createDefaultDifficultyState(),
-  },
-  cosmetics: {
-    earnedBadges: [],
-  },
-  achievements: createEmptyAchievementsState(),
-  comboStreak: createEmptyStreakState(),
-  streak: {
-    lastActiveDate: null,
-    current: 0,
-    best: 0,
-  },
-  finale: createEmptyFinaleState(),
-  ending: createEmptyEndingState(),
-  specializationId: null,
-  reputation: BALANCE.newGame?.startReputation ?? 0,
-  techDebt: BALANCE.newGame?.startTechDebt ?? 0,
-  coins: BALANCE.newGame?.startCoins ?? 0,
-  scenarioOverrides: {},
-  spentXpOnSkills: 0,
-  careerStage: 'internship',
-});
 
 @Injectable({ providedIn: 'root' })
 export class AppStore {
@@ -358,6 +238,7 @@ export class AppStore {
   private remotePendingPayload: PersistedStateLatest | null = null;
   private remoteLastSerialized: string | null = null;
   private remoteSaveInFlight = false;
+  private readonly effects: AppStoreEffects;
   private readonly _user = signal<User>(createEmptyUser());
   private readonly _skills = signal<Skill[]>([]);
   private readonly _scenarios = signal<Scenario[]>([]);
@@ -649,17 +530,76 @@ export class AppStore {
   });
 
   constructor() {
-    this.hydrateFromStorage();
-    this.syncBackupAvailability();
-    this.load();
-    this.ensureSessionQuests();
+    this.effects = new AppStoreEffects(
+      {
+        skillsApi: this.skillsApi,
+        scenariosApi: this.scenariosApi,
+        contentApi: this.contentApi,
+        eventBus: this.eventBus,
+      },
+      {
+        getAuth: () => this._auth(),
+        setAuth: (auth) => this._auth.set(auth),
+        getProgress: () => this._progress(),
+        updateProgress: (updater) => this._progress.update(updater),
+        setSkills: (skills) => this._skills.set(skills),
+        setScenarios: (scenarios) => this._scenarios.set(scenarios),
+        setShopItems: (items) => this._shopItems.set(items),
+        setExamDefinitions: (items) => this._examDefinitions.set(items),
+        setExamQuestions: (items) => this._examQuestions.set(items),
+        setIncidentTemplates: (items) => this._incidentTemplates.set(items),
+        setQuickFixes: (items) => this._quickFixes.set(items),
+        setSkillsLoading: (value) => this._skillsLoading.set(value),
+        setScenariosLoading: (value) => this._scenariosLoading.set(value),
+        setSkillsError: (value) => this._skillsError.set(value),
+        setScenariosError: (value) => this._scenariosError.set(value),
+        mergeSkillLevels: (skills, persisted, useSkillDefaults) =>
+          this.mergeSkillLevels(skills, persisted, useSkillDefaults),
+        registerLocal: (login, password, profession) => this.register(login, password, profession),
+        setFeatureFlag: (key, value) => this.setFeatureFlag(key, value),
+        ensureSessionQuests: (force) => this.ensureSessionQuests(force),
+        updateDailyStreak: () => this.updateDailyStreak(),
+        applyEventToContracts: (event) => this.applyEventToContracts(event),
+        applyEventToSessionQuests: (event) => this.applyEventToSessionQuests(event),
+        applyCompanyTick: (reason) => this.applyCompanyTick(reason),
+        updateDifficultyAfterExam: (result) => this.updateDifficultyAfterExam(result),
+        logDevError: (message, payload) => this.logDevError(message, payload),
+        captureError: (error, context) => this.errorLogStore.capture(error, context, false),
+        hydrateFromStorage: () => this.hydrateFromStorage(),
+        syncBackupAvailability: () => this.syncBackupAvailability(),
+        buildPersistPayload: () => this.buildPersistPayload(),
+        buildEmptyPersistPayload: () => this.buildEmptyPersistPayload(),
+        applyPersistedState: (state, options) => this.applyPersistedState(state, options),
+        persistToStorage: (payload) => this.persistToStorage(payload),
+        getRemoteProgressEnabled: () => this.remoteProgressEnabled,
+        setRemoteProgressEnabled: (value) => {
+          this.remoteProgressEnabled = value;
+        },
+        getRemoteSaveTimer: () => this.remoteSaveTimer,
+        setRemoteSaveTimer: (value) => {
+          this.remoteSaveTimer = value;
+        },
+        getRemotePendingPayload: () => this.remotePendingPayload,
+        setRemotePendingPayload: (payload) => {
+          this.remotePendingPayload = payload;
+        },
+        getRemoteLastSerialized: () => this.remoteLastSerialized,
+        setRemoteLastSerialized: (value) => {
+          this.remoteLastSerialized = value;
+        },
+        getRemoteSaveInFlight: () => this.remoteSaveInFlight,
+        setRemoteSaveInFlight: (value) => {
+          this.remoteSaveInFlight = value;
+        },
+      },
+    );
+    this.effects.init();
     this.hasHydrated = true;
-    void this.hydrateFromRemote();
     effect(() => {
       if (!this.hasHydrated) {
         return;
       }
-      this.persistProgress();
+      this.effects.persistProgress();
     });
     effect(() => {
       if (!this.hasHydrated) {
@@ -667,139 +607,10 @@ export class AppStore {
       }
       this.ensureSafetyNetContract();
     });
-    this.eventBus.subscribe('ScenarioCompleted', (event) => {
-      this.updateDailyStreak();
-      const progressEvent: ContractProgressEvent = {
-        type: 'ScenarioCompleted',
-        scenarioId: event.payload.scenarioId,
-      };
-      this.applyEventToContracts(progressEvent);
-      this.applyEventToSessionQuests(progressEvent);
-      this.applyCompanyTick('scenario');
-    });
-    this.eventBus.subscribe('PurchaseMade', (event) => {
-      const progressEvent: ContractProgressEvent = {
-        type: 'PurchaseMade',
-        itemId: event.payload.itemId,
-        currency: event.payload.currency,
-      };
-      this.applyEventToContracts(progressEvent);
-      this.applyEventToSessionQuests(progressEvent);
-    });
-    this.eventBus.subscribe('ExamPassed', (event) => {
-      this.updateDailyStreak();
-      const progressEvent: ContractProgressEvent = {
-        type: 'ExamPassed',
-        examId: event.payload.examId,
-        stage: event.payload.stage,
-      };
-      this.applyEventToContracts(progressEvent);
-      this.applyEventToSessionQuests(progressEvent);
-      this.applyCompanyTick('exam');
-      this.updateDifficultyAfterExam('pass');
-    });
-    this.eventBus.subscribe('ExamFailed', () => {
-      this.updateDifficultyAfterExam('fail');
-    });
   }
 
   load(): void {
-    this._skillsError.set(null);
-    this._scenariosError.set(null);
-    this._skillsLoading.set(true);
-    this._scenariosLoading.set(true);
-
-    this.skillsApi.getSkills().subscribe({
-      next: (skills) => {
-        const mergedLevels = this.mergeSkillLevels(
-          skills,
-          this._progress().skillLevels,
-          !this._auth().isRegistered,
-        );
-        const hydratedSkills = skills.map((skill) => ({
-          ...skill,
-          level: mergedLevels[skill.id],
-        }));
-
-        this._skills.set(hydratedSkills);
-        this._progress.update((progress) => ({
-          ...progress,
-          skillLevels: mergedLevels,
-        }));
-        this._skillsLoading.set(false);
-      },
-      error: () => {
-        this._skillsError.set(
-          '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043d\u0430\u0432\u044b\u043a\u0438.',
-        );
-        this._skills.set([]);
-        this._skillsLoading.set(false);
-      },
-    });
-
-    this.scenariosApi.getScenarios().subscribe({
-      next: (scenarios) => {
-        this._scenarios.set(scenarios);
-        this._scenariosLoading.set(false);
-      },
-      error: () => {
-        this._scenariosError.set(
-          '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0441\u0446\u0435\u043d\u0430\u0440\u0438\u0438.',
-        );
-        this._scenarios.set([]);
-        this._scenariosLoading.set(false);
-      },
-    });
-
-    this.contentApi.getItems().subscribe({
-      next: (items) => {
-        this._shopItems.set(items);
-      },
-      error: (error) => {
-        this.logDevError('content-items-load-failed', error);
-        this._shopItems.set([]);
-      },
-    });
-
-    this.contentApi.getExams().subscribe({
-      next: (exams) => {
-        this._examDefinitions.set(exams);
-      },
-      error: (error) => {
-        this.logDevError('content-exams-load-failed', error);
-        this._examDefinitions.set([]);
-      },
-    });
-
-    this.contentApi.getQuestions().subscribe({
-      next: (questions) => {
-        this._examQuestions.set(questions);
-      },
-      error: (error) => {
-        this.logDevError('content-questions-load-failed', error);
-        this._examQuestions.set([]);
-      },
-    });
-
-    this.contentApi.getIncidents().subscribe({
-      next: (incidents) => {
-        this._incidentTemplates.set(incidents);
-      },
-      error: (error) => {
-        this.logDevError('content-incidents-load-failed', error);
-        this._incidentTemplates.set([]);
-      },
-    });
-
-    this.contentApi.getQuickFixes().subscribe({
-      next: (quickFixes) => {
-        this._quickFixes.set(quickFixes);
-      },
-      error: (error) => {
-        this.logDevError('content-quickfix-load-failed', error);
-        this._quickFixes.set([]);
-      },
-    });
+    this.effects.load();
   }
 
   refreshAvailableContracts(): void {
@@ -1581,107 +1392,12 @@ export class AppStore {
     return true;
   }
 
-  private async performAuthRequest(
-    url: string,
-    payload: Record<string, unknown>,
-    fallback: string,
-    statusMap: Record<number, string>,
-  ): Promise<AuthResult> {
-    if (typeof fetch !== 'function') {
-      return { ok: false, error: fallback };
-    }
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        return { ok: true };
-      }
-      const data = await response.json().catch(() => null);
-      const mapped = statusMap[response.status];
-      const error = mapped || (typeof data?.error === 'string' ? data.error : null) || fallback;
-      return { ok: false, error };
-    } catch {
-      return { ok: false, error: fallback };
-    }
-  }
-
   async registerRemote(login: string, password: string, profession: string): Promise<AuthResult> {
-    const normalizedLogin = login.trim();
-    const normalizedPassword = password.trim();
-    const normalizedProfession = profession.trim();
-    if (
-      normalizedLogin.length === 0 ||
-      normalizedPassword.length === 0 ||
-      normalizedProfession.length === 0
-    ) {
-      return {
-        ok: false,
-        error:
-          '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d, \u043f\u0430\u0440\u043e\u043b\u044c \u0438 \u043f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u044e',
-      };
-    }
-    const result = await this.performAuthRequest(
-      '/api/auth/register',
-      { login: normalizedLogin, password: normalizedPassword },
-      '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043e\u0437\u0434\u0430\u0442\u044c \u0430\u043a\u043a\u0430\u0443\u043d\u0442',
-      {
-        400: '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
-        409: '\u041b\u043e\u0433\u0438\u043d \u0443\u0436\u0435 \u0437\u0430\u043d\u044f\u0442',
-        429: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.',
-      },
-    );
-    if (!result.ok) {
-      return result;
-    }
-    this.register(normalizedLogin, normalizedPassword, normalizedProfession);
-    this.remoteProgressEnabled = true;
-    return { ok: true };
+    return this.effects.registerRemote(login, password, profession);
   }
 
   async loginRemote(login: string, password: string): Promise<AuthResult> {
-    const normalizedLogin = login.trim();
-    const normalizedPassword = password.trim();
-    if (normalizedLogin.length === 0 || normalizedPassword.length === 0) {
-      return {
-        ok: false,
-        error:
-          '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
-      };
-    }
-    const result = await this.performAuthRequest(
-      '/api/auth/login',
-      { login: normalizedLogin, password: normalizedPassword },
-      '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0432\u043e\u0439\u0442\u0438',
-      {
-        400: '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
-        401: '\u041d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u043b\u043e\u0433\u0438\u043d \u0438\u043b\u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
-        429: '\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u043f\u043e\u043f\u044b\u0442\u043e\u043a. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u043f\u043e\u0437\u0436\u0435.',
-      },
-    );
-    if (!result.ok) {
-      return result;
-    }
-    const currentAuth = this._auth();
-    this._auth.set({
-      login: normalizedLogin,
-      profession: currentAuth.profession ?? '',
-      isRegistered: true,
-    });
-    this.remoteProgressEnabled = true;
-    await this.hydrateFromRemote();
-    if (!this._auth().isRegistered) {
-      this._auth.set({
-        login: normalizedLogin,
-        profession: currentAuth.profession ?? '',
-        isRegistered: true,
-      });
-    }
-    this.setFeatureFlag('demoMode', false);
-    return { ok: true };
+    return this.effects.loginRemote(login, password);
   }
 
   setXp(value: number): void {
@@ -3207,16 +2923,6 @@ export class AppStore {
     this._backupAvailable.set(false);
   }
 
-  private persistProgress(): void {
-    const payload = this.buildPersistPayload();
-    if (this.remoteProgressEnabled) {
-      this.persistToStorage(payload);
-      this.scheduleRemotePersist(payload);
-      return;
-    }
-    this.persistToStorage(payload);
-  }
-
   private persistToStorage(payload: PersistedStateLatest): void {
     if (!this.isStorageAvailable()) {
       return;
@@ -3360,104 +3066,6 @@ export class AppStore {
     this.notificationsStore.error(
       '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435. \u0412\u044b\u043f\u043e\u043b\u043d\u0435\u043d \u0441\u0431\u0440\u043e\u0441 \u0438 \u0441\u043e\u0437\u0434\u0430\u043d\u043e \u043d\u043e\u0432\u043e\u0435.',
     );
-  }
-
-  private async hydrateFromRemote(): Promise<void> {
-    if (typeof fetch !== 'function') {
-      return;
-    }
-    try {
-      const response = await fetch('/api/progress', { credentials: 'include' });
-      if (response.status === 401) {
-        return;
-      }
-      if (!response.ok) {
-        return;
-      }
-      const data = await response.json().catch(() => null);
-      this.remoteProgressEnabled = true;
-      const stateJson = typeof data?.stateJson === 'string' ? data.stateJson : null;
-      if (!stateJson) {
-        this.applyPersistedState(this.buildEmptyPersistPayload(), { allowLegacy: false });
-        return;
-      }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(stateJson);
-      } catch (error) {
-        this.errorLogStore.capture(error, 'persist:remote-parse', false);
-        return;
-      }
-      const migrated = migratePersistedState(parsed);
-      if (!migrated) {
-        return;
-      }
-      const result = this.applyPersistedState(migrated, { allowLegacy: false });
-      if (!result.ok) {
-        this.errorLogStore.capture(
-          new Error(result.error ?? 'Invalid remote payload'),
-          'persist:remote-apply',
-          false,
-        );
-      }
-    } catch (error) {
-      this.errorLogStore.capture(error, 'persist:remote-load', false);
-    }
-  }
-
-  private scheduleRemotePersist(payload: PersistedStateLatest): void {
-    this.remotePendingPayload = payload;
-    if (this.remoteSaveTimer !== null) {
-      return;
-    }
-    this.remoteSaveTimer = window.setTimeout(() => {
-      this.remoteSaveTimer = null;
-      void this.flushRemotePersist();
-    }, 1500);
-  }
-
-  private async flushRemotePersist(): Promise<void> {
-    if (this.remoteSaveInFlight) {
-      return;
-    }
-    const payload = this.remotePendingPayload;
-    if (!payload) {
-      return;
-    }
-    this.remotePendingPayload = null;
-    let serialized = '';
-    try {
-      serialized = JSON.stringify(payload);
-    } catch {
-      return;
-    }
-    if (serialized === this.remoteLastSerialized) {
-      return;
-    }
-    if (serialized.length > 1_000_000) {
-      return;
-    }
-    this.remoteSaveInFlight = true;
-    try {
-      const response = await fetch('/api/progress', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ stateJson: serialized }),
-      });
-      if (response.status === 401) {
-        this.remoteProgressEnabled = false;
-        this.persistToStorage(payload);
-        return;
-      }
-      if (response.ok) {
-        this.remoteLastSerialized = serialized;
-      }
-    } catch (error) {
-      this.errorLogStore.capture(error, 'persist:remote-save', false);
-    } finally {
-      this.remoteSaveInFlight = false;
-    }
   }
 
   private mergeProgressDefaults(progress: Partial<Progress>): Progress {
