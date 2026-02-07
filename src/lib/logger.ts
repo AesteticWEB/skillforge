@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LEVEL_WEIGHT: Record<LogLevel, number> = {
@@ -8,11 +10,11 @@ const LEVEL_WEIGHT: Record<LogLevel, number> = {
 };
 
 const resolveLogLevel = (): LogLevel => {
-  const raw = process.env.LOG_LEVEL?.toLowerCase();
+  const raw = env.LOG_LEVEL?.toLowerCase();
   if (raw === "debug" || raw === "info" || raw === "warn" || raw === "error") {
     return raw;
   }
-  return process.env.NODE_ENV === "production" ? "info" : "debug";
+  return env.NODE_ENV === "production" ? "info" : "debug";
 };
 
 const CURRENT_LEVEL = resolveLogLevel();

@@ -2,10 +2,16 @@ name: Release
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./ci.db"
+      SESSION_SECRET: "ci-secret-32-characters-minimum"
+      LOG_LEVEL: "error"
     defaults:
       run:
         working-directory: skillforge-next
@@ -25,6 +31,8 @@ jobs:
       - name: Read version
         id: meta
         run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+      - name: Package artifact
+        run: tar -czf skillforge-next-${{ steps.meta.outputs.version }}.tgz .next package.json next.config.ts public prisma
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -35,3 +43,8 @@ jobs:
             skillforge-next/next.config.ts
             skillforge-next/public
             skillforge-next/prisma
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: skillforge-next/skillforge-next-${{ steps.meta.outputs.version }}.tgz

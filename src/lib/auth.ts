@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+
 export type SessionPayload = {
   sub: string;
   login: string;
@@ -21,17 +23,7 @@ export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 export const SESSION_SKEW_SECONDS = 60;
 
 export const getSessionSecret = (): string => {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("SESSION_SECRET is required in production");
-    }
-    return "dev-secret";
-  }
-  if (secret.length < 32 && process.env.NODE_ENV === "production") {
-    throw new Error("SESSION_SECRET must be at least 32 characters");
-  }
-  return secret;
+  return env.SESSION_SECRET;
 };
 
 const toBase64Url = (bytes: Uint8Array): string => {

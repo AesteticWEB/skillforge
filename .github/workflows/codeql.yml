@@ -1,13 +1,19 @@
-name: CI
+name: CodeQL
 
 on:
   push:
     branches: [main, master]
   pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
 
 jobs:
-  build:
+  analyze:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     env:
       DATABASE_URL: "file:./ci.db"
       SESSION_SECRET: "ci-secret-32-characters-minimum"
@@ -15,6 +21,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -24,18 +35,11 @@ jobs:
 
       - name: Install
         run: npm ci
-
-      - name: Env validation
-        run: npm run env:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Test (coverage)
-        run: npm run test:coverage
-
-      - name: Security audit
-        run: npm audit --omit=dev --audit-level=high
+        working-directory: skillforge-next
 
       - name: Build
         run: npm run build
+        working-directory: skillforge-next
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/server-auth";
 import { withApiLogging } from "@/lib/api-logger";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,10 @@ const MAX_STATE_BYTES = 1024 * 1024;
 
 export async function GET(request: Request) {
   return withApiLogging(request, async () => {
+    const limiter = rateLimit(request, "progress:get", { windowMs: 60_000, max: 60 });
+    if (!limiter.ok) {
+      return limiter.response;
+    }
     const guard = await requireSession();
     if (!guard.ok) {
       return guard.response;
@@ -27,6 +32,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   return withApiLogging(request, async () => {
+    const limiter = rateLimit(request, "progress:post", { windowMs: 60_000, max: 60 });
+    if (!limiter.ok) {
+      return limiter.response;
+    }
     const guard = await requireSession();
     if (!guard.ok) {
       return guard.response;

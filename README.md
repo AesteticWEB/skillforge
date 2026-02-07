@@ -37,6 +37,11 @@ Default admin credentials are seeded:
 
 Admin UI is under `/admin`.
 
+## Password policy
+
+- 10-128 characters
+- Must include at least one letter and one number
+
 ## Key endpoints
 
 - `GET /api/health`
@@ -53,6 +58,9 @@ Admin UI is under `/admin`.
 - `npm run db:restore -- --file <path>` - restore from a backup file
 - `npm run contract:check` - basic API contract verification
 - `npm run load-test` - lightweight load test for a single endpoint
+- `npm test` - backend unit/integration tests
+- `npm run test:coverage` - tests with coverage gate
+- `npm run env:check` - validate required environment variables
 
 ## Ops docs
 
@@ -66,3 +74,4 @@ npm start
 ```
 
 Release artifacts can be built via the GitHub Actions `Release` workflow.
+Release tagging and changelog updates are automated by Release Please.
