@@ -67,13 +67,6 @@
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
   },
-  "lint-staged": {
-    "*.{ts,html}": [
-      "eslint --max-warnings=0 --fix",
-      "prettier --write"
-    ],
-    "*.{css,scss,md,json}": "prettier --write"
-  },
   "overrides": {
     "@isaacs/brace-expansion": "5.0.1"
   }

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./ci.db"
+      SESSION_SECRET: "ci-secret-32-characters-minimum"
+      LOG_LEVEL: "error"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Env validation
+        run: npm run env:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test (coverage)
+        run: npm run test:coverage
+
+      - name: Security audit
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Build
+        run: npm run build
