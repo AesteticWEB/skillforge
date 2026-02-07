@@ -75,11 +75,19 @@ export class HomePage {
     }));
   });
   protected readonly loginBlockReason = computed(() => {
-    if (this.login().trim().length === 0) {
+    const login = this.login().trim();
+    const password = this.password().trim();
+    if (login.length === 0) {
       return '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043B\u043E\u0433\u0438\u043D';
     }
-    if (this.password().trim().length === 0) {
+    if (!this.isValidLogin(login)) {
+      return '\u041b\u043e\u0433\u0438\u043d: 3-32 \u0441\u0438\u043c\u0432\u043e\u043b\u0430, \u043b\u0430\u0442\u0438\u043d\u0438\u0446\u0430/\u0446\u0438\u0444\u0440\u044b/._-';
+    }
+    if (password.length === 0) {
       return '\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C';
+    }
+    if (!this.isValidPassword(password)) {
+      return '\u041f\u0430\u0440\u043e\u043b\u044c: 10-128 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432, \u0431\u0443\u043a\u0432\u0430 \u0438 \u0446\u0438\u0444\u0440\u0430';
     }
     if (this.authMode() === 'register' && this.profession().trim().length === 0) {
       return '\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0435\u0441\u0441\u0438\u044E';
@@ -149,6 +157,17 @@ export class HomePage {
   protected setProfession(event: Event): void {
     const target = event.target as HTMLSelectElement | null;
     this.profession.set(target?.value ?? '');
+  }
+
+  private isValidLogin(login: string): boolean {
+    return /^[a-zA-Z0-9._-]{3,32}$/.test(login);
+  }
+
+  private isValidPassword(password: string): boolean {
+    if (password.length < 10 || password.length > 128) {
+      return false;
+    }
+    return /^(?=.*[A-Za-z])(?=.*\d).+$/.test(password);
   }
 
   protected questStatusLabel(quest: Quest): string {

@@ -26,6 +26,9 @@ export const rateLimit = (
   keyPrefix: string,
   options: RateLimitOptions,
 ): { ok: true } | { ok: false; response: NextResponse } => {
+  if (process.env.NODE_ENV !== "production") {
+    return { ok: true };
+  }
   const ip = getClientIp(request);
   const key = `${keyPrefix}:${ip}`;
   const now = Date.now();
