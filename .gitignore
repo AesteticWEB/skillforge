@@ -40,6 +40,9 @@ testem.log
 __screenshots__/
 /playwright-report
 /test-results
+.dev.*.log
+mock-backend.log
+.dev.pid
 
 # System files
 .DS_Store

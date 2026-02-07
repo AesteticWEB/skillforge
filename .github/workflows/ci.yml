@@ -21,6 +21,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Format check
+        run: npm run format:check
+
       - name: Lint
         run: npm run lint
 
@@ -33,5 +36,19 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
+      - name: Start mock backend
+        run: |
+          npm run mock-backend > mock-backend.log 2>&1 &
+          for i in {1..30}; do
+            if nc -z 127.0.0.1 3002; then
+              echo "Mock backend ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mock backend failed to start"
+          cat mock-backend.log
+          exit 1
+
       - name: E2E tests
-        run: npx playwright test
+        run: npm run test:e2e

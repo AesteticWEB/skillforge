@@ -9,7 +9,14 @@
           {{ currentStep().title }}
         </h1>
       </div>
-      <sf-button variant="ghost" type="button" (click)="skipOnboarding()">Пропустить</sf-button>
+      <sf-button
+        variant="ghost"
+        type="button"
+        [testId]="'onboarding-skip'"
+        (click)="skipOnboarding()"
+      >
+        Пропустить
+      </sf-button>
     </div>
 
     <div class="mt-4 h-2 w-full rounded-full bg-slate-800">

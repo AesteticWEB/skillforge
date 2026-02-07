@@ -1,15 +1,25 @@
 import { expect, test } from '@playwright/test';
 
 const register = async (page: Parameters<typeof test>[0]['page']) => {
+  const login = `e2e-user-${Date.now()}`;
   await expect(page.getByTestId('home-guest')).toBeVisible();
   await page.getByTestId('home-start').click();
   await expect(page.getByTestId('login-input')).toBeVisible();
-  await page.getByTestId('login-input').fill('e2e-user');
+  await page.getByTestId('login-input').fill(login);
   await page.getByTestId('password-input').fill('password');
   await page.getByTestId('profession-select').selectOption({ index: 1 });
   await expect(page.getByTestId('login-submit')).toBeEnabled();
   await page.getByTestId('login-submit').click();
-  await expect(page.getByTestId('home-dashboard')).toBeVisible();
+  const dashboard = page.getByTestId('home-dashboard');
+  const onboardingSkip = page.getByTestId('onboarding-skip');
+  await Promise.race([
+    dashboard.waitFor({ state: 'visible' }),
+    onboardingSkip.waitFor({ state: 'visible' }),
+  ]);
+  if (await onboardingSkip.isVisible()) {
+    await onboardingSkip.click();
+  }
+  await expect(dashboard).toBeVisible();
   await page.waitForFunction(() => {
     const raw = window.localStorage.getItem('skillforge.state.v5');
     return Boolean(raw && raw.includes('"isRegistered":true'));

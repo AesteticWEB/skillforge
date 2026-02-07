@@ -3210,6 +3210,7 @@ export class AppStore {
   private persistProgress(): void {
     const payload = this.buildPersistPayload();
     if (this.remoteProgressEnabled) {
+      this.persistToStorage(payload);
       this.scheduleRemotePersist(payload);
       return;
     }

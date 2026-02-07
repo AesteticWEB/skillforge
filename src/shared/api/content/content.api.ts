@@ -177,6 +177,21 @@ const mergeWithFallback = <T extends { id: string }>(
   return merged;
 };
 
+const mergeRemoteAdditions = <T extends { id: string }>(
+  fallback: readonly T[],
+  remoteEnabled: T[],
+): T[] => {
+  const merged = [...fallback];
+  const knownIds = new Set(fallback.map((entry) => entry.id));
+  for (const entry of remoteEnabled) {
+    if (!knownIds.has(entry.id)) {
+      knownIds.add(entry.id);
+      merged.push(entry);
+    }
+  }
+  return merged;
+};
+
 const mergeQuestionEntries = (
   remoteEnabled: ExamQuestionEntry[],
   fallback: readonly ExamQuestionEntry[],
@@ -536,15 +551,14 @@ export class ContentApi {
 
   getItems(): Observable<ShopItem[]> {
     if (!this.items$) {
-      const fallback = [...SHOP_ITEMS];
+      const fallback: ShopItem[] = [...SHOP_ITEMS];
       this.items$ = fetchJson<{ ok: boolean; items: ContentItemPayload[] }>(
         '/api/content/items',
       ).pipe(
         map((response) => response.items ?? []),
         map((items) => {
-          const reservedIds = collectIds(items);
           const enabledItems = items.filter((item) => item.enabled).map(mapItemPayload);
-          return mergeWithFallback(enabledItems, fallback, reservedIds);
+          return mergeRemoteAdditions(fallback, enabledItems);
         }),
         catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
@@ -555,18 +569,17 @@ export class ContentApi {
 
   getScenarios(): Observable<Scenario[]> {
     if (!this.scenarios$) {
-      const fallback = SCENARIOS_MOCK;
+      const fallback: Scenario[] = [...SCENARIOS_MOCK];
       this.scenarios$ = fetchJson<{ ok: boolean; scenarios: ContentScenarioPayload[] }>(
         '/api/content/scenarios',
       ).pipe(
         map((response) => response.scenarios ?? []),
         map((scenarios) => {
-          const reservedIds = collectIds(scenarios);
           const enabled = scenarios
             .filter((scenario) => scenario.enabled)
             .map(mapScenarioPayload)
             .filter((scenario): scenario is Scenario => Boolean(scenario));
-          return mergeWithFallback(enabled, fallback, reservedIds);
+          return mergeRemoteAdditions(fallback, enabled);
         }),
         catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),
@@ -583,12 +596,11 @@ export class ContentApi {
       ).pipe(
         map((response) => response.exams ?? []),
         map((exams) => {
-          const reservedIds = collectIds(exams);
           const enabled = exams
             .filter((exam) => exam.enabled)
             .map(mapExamPayload)
             .filter((exam): exam is ExamContent => Boolean(exam));
-          return mergeWithFallback(enabled, fallback, reservedIds);
+          return mergeRemoteAdditions(fallback, enabled);
         }),
         catchError(() => of(fallback)),
         shareReplay({ bufferSize: 1, refCount: false }),

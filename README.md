@@ -18,6 +18,36 @@ npm start
 
 Open `http://localhost:4200/`.
 
+## Backend (optional, for live content + auth)
+
+The frontend expects a backend on `http://localhost:3002` via `proxy.conf.json`.
+
+In `skillforge-next/`:
+
+```bash
+npm install
+npm run dev -- -p 3002
+```
+
+Health check: `http://localhost:3002/api/health`.
+
+## Mock backend (CI / local e2e)
+
+For e2e runs without a real backend:
+
+```bash
+npm run mock-backend
+```
+
+## Telemetry (optional)
+
+Unhandled frontend errors are sent to `/api/telemetry` when a backend is running.
+Disable locally with:
+
+```js
+localStorage.setItem('skillforge.telemetry.disabled', 'true');
+```
+
 ## Useful scripts
 
 - `npm start` - dev server
@@ -25,6 +55,7 @@ Open `http://localhost:4200/`.
 - `npm run lint` - ESLint (TS + templates)
 - `npm test` - Jest unit tests
 - `npm run test:e2e` - Playwright end-to-end tests
+- `npm run mock-backend` - lightweight backend stub for tests
 - `npm run format` - Prettier formatting
 
 ## Architecture overview
@@ -65,10 +96,14 @@ No business logic lives inside components.
 GitHub Actions workflow runs:
 
 ```
-install -> lint -> test -> build -> e2e
+install -> format:check -> lint -> test -> build -> e2e
 ```
 
 PRs should be green before merging.
+
+## Ops docs
+
+Operational notes live in `docs/ops/README.md`.
 
 ## Release checklist
 
@@ -76,6 +111,7 @@ PRs should be green before merging.
 - **Build:** `npm run build` (verify output in `dist/`).
 - **Tests:** `npm run lint`, `npm test`, `npm run test:e2e` (optional for hotfixes).
 - **Deploy:** upload `dist/skillforge` to static hosting, verify `/debug` is dev-only.
+- **Artifact:** use the GitHub Actions `Release` workflow to build and upload a release artifact.
 
 ## ADRs
 
