@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
+import { getRequiredId, type RouteParamsWithId } from "@/lib/route-params";
+import { withApiLogging } from "@/lib/api-logger";
 
 export const runtime = "nodejs";
 
@@ -29,60 +31,70 @@ const parseNumber = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
-export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+export async function PUT(request: NextRequest, context: RouteParamsWithId) {
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
-  }
+    const id = await getRequiredId(context);
+    if (!id) {
+      return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
+    }
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
+    }
 
-  const title = typeof body.title === "string" ? body.title.trim() : "";
-  const description = typeof body.description === "string" ? body.description.trim() : "";
-  const rarity = typeof body.rarity === "string" ? body.rarity.trim() : "";
-  const effectsJson = parseJsonString(body.effectsJson);
-  if (!title || !description || !rarity || !effectsJson) {
-    return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
-  }
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const description = typeof body.description === "string" ? body.description.trim() : "";
+    const rarity = typeof body.rarity === "string" ? body.rarity.trim() : "";
+    const effectsJson = parseJsonString(body.effectsJson);
+    if (!title || !description || !rarity || !effectsJson) {
+      return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
+    }
 
-  const priceCoins = parseNumber(body.priceCoins, 0);
-  const priceCashRaw = body.priceCash;
-  const priceCash =
-    priceCashRaw === null || priceCashRaw === undefined || priceCashRaw === ""
-      ? null
-      : parseNumber(priceCashRaw, 0);
+    const priceCoins = parseNumber(body.priceCoins, 0);
+    const priceCashRaw = body.priceCash;
+    const priceCash =
+      priceCashRaw === null || priceCashRaw === undefined || priceCashRaw === ""
+        ? null
+        : parseNumber(priceCashRaw, 0);
 
-  const enabled = Boolean(body.enabled);
+    const enabled = Boolean(body.enabled);
 
-  const item = await prisma.item.update({
-    where: { id },
-    data: {
-      title,
-      description,
-      priceCoins,
-      priceCash,
-      rarity,
-      effectsJson,
-      enabled,
-    },
+    const item = await prisma.item.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        priceCoins,
+        priceCash,
+        rarity,
+        effectsJson,
+        enabled,
+      },
+    });
+
+    return NextResponse.json({ ok: true, item });
   });
-
-  return NextResponse.json({ ok: true, item });
 }
 
-export async function DELETE(_: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+export async function DELETE(request: NextRequest, context: RouteParamsWithId) {
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const { id } = await context.params;
-  await prisma.item.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+    const id = await getRequiredId(context);
+    if (!id) {
+      return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
+    }
+    await prisma.item.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  });
 }
 
 

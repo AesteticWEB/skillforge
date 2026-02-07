@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: skillforge-next
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: skillforge-next/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Read version
+        id: meta
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skillforge-next-${{ steps.meta.outputs.version }}
+          path: |
+            skillforge-next/.next
+            skillforge-next/package.json
+            skillforge-next/next.config.ts
+            skillforge-next/public
+            skillforge-next/prisma

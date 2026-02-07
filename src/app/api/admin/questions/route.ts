@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
+import { withApiLogging } from "@/lib/api-logger";
 
 export const runtime = "nodejs";
 
@@ -77,71 +78,76 @@ const parseOptions = (value: unknown) => {
 };
 
 export async function GET(request: Request) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const { searchParams } = new URL(request.url);
-  const profession = searchParams.get("profession");
+    const { searchParams } = new URL(request.url);
+    const profession = searchParams.get("profession");
 
-  const questions = await prisma.question.findMany({
-    where: {
-      ...(profession ? { profession } : {}),
-    },
-    include: { options: true },
-    orderBy: { id: "asc" },
+    const questions = await prisma.question.findMany({
+      where: {
+        ...(profession ? { profession } : {}),
+      },
+      include: { options: true },
+      orderBy: { id: "asc" },
+    });
+
+    return NextResponse.json({ ok: true, questions });
   });
-
-  return NextResponse.json({ ok: true, questions });
 }
 
 export async function POST(request: Request) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
-  }
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
+    }
 
-  const text = typeof body.text === "string" ? body.text.trim() : "";
-  const tagsJson = parseJsonString(body.tagsJson);
-  if (!text || !tagsJson) {
-    return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
-  }
-  const professionRaw =
-    typeof body.profession === "string" ? body.profession.trim() : "";
-  const profession = professionRaw.length > 0 ? professionRaw : null;
-  const difficulty = parseNumber(body.difficulty, null);
-  const enabled = Boolean(body.enabled);
-  const options = parseOptions(body.options);
-  if (!options) {
-    return NextResponse.json({ ok: false, error: "Invalid answers" }, { status: 400 });
-  }
-  const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : crypto.randomUUID();
+    const text = typeof body.text === "string" ? body.text.trim() : "";
+    const tagsJson = parseJsonString(body.tagsJson);
+    if (!text || !tagsJson) {
+      return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
+    }
+    const professionRaw =
+      typeof body.profession === "string" ? body.profession.trim() : "";
+    const profession = professionRaw.length > 0 ? professionRaw : null;
+    const difficulty = parseNumber(body.difficulty, null);
+    const enabled = Boolean(body.enabled);
+    const options = parseOptions(body.options);
+    if (!options) {
+      return NextResponse.json({ ok: false, error: "Invalid answers" }, { status: 400 });
+    }
+    const id =
+      typeof body.id === "string" && body.id.trim() ? body.id.trim() : crypto.randomUUID();
 
-  const question = await prisma.question.create({
-    data: {
-      id,
-      profession,
-      text,
-      tagsJson,
-      difficulty,
-      enabled,
-      options: {
-        create: options.map((option) => ({
-          id: option.id,
-          text: option.text,
-          explanation: option.explanation,
-          isCorrect: option.isCorrect,
-        })),
+    const question = await prisma.question.create({
+      data: {
+        id,
+        profession,
+        text,
+        tagsJson,
+        difficulty,
+        enabled,
+        options: {
+          create: options.map((option) => ({
+            id: option.id,
+            text: option.text,
+            explanation: option.explanation,
+            isCorrect: option.isCorrect,
+          })),
+        },
       },
-    },
-    include: { options: true },
-  });
+      include: { options: true },
+    });
 
-  return NextResponse.json({ ok: true, question });
+    return NextResponse.json({ ok: true, question });
+  });
 }

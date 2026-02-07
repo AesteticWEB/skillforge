@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/server-auth";
+import { withApiLogging } from "@/lib/api-logger";
 
 export const runtime = "nodejs";
 
@@ -18,58 +19,63 @@ const parseNumber = (value: unknown, fallback = 0): number => {
 };
 
 export async function GET(request: Request) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const { searchParams } = new URL(request.url);
-  const profession = searchParams.get("profession");
-  const stage = searchParams.get("stage");
+    const { searchParams } = new URL(request.url);
+    const profession = searchParams.get("profession");
+    const stage = searchParams.get("stage");
 
-  const exams = await prisma.exam.findMany({
-    where: {
-      ...(profession ? { profession } : {}),
-      ...(stage ? { stage } : {}),
-    },
-    orderBy: { id: "asc" },
+    const exams = await prisma.exam.findMany({
+      where: {
+        ...(profession ? { profession } : {}),
+        ...(stage ? { stage } : {}),
+      },
+      orderBy: { id: "asc" },
+    });
+
+    return NextResponse.json({ ok: true, exams });
   });
-
-  return NextResponse.json({ ok: true, exams });
 }
 
 export async function POST(request: Request) {
-  const guard = await requireAdmin();
-  if (!guard.ok) {
-    return guard.response;
-  }
+  return withApiLogging(request, async () => {
+    const guard = await requireAdmin();
+    if (!guard.ok) {
+      return guard.response;
+    }
 
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object") {
-    return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
-  }
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ ok: false, error: "Invalid payload" }, { status: 400 });
+    }
 
-  const profession = typeof body.profession === "string" ? body.profession.trim() : "";
-  const stage = typeof body.stage === "string" ? body.stage.trim() : "";
-  if (!profession || !stage) {
-    return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
-  }
+    const profession = typeof body.profession === "string" ? body.profession.trim() : "";
+    const stage = typeof body.stage === "string" ? body.stage.trim() : "";
+    if (!profession || !stage) {
+      return NextResponse.json({ ok: false, error: "Invalid fields" }, { status: 400 });
+    }
 
-  const passScore = parseNumber(body.passScore, 0);
-  const questionCount = parseNumber(body.questionCount, 0);
-  const enabled = Boolean(body.enabled);
-  const id = typeof body.id === "string" && body.id.trim() ? body.id.trim() : crypto.randomUUID();
+    const passScore = parseNumber(body.passScore, 0);
+    const questionCount = parseNumber(body.questionCount, 0);
+    const enabled = Boolean(body.enabled);
+    const id =
+      typeof body.id === "string" && body.id.trim() ? body.id.trim() : crypto.randomUUID();
 
-  const exam = await prisma.exam.create({
-    data: {
-      id,
-      profession,
-      stage,
-      passScore,
-      questionCount,
-      enabled,
-    },
+    const exam = await prisma.exam.create({
+      data: {
+        id,
+        profession,
+        stage,
+        passScore,
+        questionCount,
+        enabled,
+      },
+    });
+
+    return NextResponse.json({ ok: true, exam });
   });
-
-  return NextResponse.json({ ok: true, exam });
 }

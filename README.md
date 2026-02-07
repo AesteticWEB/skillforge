@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SkillForge Backend (Next.js)
 
-## Getting Started
+API + admin backend for the SkillForge Angular frontend.
 
-First, run the development server:
+## Requirements
+
+- Node.js 20+
+- npm 11+
+- SQLite (file-based via `DATABASE_URL`)
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npx prisma db push
+npx prisma db seed
+npm run dev -- -p 3002
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Health check: `http://localhost:3002/api/health`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create `.env` (already present in this repo for local dev):
 
-## Learn More
+```
+DATABASE_URL="file:./dev.db"
+SESSION_SECRET="your-32+chars-secret"
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Admin access (dev)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Default admin credentials are seeded:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- login: `admin1`
+- password: `admin1`
 
-## Deploy on Vercel
+Admin UI is under `/admin`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Key endpoints
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `GET /api/health`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/progress`
+- `POST /api/progress`
+- `GET /api/content/*`
+- `POST /api/telemetry`
+
+## Useful scripts
+
+- `npm run db:backup` - snapshot SQLite database into `backups/`
+- `npm run db:restore -- --file <path>` - restore from a backup file
+- `npm run contract:check` - basic API contract verification
+- `npm run load-test` - lightweight load test for a single endpoint
+
+## Ops docs
+
+Operational guides live in `docs/ops/README.md`.
+
+## Production
+
+```bash
+npm run build
+npm start
+```
+
+Release artifacts can be built via the GitHub Actions `Release` workflow.
